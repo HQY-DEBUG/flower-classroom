@@ -63,3 +63,14 @@ Windows 可执行文件签名和 SmartScreen 信誉问题仍未解决，当前�
 ## 许可
 
 原快照已有的 MIT [LICENSE](LICENSE) 原样保留；本次未新增或更换许可。
+
+
+## 查看迭代历史
+
+`main` 保留完整最新 RC19。历史快照位于 [release-history 提交历史](https://github.com/HQY-DEBUG/flower-classroom/commits/release-history/)，按 RC17 → RC18 → RC19 排列，并附有源码清单与验证说明。
+
+- [RC17 源码快照](https://github.com/HQY-DEBUG/flower-classroom/commit/7648a0c02648df0ce4f063cacbd40208d2682046)
+- [RC18 源码快照](https://github.com/HQY-DEBUG/flower-classroom/commit/5dbb7dd034e0afb379f83235aa3b20797ebeb281)
+- [RC19 源码快照](https://github.com/HQY-DEBUG/flower-classroom/commit/cdd2e520df6a7451fa5a3d1dbc82dbc17e5fae17)
+
+这些是 2026-10-08 从已保存的发布归档重建的导入提交，版本冻结时间为 2026-10-07；并非补造此前逐次开发提交或日期。RC19 历史快照与 `main` 的业务源码一致，`main` 另含仓库说明文档。
