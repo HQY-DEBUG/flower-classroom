@@ -1,0 +1,629 @@
+/* All student data is kept on this device. No third-party resources are loaded. */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = {rankings:'♜', students:'▦',pets:'♧',groups:'◈',draw:'✦',timer:'◷',logs:'↶',settings:'⚙' };
+const labels = {students:'学生积分',pets:'养宠物',groups:'小组协作',rankings:'排行榜',draw:'随机点名',timer:'课堂计时',logs:'积分记录',settings:'班级设置'};
+let state, page='students', filter='', groupFilter='', selected=new Set(), dialogPhoto='', narrow=false, busy=false, drawAnimating=false, drawToken=0;
+let native=!!window.classroom,appVersion='',readOnlyWarning='',workbookWarning='',batchApplying=false,restoreGeneration=0,modalGeneration=0,filePreviewSequence=0;
+const inputDrafts = {};
+let classNameDraft=null,classNameEditSequence=0;
+const timerRenderFocus = RenderFocus.create();
+function syncProtectionHeight(){const bar=$('#data-protection');document.documentElement.style.setProperty('--protection-height',`${bar&&!bar.hidden?Math.ceil(bar.getBoundingClientRect().height):0}px`);}
+new ResizeObserver(syncProtectionHeight).observe($('#data-protection'));
+let returnFocus, returnFocusSelector='', modalTitleObserver, petDetailId='', petTab='students', petPreviewLevel=1, petModalId='', pendingRewardIds=[], rewardBusy=false, feedbackTimer, flowerClickTimer;
+let petRankingMode='students', petDrawCount=1, petDrawBusy=false, petDrawPending=null, petDrawResult=null, pendingRewardContext=null;
+const petReasons=()=>ScoreRules.list(state);
+function syncWorkbookNotice(){const notice=$('#workbook-notice');if(notice){notice.hidden=!workbookWarning;notice.querySelector('p').textContent=workbookWarning;}}
+function acceptState(next, change){
+ if(typeof change?.workbookWarning==='string'){workbookWarning=change.workbookWarning;syncWorkbookNotice();}
+ if(change?.readOnly===false){readOnlyWarning='';const protection=$('#data-protection');if(protection)protection.hidden=true;}
+ const authoritativeEpoch=Number.isSafeInteger(change?.restoreGeneration)&&change.restoreGeneration>=0?change.restoreGeneration:null;
+ const epochAdvanced=authoritativeEpoch!==null&&authoritativeEpoch>restoreGeneration;
+ if(state&&next.revision<=state.revision&&!epochAdvanced)return;
+ // A late restore notice still expires old drafts; it must not roll back newer data.
+ if(state&&next.revision<state.revision)next=state;
+ const feedbackFocus=$('#pet-feedback').contains(document.activeElement)?document.activeElement:null;
+ if(change?.type==='draw.select'){delete inputDrafts['draw-mode'];delete inputDrafts['draw-target'];}
+ // A restore can keep the same panel, roster, cycles and draw signature while
+ // replacing the ledger. Cached rewards and pre-restore animations belong to
+ // the old archive, even when those stable identifiers happen to match.
+ const restored=change?.restored===true||epochAdvanced;
+ if(restored){restoreGeneration=authoritativeEpoch===null?restoreGeneration+1:Math.max(restoreGeneration,authoritativeEpoch);DrawTools.reset();petDrawResult=null;petDrawCount=ConfigurationModel.toolDefaults(next).petDrawCount;pendingRewardContext=null;drawToken++;drawAnimating=false;}
+ const previous=state;const panelChanged=previous&&PanelTools.currentId(previous)!==PanelTools.currentId(next);if(['draw','draw.reset','draw.select'].includes(change?.type))DrawTools.resetResults();if(panelChanged){DrawTools.reset();selected.clear();filter='';groupFilter='';petDetailId='';petDrawResult=null;petDrawCount=ConfigurationModel.toolDefaults(next).petDrawCount;pendingRewardContext=null;drawToken++;drawAnimating=false;Object.keys(inputDrafts).forEach(k=>delete inputDrafts[k]);classNameDraft=null;closeModal();const timerRoot=$('.tt-timer');if(timerRoot)timerRoot.dataset.timerState='changed-panel';}state=next;render(!!panelChanged);ClassroomToolsUI.sync(state,{...moduleContext(),restored});GroupToolsUI.sync(state);PetExtraUI.sync(state);ToolboxExtraUI.sync(state,{...moduleContext(),restored});AvatarUI.sync(state,{restored});ClassroomWheelsUI.sync?.(state,{restored});
+ const staleDialog=$('#modal .dialog');if(staleDialog&&Number(staleDialog.dataset.restoreGeneration)!==restoreGeneration&&!staleDialog.querySelector('.dialog-stale-notice')){const notice=document.createElement('p');notice.className='dialog-stale-notice';notice.setAttribute('role','status');notice.textContent='备份已恢复，原草稿保留供核对。请关闭此窗口后重新打开再保存。';staleDialog.querySelector('.dialog-content').prepend(notice);}
+ const visiblePetDraw=$('#modal .pet-draw-dialog');if(visiblePetDraw&&(restored||visiblePetDraw.dataset.petDrawIdentity!==petDrawSignature())){petDrawResult=makePetDrawResult();petDrawDialog();}else if(visiblePetDraw)refreshPetDrawFacts(visiblePetDraw);
+ if(change && !['score','score.mixed','pet.growth','pet.growth.mixed','pet.batch','pet.undo','pet.graduate','timer.start','timer.pause','timer.set','timer.reset','draw','draw.reset','pet.draw','pet.draw.reset'].includes(change.type))dismissPetFeedback();
+ if(!previous||panelChanged)return;
+ if(previous.settings.hideLateForms!==next.settings.hideLateForms){if($('#catalog-grid'))renderCatalog();const visibility=$('#pet-hide-late');if(visibility)visibility.checked=next.settings.hideLateForms===true;}
+ if(change?.type==='undo'){dismissPetFeedback();toast('积分已撤销，宠物等级已同步计算');}
+ if(['score','score.mixed','pet.growth','pet.growth.mixed','pet.batch','points.clear','pet.undo','undo'].includes(change?.type)){
+  const changes=next.students.flatMap(student=>{
+   const old=previous.students.find(s=>s.id===student.id);if(!old)return [];
+   const before=growth(old,previous),after=growth(student,next);
+   if(!before.adopted||!after.adopted||before.growth===after.growth)return [];
+   const direction=before.isEgg&&!after.isEgg?'hatch':!before.isEgg&&after.isEgg?'egg':after.level>before.level?'up':after.level<before.level?'down':'growth';
+   return [{student,before,after,direction}];
+  });
+  if(changes.some(change=>change.direction!=='growth'))showPetTransitionFeedback(changes);
+  else if(changes.length)dismissPetFeedback();
+ }
+ if(['pet.graduate','pet.batch'].includes(change?.type)){
+  if(change.type==='pet.batch'&&next.students.some(s=>{const old=previous.students.find(old=>old.id===s.id);if(!old)return false;const before=growth(old,previous),after=growth(s,next);return before.pet!==after.pet||before.adopted!==after.adopted||before.activeCycleId!==after.activeCycleId;}))dismissPetFeedback();
+  const graduated=next.students.filter(s=>{const old=previous.students.find(old=>old.id===s.id);return old&&growth(s,next).graduates.length>growth(old,previous).graduates.length;});
+  if(graduated.length)showGraduationFeedback(graduated,previous);
+ }
+ refreshPetAlbum(previous,restored);
+ refreshPetHonors(previous,restored);
+ if(feedbackFocus&&!feedbackFocus.isConnected)$('#pet-feedback .celebration-close')?.focus({preventScroll:true});
+}
+const role = new URLSearchParams(location.search).get('view') || 'main';
+narrow = new URLSearchParams(location.search).get('narrow') === '1';
+async function request(route, body) { const r = await fetch(route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}); const data=await r.json(); if(!r.ok) throw new Error(data.error || '操作失败'); return data; }
+function chooseFile(accept) { return new Promise(resolve=> {const input=document.createElement('input');input.type='file';input.accept=accept;input.onchange=()=>resolve(input.files[0]||null);input.oncancel=()=>resolve(null);input.click();}); }
+function download(name, data, type='application/json') {const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+const api=window.classroom || {
+ get:()=>request('/api/state'), action:a=>request('/api/action',a),
+ window:async({command,role,value})=>{if(command==='toggle'){toast('双击显示/隐藏面板需使用桌面版；预览可单击打开');return;}if(command==='open'){window.open(`/?view=${role}`,`flower-${role}`,'width=1000,height=760');}else if(command==='close') window.close();else if(command==='fullscreen'){if(document.fullscreenElement) await document.exitFullscreen();else await document.documentElement.requestFullscreen();}else if(command==='sidebar-width') return true;else toast('此功能需要 Windows 桌面应用');},
+ subscribe:fn=>{ const stream=new EventSource('/api/events');stream.onmessage=e=>{const payload=JSON.parse(e.data);fn(payload.state||payload,payload.change);};return()=>stream.close();},
+ onTimerFinished:()=>()=>{},
+ file:async r=>{
+  if(r.command==='backup'){download('花伴课堂-备份.json',JSON.stringify(state));return true;}
+  if(r.command==='restore-preview'){const f=await chooseFile('.json');if(!f)return null;if(f.size>100*1024*1024)throw new Error('备份不能超过100MB');return request('/api/validate',{state:JSON.parse(await f.text()),withRevision:r.withRevision});}
+  if(r.command==='restore-apply')return request('/api/restore',r);
+  if(r.command==='import-preview'){const f=await chooseFile('.xlsx,.csv');if(!f)return null;if(f.size>10*1024*1024)throw new Error('名单不能超过10MB');const b=await f.arrayBuffer();let binary='';for(const v of new Uint8Array(b))binary+=String.fromCharCode(v);return request('/api/import',{name:f.name,base64:btoa(binary),mode:r.mode});}
+  if(r.command==='import-apply')return request('/api/import-apply',r);
+  if(r.command==='blank')return request('/api/blank',r);
+  if(r.command==='archive')return request('/api/archive',r);
+  if(r.command==='template'){download('花伴课堂-名单模板.csv','\ufeff姓名,性别,组号,头像\n示例同学,,1,01-星星猫头鹰.png\n','text/csv;charset=utf-8');return true;}
+  if(r.command==='photo'){const f=await chooseFile('image/png,image/jpeg,image/webp');if(!f)return null;if(f.size>1400*1024)throw new Error('照片应小于1.4MB');return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f);});}
+  toast('此功能需要桌面应用');return false;
+ }
+};
+const flowerSvg = `<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="#fa6878" stroke="#ee506b" stroke-width="2">${[0,60,120,180,240,300].map(a=>`<ellipse cx="50" cy="26" rx="16" ry="23" transform="rotate(${a} 50 50)"/>`).join('')}</g><circle cx="50" cy="50" r="18" fill="#ffe39a"/><circle cx="44" cy="48" r="2" fill="#793f42"/><circle cx="56" cy="48" r="2" fill="#793f42"/><path d="M45 56Q50 61 55 56" fill="none" stroke="#793f42" stroke-width="2" stroke-linecap="round"/></svg>`;
+function petSvg(type='owl',big=false,level=1) { return PetArt.render(type,level,{className:big?'large':'',animated:big}); }
+const petNames=PetArt.names;
+const petAliases={owl:'猫头鹰 鸟',fox:'狐狸',bunny:'兔子',cat:'猫咪',penguin:'企鹅 鸟',panda:'大熊猫 竹子',bear:'熊',dog:'狗狗 小犬',deer:'小鹿 鹿角',squirrel:'松鼠 橡果',hedgehog:'刺猬',raccoon:'浣熊 环尾',koala:'考拉 树袋熊',elephant:'大象 象鼻',lion:'狮子 鬃毛',tiger:'老虎 虎纹',dragon:'小龙 翅膀',unicorn:'独角兽 马',otter:'水獭 海獭',seal:'海豹 鳍脚'};
+const adventurePets=new Set(['robot','rover','mechcrab','mechbeetle','mechdragonfly','rex','raptor','triceratops','stegosaurus','ankylosaurus','pteranodon','mammoth','rhino','gorilla','wolf','boar','eagle','shark','orca','phoenix']);
+Object.assign(petAliases,{robot:'机甲 机械 机器人',rover:'机甲 机械 履带 探险车',mechcrab:'机甲 机械 螃蟹',mechbeetle:'机甲 机械 甲虫 锹甲',mechdragonfly:'机甲 机械 蜻蜓 旋翼',rex:'恐龙 霸王龙',raptor:'恐龙 迅猛龙',triceratops:'恐龙 三角龙',stegosaurus:'恐龙 剑龙',ankylosaurus:'恐龙 甲龙',pteranodon:'恐龙 翼龙',mammoth:'猛犸 象 长牙',rhino:'犀牛 犀角',gorilla:'猩猩 大猩猩 巨猿',wolf:'狼',boar:'野猪 獠牙',eagle:'鹰 老鹰',shark:'鲨鱼 鲨',orca:'虎鲸 鲸',phoenix:'凤凰 火鸟'});
+let catalogStage=4,catalogFamily='all',petChoiceFamily='all';
+function inPetFamily(id,family){return family==='all'||(family==='adventure'?adventurePets.has(id):!adventurePets.has(id));}
+function petFamilyControls(action){
+ const total=Object.keys(petNames).length,newCount=Object.keys(petNames).filter(id=>adventurePets.has(id)).length;
+ if(!newCount)return '';
+ return `<div class="segmented pet-family-filter" aria-label="伙伴分类">${[['all','全部伙伴',total],['classic','经典伙伴',total-newCount],['adventure','冒险伙伴',newCount]].map(([id,label,count])=>`<button type="button" data-do="${action}" data-family="${id}" class="${id==='all'?'active':''}" aria-pressed="${id==='all'}">${label} <span>${count}</span></button>`).join('')}</div>`;
+}
+
+const growth=(s,source=state)=>PetProgress.profile(source,s);
+const petEnabled=()=>true;
+const growthText=p=>!p.adopted?'等待领养':`${p.current}/${p.needed}${p.isEgg?' · 待破壳':''}`;
+const currentPetLabel=p=>!p.adopted?'等待领养':p.isEgg?'LV.0 · 待破壳':`LV.${p.level}`;
+const currentPetStage=p=>!p.adopted?'等待伙伴':p.isEgg?'初生蛋':PetArt.stages[(p.shape||1)-1];
+function currentPetArt(profile,big=false){return !profile.adopted||profile.isEgg?petEgg(big):petSvg(profile.pet,big,profile.shape||profile.level);}
+const growthPercent=p=>!p.adopted?0:p.maxed?100:Math.max(0,Math.min(100,p.current/p.needed*100));
+const medalText=p=>p.medalAvailable===null?'来源未明':String(p.medalAvailable);
+const hiddenPetForm=level=>state.settings.hideLateForms===true&&level>=6;
+const petPreviewArt=(pet,level,big=false)=>hiddenPetForm(level)?'<span class="pet-form-mystery" aria-label="老师已隐藏此形态">?</span>':petSvg(pet,big,level);
+const remain=()=>state.timer.running?Math.max(0,Math.min(state.timer.durationMs,state.timer.endsAt-Date.now())):state.timer.remainingMs;
+const timeText=ms=>`${Math.floor(Math.ceil(ms/1000)/60).toString().padStart(2,'0')}:${(Math.ceil(ms/1000)%60).toString().padStart(2,'0')}`;
+function dismissPetFeedback(){
+ const hadFocus=$('#pet-feedback').contains(document.activeElement);
+ clearTimeout(feedbackTimer);$('#pet-feedback').innerHTML='';
+ if(hadFocus)($('#modal .modal-close')||(returnFocus?.isConnected?returnFocus:null)||$('#app .nav-item.active')||$('#app button:not(:disabled)'))?.focus({preventScroll:true});
+}
+function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toast.id);toast.id=setTimeout(()=>$('#toast').classList.remove('show'),3500);}
+async function act(action,msg,onError){const startedRestore=restoreGeneration;try{acceptState(await api.action({panelId:PanelTools.currentId(state),...action}),{type:action.type});if(startedRestore!==restoreGeneration){toast('备份已恢复，请核对当前记录后重新操作');return false;}if(msg&&action.type!=='undo')toast(msg);return true;}catch(e){onError?.(e);toast(e.message);return false;}}
+function modal(html,options={}){
+ window.FolderUI?.dispose();
+ modalGeneration++;
+ const active=document.activeElement;
+ if(!$('#modal .dialog')||$('#app').contains(active)){
+  returnFocus=$('#app').contains(active)?active:null;
+  returnFocusSelector=returnFocus?.id?'#'+CSS.escape(returnFocus.id):returnFocus?.dataset.do?'[data-do="'+CSS.escape(returnFocus.dataset.do)+'"]'+(returnFocus.dataset.id?'[data-id="'+CSS.escape(returnFocus.dataset.id)+'"]':''):'';
+ }
+ modalTitleObserver?.disconnect();
+ $('#app').inert=true;
+ $('#modal').innerHTML=`<div class="modal-backdrop"><section class="dialog" data-restore-generation="${restoreGeneration}" role="dialog" aria-modal="true" aria-labelledby="dialog-heading"><header class="dialog-header"><h2 id="dialog-heading">课堂窗口</h2><button type="button" class="icon-button modal-close" data-do="modal-close" aria-label="关闭弹窗">×</button></header><div class="dialog-content">${html}</div></section></div>`;
+ const openedDialog=$('#modal .dialog'),content=openedDialog.querySelector('.dialog-content'),title=openedDialog.querySelector('.dialog-header h2');
+ const syncTitle=()=>{
+  const original=content.querySelector('h2');
+  if(!original)return;
+  const text=original.textContent.trim()||'课堂窗口';
+  if(title.textContent!==text)title.textContent=text;
+  title.title=text;
+  original.hidden=true;original.setAttribute('data-modal-title-source','');
+  if(original.id==='dialog-heading')original.removeAttribute('id');
+ };
+ syncTitle();
+ // Tool views can replace their own inner HTML while this outer shell stays put.
+ modalTitleObserver=new MutationObserver(syncTitle);
+ modalTitleObserver.observe(content,{childList:true,subtree:true,characterData:true});
+ setTimeout(()=>{
+  if(options.autofocus===false||!openedDialog.isConnected||openedDialog.contains(document.activeElement)||$('#pet-feedback')?.contains(document.activeElement)||$('#classroom-lock-overlay:not([hidden])'))return;
+  (content.querySelector('input:not(:disabled)')||openedDialog.querySelector('.modal-close'))?.focus();
+ },50);
+}
+function closeModal(){
+ modalGeneration++;
+ modalTitleObserver?.disconnect();modalTitleObserver=null;
+ window.ClassroomToolsUI?.dispose();window.ToolboxExtraUI?.dispose();window.AvatarUI?.dispose();window.FolderUI?.dispose();
+ $('#modal').innerHTML='';$('#app').inert=false;
+ const target=returnFocus?.isConnected?returnFocus:(returnFocusSelector?$('#app').querySelector(returnFocusSelector):null);
+ (target||$('#app .nav-item.active')||$('#classroom-tools-button'))?.focus();
+}
+const avatar=s=>s.photo?`<img class="avatar" src="${esc(s.photo)}" alt="${esc(s.name)}的照片">`:`<span class="avatar initials tone-${state.students.indexOf(s)%4}">${esc(s.name.slice(-2))}</span>`;
+function draftEpoch(origin){const dialog=origin?.closest?.('#modal .dialog');return dialog?Number(dialog.dataset.restoreGeneration):restoreGeneration;}
+function currentDraft(origin){const dialog=origin?.closest?.('#modal .dialog');if(dialog&&(!dialog.isConnected||draftEpoch(origin)!==restoreGeneration)){toast('备份已恢复，原草稿尚未保存，请关闭窗口后重新核对');return false;}return true;}
+function moduleContext(origin){const expectedRestoreGeneration=draftEpoch(origin),scopedAct=(action,message,onError)=>act({expectedRestoreGeneration,...action},message,onError),scopedApi={...api,action:action=>api.action({expectedRestoreGeneration,...action}),file:request=>api.file({expectedRestoreGeneration,...request})};return {state,act:scopedAct,modal,toast,closeModal,selected,api:scopedApi,native,restoreGeneration,invoke:handleDo,confirmDialog,render,getState:()=>state,acceptState,getDialogPhoto:()=>dialogPhoto,setDialogPhoto:value=>{const form=$('#student-form');if(form)form.photoRequest=(form.photoRequest||0)+1;dialogPhoto=value;}};}
+function filtered(){return OrganizationTools.sortedStudents(state,state.students.filter(s=>(!filter||s.name.includes(filter))&&(!groupFilter||s.group===groupFilter)));}
+function topbar(){return `<header class="topbar"><div><span class="eyebrow">今天，也一起闪闪发光</span><h1>${labels[page]}</h1></div><div class="top-actions"><span class="local-status"><i></i>本地已保存</span></div></header>`;}
+function render(skipDraftCapture=false){if(!state)return;const protection=$('#data-protection');if(protection){protection.hidden=!readOnlyWarning;protection.textContent=readOnlyWarning&&(innerWidth<=150)?'存档需恢复，请到主窗口恢复备份':readOnlyWarning;syncProtectionHeight();document.body.classList.toggle('has-data-protection',!!readOnlyWarning);}if(!skipDraftCapture)DrawTools.capture();
+ const timerFocus=skipDraftCapture?null:timerRenderFocus.capture($('#app'),'.tt-timer [data-do],.tt-timer input',document.activeElement?.dataset?.do==='tt-sound'?'.tt-sound > summary':null);queueMicrotask(()=>timerRenderFocus.restore(timerFocus));
+ const focusId=skipDraftCapture?null:document.activeElement?.id;const selectionStart=document.activeElement?.selectionStart;const floatingScroll=skipDraftCapture?0:($('.floating-pet-content')?.scrollTop||0);const navigationScroll=$('.nav')?.scrollTop||0;const quickScroll=skipDraftCapture?0:($('.quick-roster-scroll')?.scrollTop||0);const quickFocus=skipDraftCapture?null:document.activeElement?.closest('.quick-student')?.dataset.student;
+ queueMicrotask(()=>{const scrolling=$('.floating-pet-content');if(scrolling)scrolling.scrollTop=floatingScroll;const navigation=$('.nav');if(navigation)navigation.scrollTop=navigationScroll;const roster=$('.quick-roster-scroll');if(roster)roster.scrollTop=quickScroll;if(quickFocus)document.querySelector('.quick-student[data-student="'+CSS.escape(quickFocus)+'"]')?.focus({preventScroll:true});});
+ for(const id of (skipDraftCapture?[]:['score-delta','score-reason','class-name'])){const field=document.getElementById(id);if(!field)continue;if(id==='class-name'){const context=field.classNameContext||{expectedClassName:field.dataset.reviewedName,expectedRestoreGeneration:Number(field.dataset.restoreGeneration),panelId:field.dataset.panelId};if(classNameDraft||field.value!==context.expectedClassName){classNameDraft=context;inputDrafts[id]=field.value;}else delete inputDrafts[id];}else inputDrafts[id]=field.value;}
+ queueMicrotask(()=>{for(const [id,value] of Object.entries(inputDrafts)){const field=document.getElementById(id);if(field){field.value=value;if(id==='class-name')field.classNameContext=classNameDraft;}}if(focusId && focusId!=='search' && !timerFocus){const field=document.getElementById(focusId);if(field && !field.closest('#modal')){field.focus();try{if(selectionStart!=null)field.setSelectionRange(selectionStart,selectionStart);}catch{}}}});
+ selected=new Set([...selected].filter(id=>state.students.some(s=>s.id===id)));
+ document.body.className=`view-${role}${narrow?' is-narrow':''}${state.settings.showAvatars===false?' avatars-hidden':''}${document.querySelector('.cl-overlay:not([hidden])')?' classroom-lock-visible':''}${readOnlyWarning?' has-data-protection':''}`;
+ if(petDetailId&&!state.students.some(s=>s.id===petDetailId))petDetailId='';
+ if(role==='pet'){$('#app').innerHTML=petFloatingView();return;}
+ if(role==='pets'){$('#app').innerHTML=`<main class="pets-standalone"><div class="pet-stage-top"><div><span class="eyebrow">花伴课堂 · 课堂展示</span><h1>我们的成长伙伴</h1><p>${esc(state.settings.className)}</p></div><div class="button-row"><button class="button" data-do="fullscreen">⛶ 全屏展示</button><button class="button" data-do="close-window">关闭</button></div></div>${petsView(true)}</main>`;return;}
+ if(role==='flower'){$('#app').innerHTML=`<div class="flower-window"><div class="flower-handle">⠿ 拖动</div><button class="flower-button" data-do="open-panel" title="单击打开积分；双击显示或隐藏积分面板" aria-label="打开积分面板">${flowerSvg}</button><button class="flower-label" data-do="open-panel">积分面板</button></div>`;return;}
+ if(role==='panel'){$('#app').innerHTML=`<div class="utility"><div class="utility-title"><span>🌸 快速积分</span><button data-do="close-window" class="icon-button" aria-label="关闭窗口">×</button></div><div class="utility-body quick-roster-scroll" tabindex="0" role="region" aria-label="学生名单，可独立滚动"><p class="muted">${esc(state.settings.className)} · 选同学，送一朵鼓励</p>${PanelTools.view(state,true)}${quickList()}</div><footer class="quick-score-tray" aria-label="快速积分操作">${scoreDock()}</footer></div>`;return;}
+ if(role==='sidebar'){$('#app').innerHTML=sidebarView();return;}
+ if(role==='timer'){$('#app').innerHTML=`<div class="timer-floating-shell">${timerView(true)}</div>`;return;}
+ if(role==='draw'){$('#app').innerHTML=`<main class="standalone"><header class="standalone-window-header"><strong>随机点名</strong><div class="button-row"><button class="button" data-do="fullscreen">⛶ 全屏展示</button><button class="button" data-do="close-window">返回课堂</button></div></header>${drawView()}</main>`;return;}
+ $('#app').innerHTML=`<aside class="nav"><div class="brand"><div class="brand-icon">${flowerSvg}</div><div>花伴课堂<small>让每一次成长被看见</small></div></div><div class="class-badge"><span class="class-icon">☀</span><div title="${esc(state.settings.className)}">${esc(state.settings.className)}<small>${state.students.length} 位同学 · 离线课堂</small></div></div><nav>${Object.keys(labels).map(k=>`<button id="nav-${k}" class="nav-item ${page===k?'active':''}" data-page="${k}"><span>${icon[k]}</span>${labels[k]}</button>`).join('')}</nav><div class="nav-bottom">${petSvg('owl')}<strong>每一点努力，都值得鼓励</strong><p>陪伴成长，不定义孩子</p><small>花伴课堂 · ${esc(appVersion)}</small></div></aside><div class="workspace">${topbar()}<main class="content"><section id="workbook-notice" class="workbook-notice" role="status" ${workbookWarning?'':'hidden'}><div><strong>配置表需要处理</strong><p>${esc(workbookWarning)}</p></div><div class="button-row"><button type="button" class="button" data-do="show-config">查看并重试</button></div></section>${!native?'<div class="preview-notice">云端预览 · 原生置顶、透明悬浮与本机文件操作以 Windows 桌面版为准</div>':''}${PanelTools.view(state)}${({rankings:rankingsView,students:studentsView,pets:petsView,groups:groupsView,draw:drawView,timer:timerView,logs:logsView,settings:settingsView}[page])()}</main></div>`;
+ if(page==='settings')AvatarUI.mountSettings(moduleContext());
+ updateTimer();
+}
+function studentsView(){
+ const list=filtered(),total=state.students.reduce((n,s)=>n+s.score,0);
+ return `<section class="class-overview" aria-label="班级概览"><div class="overview-stat"><span>班级同学</span><strong>${state.students.length}<small>人</small></strong></div><div class="overview-stat"><span>班级积分</span><strong>${total}<small>分</small></strong></div><div class="overview-stat"><span>合作小组</span><strong>${GroupTools.names(state).length}<small>组</small></strong></div><button class="button overview-action" data-page="pets">♧ 查看成长伙伴</button></section>
+ <div class="section-toolbar student-toolbar"><div class="filters"><input id="search" type="search" placeholder="搜索学生姓名" aria-label="搜索学生姓名" value="${esc(filter)}"><select id="group-filter" aria-label="筛选小组"><option value="">全部小组</option>${GroupTools.names(state).map(g=>`<option ${g===groupFilter?'selected':''}>${esc(g)}</option>`).join('')}</select></div><div class="roster-actions"><button class="button" data-do="select-all">${list.length&&list.every(s=>selected.has(s.id))?'取消全选':'全选'}</button><button class="button" data-do="tools-import">导入名单</button><button class="button" data-do="add-student">＋ 添加学生</button></div></div>
+ <div class="section-label"><h3 id="students-list-title">班级同学 <span>${list.length}</span></h3><small>选择学生卡片，可批量加减分</small></div><div class="student-grid" aria-labelledby="students-list-title">${list.length?list.map(studentCard).join(''):'<div class="empty">没有匹配的同学<br>试试调整筛选，或导入班级名单</div>'}</div>${scoreDock()}`;
+}
+function studentCard(s){
+ const p=growth(s),step=state.settings.scoreStep||1;
+ return `<article id="student-${esc(s.id)}" class="student-card ${selected.has(s.id)?'selected':''}" data-student="${s.id}" tabindex="0" role="button" aria-pressed="${selected.has(s.id)}" aria-label="选择 ${esc(s.name)}"><div class="card-top"><button class="student-avatar-button" data-do="quick-avatar" data-id="${s.id}" aria-label="快捷更换${esc(s.name)}的头像" title="快捷更换头像">${avatar(s)}</button><div><h3>${esc(s.name)}</h3><small title="${esc(s.group)}">${esc(s.group)}${s.leader?' · 组长':''}</small></div><button class="student-history-button" data-do="student-history" data-id="${s.id}" aria-label="查看${esc(s.name)}的积分记录">◷</button><button class="student-edit" data-do="edit-student" data-id="${s.id}" aria-label="编辑${esc(s.name)}">•••</button></div>
+ <div class="student-card-body"><button class="pet-zone pet-card-link pet-${s.pet}" data-do="pet-detail" data-id="${s.id}" aria-label="查看${esc(s.name)}的成长伙伴"><span class="pet-sparkle">✧</span>${currentPetArt(p)}<span class="pet-level">${esc(currentPetLabel(p))}</span></button><div class="card-score"><span>当前积分</span><strong>${s.score}<small>分</small></strong></div></div>
+ <div class="growth-label"><span>${p.adopted?petNames[p.pet]:'等待伙伴'}</span><span>本级积分 ${growthText(p)}</span></div><div class="progress"><i style="width:${growthPercent(p)}%"></i></div>
+ <div class="card-buttons"><button data-do="quick-score" data-id="${s.id}" data-delta="-${step}" aria-label="${esc(s.name)}减${step}分">−${step}</button><button data-do="quick-score" data-id="${s.id}" data-delta="${step}" aria-label="${esc(s.name)}加${step}分">＋${step} 鼓励</button></div>
+ <div class="student-secondary"><button class="text-button student-reasons-entry" data-do="score-reasons-target" data-id="${s.id}">按原因记分</button><button class="text-button student-reasons-entry" data-do="cw-prize" data-id="${s.id}">奖品转盘</button></div><span class="selection-check">✓</span></article>`;
+}
+function scoreDock(){return `<div class="score-dock ${selected.size?'has-selection':''}"><div><strong role="status" aria-live="polite">${selected.size?`已选 ${selected.size} 位同学`:'选中学生后，在这里批量加减分'}</strong><small>${selected.size?'每次操作都可在积分记录中撤销':'支持多选 · 宠物等级随当前积分升降'}</small></div><div class="score-inputs"><select id="score-reason" aria-label="积分原因"><option>课堂表现</option>${ScoreRules.list(state).map(r=>`<option>${esc(r.label)}</option>`).join('')}</select><input id="score-delta" aria-label="分值，可正可负" type="number" min="-100" max="100" step="1" value="1"><button class="button" data-do="batch-apply" ${!selected.size?'disabled':''}>确认加/减分</button><button class="button" data-do="batch-minus" ${!selected.size?'disabled':''}>− 减分</button><button class="button primary" data-do="batch-plus" ${!selected.size?'disabled':''}>＋ 加分</button><button class="button" data-do="flexible-minus" ${!selected.size?'disabled':''}>灵活扣分</button><button class="button" data-do="flexible-plus" ${!selected.size?'disabled':''}>灵活加分</button></div></div>`;}
+function quickList(){let lastGroup=null;const groups=GroupTools.names(state);const students=groups.flatMap(g=>OrganizationTools.sortedStudents(state,state.students.filter(s=>s.group===g)));return `<div class="quick-list">${students.map(s=>`${lastGroup!==s.group?(lastGroup=s.group,`<h4 class="quick-group-heading">${esc(s.group)}</h4>`):''}<button class="quick-student ${selected.has(s.id)?'selected':''}" data-student="${s.id}" aria-pressed="${selected.has(s.id)}" aria-label="选择 ${esc(s.name)}">${avatar(s)}<span>${esc(s.name)}<small>${esc(s.group)}</small></span><strong>${s.score}</strong>${selected.has(s.id)?'✓':''}</button>`).join('')}</div>`;}
+function groupRows(){return GroupTools.orderedGroups(state);}
+function groupsView(){return `<div class="page-intro"><h2>一起努力，让小组闪光</h2><p>小组总分 = 成员积分合计 + 小组基础分。给组员加分会逐人记录；基础分单独调整</p><button class="button" data-do="gt-manage">管理小组与排序</button><button class="button" data-do="group-ranking">查看小组平均分排行榜</button></div><div class="group-grid">${groupRows().map((g,i)=>`<section class="group-card"><div class="group-emoji tone-${i%4}">${['🌻','🍀','🌷','🌈'][i%4]}</div><h2>${esc(g.name)}</h2><span class="muted">${g.students.length} 位伙伴 · 小组总分</span><strong class="group-score">${g.memberTotal+g.base}<small>分</small></strong><p class="group-components">成员合计 ${g.memberTotal} + 基础分 ${g.base}</p><div class="group-base"><span>基础分</span><button class="button" data-do="group-base-minus" data-group="${esc(g.name)}" aria-label="${esc(g.name)}减少基础分">−</button><strong>${g.base}</strong><button class="button" data-do="group-base-plus" data-group="${esc(g.name)}" aria-label="${esc(g.name)}增加基础分">＋</button><button class="text-button" data-do="group-history" data-group="${esc(g.name)}" aria-label="查看小组基础分历史">◷</button></div><div class="group-score-members">${g.students.map(s=>`<div class="group-score-person" data-group-member="${s.id}">${avatar(s)}<button class="group-member-name" data-do="score-reasons-target" data-id="${s.id}" title="按课堂原因为${esc(s.name)}记分">${esc(s.name)}${s.leader?'<small>组长</small>':''}</button><button class="group-score-adjust" data-do="quick-score" data-id="${s.id}" data-delta="-${state.settings.scoreStep||1}" aria-label="${esc(s.name)}减${state.settings.scoreStep||1}分">−</button><strong class="member-score">${s.score}</strong><button class="text-button" data-do="student-history" data-id="${s.id}" aria-label="查看${esc(s.name)}的积分记录">◷</button><button class="group-score-adjust" data-do="quick-score" data-id="${s.id}" data-delta="${state.settings.scoreStep||1}" aria-label="${esc(s.name)}加${state.settings.scoreStep||1}分">＋</button></div>`).join('')}</div><button class="button primary" data-do="select-group" data-group="${esc(g.name)}" ${g.students.length?'':'disabled'}>小组全体加减分</button></section>`).join('')}</div>`;}
+let rankingMode='students';
+function rankingsView(){const students=rankingMode==='students',base=rankingMode==='base',average=rankingMode==='average',rows=ClassroomRankings.rows(state,rankingMode);return `<div class="page-intro"><h2>看见每一步进步</h2><p>${students?'按学生当前积分排序':base?'按小组独立基础分排序':average?'按成员平均积分排序（四舍五入，不含基础分）':'按小组成员当前积分合计排序'}，同分并列。这里只查看本面板，宠物荣誉另有专属榜单</p></div><div class="segmented ranking-tabs"><button data-do="rank-mode" data-mode="students" class="${students?'active':''}">学生排行榜</button><button data-do="rank-mode" data-mode="average" class="${average?'active':''}">小组平均分 · 推荐</button><button data-do="rank-mode" data-mode="base" class="${base?'active':''}">小组基础分</button><button data-do="rank-mode" data-mode="groups" class="${rankingMode==='groups'?'active':''}">小组成员总分</button></div><div class="ranking-list">${rows.map(r=>`<article><strong class="rank-number">${r.rank}</strong><div><h3>${esc(r.name)}</h3><small>${esc(r.group)}</small>${r.members?`<details><summary>查看成员积分明细</summary><p>${esc(r.members.map(m=>m.name+' '+m.score+'分').join('、'))}</p>${r.count?`<p>成员平均分（${r.total}分 ÷ ${r.count}人）= ${r.average}分；基础分 ${r.base} 单独记录</p>`:`<p>暂无成员，平均分暂按0显示；基础分 ${r.base} 单独记录</p>`}</details>`:''}</div><b>${r.score}<small> 分</small></b></article>`).join('')||'<div class="empty">还没有可展示的成绩</div>'}</div><div class="button-row"><button class="button" data-do="rank-copy">复制当前排行榜</button><button class="button" data-do="rank-export">导出当前排行榜 Excel</button><button class="button" data-do="excel-summary">导出面板完整汇总</button></div>`;}
+
+
+function drawView(){return DrawTools.view(state,{animating:drawAnimating,avatar,petSvg,esc,role});}
+function timerView(compact=false){return TimerTools.view(state.timer,{compact:compact===true,sound:state.settings.timerSound,defaultSeconds:ConfigurationModel.toolDefaults(state).timerDurationSeconds});}
+function logsView(){return `<div class="page-intro"><h2>每一点成长，都有迹可循</h2><p>批量操作可整笔撤销，撤销后保留记录</p><div class="button-row"><button class="button" data-do="archive-logs" ${!state.logs.length?'disabled':''}>归档记录，保留积分</button><small>记录容量 ${state.logs.length}/20000 · 学生变动 ${state.logs.reduce((n,l)=>n+l.changes.length,0)}/100000</small></div></div><div class="log-list">${state.logs.length?[...state.logs].reverse().slice(0,300).map(log=>`<div class="log-row ${log.undone?'undone':''}"><span class="log-symbol">${log.delta>0?'＋':'−'}</span><div class="log-detail"><strong>${esc(log.reason||'积分调整')}</strong><p>${esc((log.changes||[]).map(c=>c.name||state.students.find(s=>s.id===(c.id||c.studentId))?.name||'已移除学生').join('、'))}</p><small>${new Date(log.timestamp||log.at||log.createdAt).toLocaleString('zh-CN',{hour12:false})}</small></div><strong class="log-delta ${log.delta<0?'negative':''}">${log.delta>0?'+':''}${log.delta} <small>/ 人</small></strong>${log.undone?'<span class="muted">已撤销</span>':`<button class="button" data-do="undo" data-id="${log.id}">撤销</button>`}</div>`).join(''):'<div class="empty">还没有积分记录<br>试着为一位同学送上鼓励吧</div>'}</div>${state.logs.length>300?'<p class="muted">此处展示最近300条，完整记录包含在备份中</p>':''}`;}
+function settingsView(){
+ return `<div class="settings-grid settings-layout"><section class="settings-card settings-primary" id="student-import-section"><span class="settings-eyebrow">名单管理</span><h2>导入学生名单</h2><p>支持 .xlsx / .csv。首行为「姓名、性别、组号、头像」；性别与头像可留空，也兼容「小组、头像名称」表头，每次最多 300 位学生</p><label for="import-mode">导入方式<select id="import-mode" aria-label="名单导入方式"><option value="append">追加到现有名单</option><option value="replace">替换名单与积分（保留空组名称）</option></select></label><div class="button-row"><button class="button primary" data-do="import">选择名单</button><button class="button" data-do="template">下载模板</button></div><small>先预览，再确认。追加保留已有同学；替换会重建名单、积分和小组基础分，并先保存保护备份。重名同学保留为独立档案</small></section>
+ <section class="settings-card settings-class"><h2>班级信息</h2><label>班级名称<input id="class-name" maxlength="80" data-reviewed-name="${esc(state.settings.className)}" data-restore-generation="${restoreGeneration}" data-panel-id="${PanelTools.currentId(state)}" value="${esc(state.settings.className)}"></label><button class="button" data-do="save-class">保存名称</button>${classNameDraft&&(classNameDraft.expectedClassName!==state.settings.className||classNameDraft.expectedRestoreGeneration!==restoreGeneration)?'<p class="class-name-conflict" role="status">名称或备份已更新，输入草稿仍保留。<button class="text-button" data-do="class-name-refresh">读取当前名称</button></p>':''}<p class="setting-note">姓名、小组和照片可在学生卡片中编辑</p><button class="text-button" data-do="blank-class">开始空白班级</button></section>
+ <section class="settings-card settings-backup"><div><h2>备份与恢复</h2><p>完整保留学生、照片、积分、宠物成长和操作记录</p><small>恢复前会校验并再次确认，现有存档保留上一完整版本</small></div><div class="button-row"><button class="button" data-do="backup">导出完整备份</button><button class="button" data-do="restore">恢复备份</button></div></section>
+ <section class="settings-card settings-avatar-library"><span class="settings-eyebrow">头像管理</span><h2>每一位同学，都有自己的小模样</h2><p>点击学生卡片上的头像，就能快捷导入照片或选择卡通头像。120 张卡通头像保存在软件同级的“头像”文件夹，添加、移除后手动刷新即可</p><div class="button-row"><button class="button" data-do="avatar-manage">打开头像库</button><button class="button" data-do="batch-photos">按姓名批量导入照片</button></div>${AvatarUI.settingsFolder()}<small>已保存的学生头像独立保留，并包含在完整备份中</small></section>
+ <section class="settings-card settings-configuration"><h2>统一配置表</h2><p>所有可修改参数统一放在程序根目录“配置.xlsx”，按工作表分类。计分卡片所有面板共用，宠物进阶也由所有面板共用。</p><div class="button-row"><button class="button primary" data-do="show-config">打开配置管理</button><button class="button" data-do="show-reasons">编辑共享计分卡片</button></div><small>Excel / WPS 保存后在软件内预览整本变更，再明确确认生效。旧配置原件保留。</small></section>
+ <section class="settings-folder-location"><h2>程序文件夹与数据</h2><p>头像、配置.xlsx、课堂数据与备份都在本程序旁边。换电脑时复制整个文件夹，即可带走全部资料。</p><button class="button primary" data-do="folder-manage">查看文件夹与迁移旧版数据</button></section>
+ <section class="settings-data-note"><div><h3>本地保存，自己掌控</h3><p>不需要账号，不会自动上传学生资料。所有宠物按照当前积分进阶；首次达到 ${PetScoreProgression.get(state).costs[0]} 分破壳，扣分跨过门槛会降级，负分仍显示蛋。关闭主窗口会退出应用，最小化可继续计时</p></div><div class="settings-links"><button class="text-button" data-do="pet-rules">进阶规则</button><button class="text-button" data-do="pet-catalog">${Object.keys(petNames).length} 种伙伴图鉴</button><button class="text-button" data-do="data-folder">打开本地数据目录 ↗</button></div></section></div>`;
+}
+function sidebarView(){return `<div class="sidebar-shell"><div class="utility-title"><span>${narrow?'🌸':'🌸 花伴课堂'}</span><button class="icon-button" data-do="narrow" title="展开或收窄">${narrow?'‹':'›'}</button></div><div class="sidebar-tools"><button data-do="open-main" title="主界面">⌂<span>主界面</span></button><button data-do="open-panel" title="积分">＋<span>积分</span></button><button data-do="open-draw" title="点名">✦<span>点名</span></button><button data-do="open-timer" title="计时">◷<span>计时</span></button><button data-do="open-pet" title="养宠物">♧<span>养宠物</span></button></div>${narrow?'':`<div class="sidebar-content"><h3>${esc(state.settings.className)}</h3><div class="sidebar-timer"><span>课堂计时</span><strong class="timer-digits">${timeText(remain())}</strong><button class="button" data-do="timer-toggle">${state.timer.running?'暂停':'开始'}</button></div><div class="sidebar-pet-entry"><button class="button primary" data-do="open-pet">♧ 养宠物 · 成长伙伴</button></div><h4>伙伴一览</h4><div class="sidebar-students">${OrganizationTools.sortedStudents(state,state.students).map(s=>`<div>${avatar(s)}<span>${esc(s.name)}</span><strong>${s.score}</strong><button class="button" data-do="quick-score" data-id="${s.id}" data-delta="${state.settings.scoreStep||1}" aria-label="${esc(s.name)}加${state.settings.scoreStep||1}分">＋${state.settings.scoreStep||1}</button></div>`).join('')}</div></div>`}<button class="sidebar-close" data-do="close-window" aria-label="关闭侧栏">× ${narrow?'':'关闭侧栏'}</button></div>`;}
+function editStudent(id){const s=state.students.find(s=>s.id===id)||{name:'',group:'向日葵组',pet:'owl',photo:''};dialogPhoto=s.photo;modal(`<h2>${id?'编辑学生':'欢迎新伙伴'}</h2><p class="muted">照片在本机缩小保存，原文件不变，不会上传</p><form id="student-form" data-id="${id||''}"><label>姓名<input name="name" required maxlength="40" value="${esc(s.name)}"></label><label>性别<select name="gender"><option value="" ${!s.gender?'selected':''}>未填写</option><option ${s.gender==='男'?'selected':''}>男</option><option ${s.gender==='女'?'selected':''}>女</option></select></label><label>小组<input name="group" required maxlength="40" value="${esc(s.group)}" list="groups-list"></label><datalist id="groups-list">${GroupTools.names(state).map(g=>`<option value="${esc(g)}">`).join('')}</datalist><label class="leader-choice"><input type="checkbox" name="leader" ${s.leader?'checked':''}>设为组长</label><label class="leader-choice"><input type="checkbox" name="adopted" ${s.adopted!==false?'checked':''}>已领养成长伙伴</label><small>暂不领养会显示等待破壳。调整领养状态或更换伙伴不会修改积分，等级按当前积分计算</small>${petChoicePicker(s.pet)}<div class="photo-row"><div id="photo-preview">${s.photo?`<img class="avatar" src="${esc(s.photo)}" alt="学生照片">`:'<span class="avatar initials">照片</span>'}</div><button type="button" class="button" data-do="photo">更换头像</button><button type="button" class="button" data-do="avatar-library">使用头像库</button><button type="button" class="text-button" data-do="clear-photo">移除照片</button></div><div id="avatar-library" hidden></div><div class="dialog-actions">${id?`<button type="button" class="button danger" data-do="delete-student" data-id="${id}">移除学生</button>`:''}<button type="button" class="button" data-do="modal-close">取消</button><button class="button primary" type="submit">保存</button></div></form>`);$('#modal .dialog').classList.add('student-edit-dialog');
+ const form=$('#student-form');form.dataset.panelId=PanelTools.currentId(state);form.dataset.restoreGeneration=String(restoreGeneration);
+ if(id){const profile=growth(s);form.studentDraft={fields:{name:s.name,gender:s.gender||'',group:s.group,pet:s.pet,photo:s.photo,leader:s.leader===true,adopted:s.adopted!==false},petContext:{enabled:profile.enabled,cycleId:profile.activeCycleId,pet:s.pet,adopted:s.adopted!==false}};}
+}
+function confirmDialog(title,text,callback,{delaySeconds=0}={}){
+ const openedPanel=PanelTools.currentId(state),openedRestore=restoreGeneration;
+ modal(`<h2>${esc(title)}</h2><p>${esc(text)}</p><div class="dialog-actions"><button class="button" data-do="modal-close">取消</button><button class="button primary" id="confirm-action" ${delaySeconds?'disabled':''}>${delaySeconds?`确认（${delaySeconds}）`:'确认'}</button></div>`);
+ const button=$('#confirm-action'),readyAt=performance.now()+delaySeconds*1000;
+ const tick=()=>{if(!button.isConnected){clearInterval(interval);return;}const left=Math.max(0,Math.ceil((readyAt-performance.now())/1000));button.textContent=left?`确认（${left}）`:'确认';if(!left){button.disabled=false;clearInterval(interval);}};
+ const interval=delaySeconds?setInterval(tick,100):null;
+ button.onclick=async function(){if(this.disabled||performance.now()<readyAt)return;if(openedPanel!==PanelTools.currentId(state)){closeModal();toast('面板已切换，请重新操作');return;}if(openedRestore!==restoreGeneration){closeModal();toast('备份已恢复，原确认已失效，请重新核对后操作');return;}this.disabled=true;try{const ok=await callback();if(ok!==false&&this.isConnected)closeModal();else this.disabled=false;}catch(error){this.disabled=false;toast(error.message);}};
+}
+function restoreConfirmation(incoming,{openedPanel,openedRestore}){
+ const configuration=incoming.restoreConfiguration,integrated=!!incoming.restoreToken&&!!configuration;
+ if(native&&!integrated)throw Error('恢复预览未包含整本配置，请重新选择备份并预览');
+ const panels=[incoming,...(incoming.panels?.others||[]).map(panel=>panel.data)],students=panels.reduce((total,panel)=>total+(panel.students?.length||0),0);
+ modal(`<h2>${integrated?'恢复课堂数据与整本配置':'恢复预览课堂数据'}</h2><p>所选备份「${esc(incoming.settings.className)}」包含 ${panels.length} 个面板、共 ${students} 位学生。</p><p class="rule-shared-scope">${integrated?'确认后，所有面板的课堂数据和程序根目录“配置.xlsx”将一起替换为本次预览内容。恢复前先保留原课堂文件、配置表及已有事务记录。':'此云端预览仅恢复测试课堂数据；本机配置表恢复请在桌面版核对。'}</p>${integrated?RuleTools.restorePreview(configuration,state):''}<p id="restore-error" class="rule-form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="button" class="button primary" id="confirm-action">${configuration?.requiresRuleMerge?'确认恢复并合并共享卡片':integrated?'确认恢复课堂与整本配置':'确认恢复'}</button><button type="button" class="button primary" data-do="restore-repreview" hidden style="display:none">重新选择备份并预览</button></div>`);
+ const dialog=$('#modal .dialog'),button=$('#confirm-action'),retry=dialog.querySelector('[data-do="restore-repreview"]');dialog.classList.add('score-rules-dialog','restore-confirmation-dialog');let used=false;
+ const failed=error=>{const message=String(error?.message||error).replace(/^Error invoking remote method '[^']+':(?: Error:)?\s*/,'');toast(message);if(!dialog.isConnected||dialog!==$('#modal .dialog'))return;const notice=dialog.querySelector('#restore-error');notice.textContent=message+'。本次确认已失效，请重新选择备份并预览后再确认。';notice.hidden=false;button.hidden=true;button.style.display='none';button.disabled=true;retry.hidden=false;retry.style.display='';retry.focus({preventScroll:false});};
+ button.onclick=async function(){
+  if(used||this.disabled||!this.isConnected||dialog!==$('#modal .dialog'))return;
+  if(openedPanel!==PanelTools.currentId(state)||openedRestore!==restoreGeneration){used=true;failed(Error('面板或备份已变化，原恢复确认已失效'));return;}
+  used=true;this.disabled=true;
+  try{const saved=await api.file({command:'restore-apply',state:incoming,...(integrated?{restoreToken:incoming.restoreToken}:{}),expectedRevision:incoming.expectedRevision,expectedRestoreGeneration:openedRestore});const sameConfirmation=dialog.isConnected&&dialog===$('#modal .dialog');if(sameConfirmation)selected.clear();acceptState(saved,{type:'data',restored:true,readOnly:false});if(sameConfirmation){delete inputDrafts['class-name'];if($('#class-name'))$('#class-name').value=state.settings.className;if(dialog.isConnected)closeModal();}toast(integrated?'课堂数据与整本配置已一并恢复':'预览课堂备份已恢复');}
+  catch(error){failed(error);}
+ };
+}
+async function handleDo(action,el){
+ if(/-(cancel|back)$/.test(action)&&el?.closest?.('#modal .dialog')&&draftEpoch(el)!==restoreGeneration){closeModal();return;}
+ // These actions close an obsolete editor or explicitly open a fresh current-data view.
+ const freshViewActions=new Set(['modal-close','restore-repreview','ct-close','ct-refresh','ct-back','ct-attendance-back','ct-toolbox','ct-vote','ct-attendance','tx-close','tx-portal','tx-homework','tx-education','tx-bomb','tx-export','gt-refresh','gt-manage','px-refresh']);
+ const freshView=freshViewActions.has(action),contextOrigin=freshView?null:el;
+ if(!freshView&&!currentDraft(el))return;
+ if(el?.dataset.toolEntry==='true')closeModal();
+ if(action==='restore-repreview')action='restore';
+ if(action==='tools-import'){classNameEditSequence++;
+  if(role!=='main')return api.window({command:'open',role:'main'});
+  if(drawAnimating){drawToken++;drawAnimating=false;}page='settings';render();
+  queueMicrotask(()=>{$('#student-import-section')?.scrollIntoView({block:'nearest'});$('#import-mode')?.focus({preventScroll:true});});return;
+ }
+ if(action==='tools-pets'){
+  if(role!=='main')return api.window({command:'open',role:'pets'});
+  if(drawAnimating){drawToken++;drawAnimating=false;}page='pets';petDetailId='';render();return;
+ }
+
+ if(FolderUI.handles(action)){await FolderUI.handle(action,el,moduleContext(contextOrigin));return;}
+ if(AvatarUI.handles(action)){await AvatarUI.handle(action,el,moduleContext(contextOrigin));return;}
+ if(action==='excel-summary')action='tx-export';
+ if((action.startsWith('org-')||action==='clear-current-points')&&await OrganizationUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(PetExtraUI.handles(action)&&await PetExtraUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(ToolboxExtraUI.handles(action)&&await ToolboxExtraUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(GroupToolsUI.handles(action)&&await GroupToolsUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(action==='cw-toolbox')action='ct-toolbox';
+ if(ClassroomToolsUI.handles(action)&&await ClassroomToolsUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(action==='batch-apply'){if(batchApplying)return;const delta=Number($('#score-delta').value);if(!selected.size)return toast('请先选择学生');if(!Number.isInteger(delta)||delta===0||delta < -100||delta > 100)return toast('分值需为−100至100的非零整数');batchApplying=true;el.disabled=true;try{return await act({type:'score',ids:[...selected],delta,reason:$('#score-reason').value},'所选学生积分已更新');}finally{batchApplying=false;if(el.isConnected)el.disabled=false;}}
+ if(action==='rank-copy'||action==='rank-export'){if(!native){toast('排行榜复制和Excel导出请使用桌面版');return;}const ok=await api.file({command:action==='rank-copy'?'rankings-copy':'rankings-export',mode:rankingMode,panelId:PanelTools.currentId(state)});if(ok)toast(action==='rank-copy'?'排行榜已复制到剪贴板':'排行榜已导出');return;}
+ if(ClassroomWheelsUI.handles(action)&&await ClassroomWheelsUI.handle(action,el,moduleContext(contextOrigin)))return;
+ if(RuleTools.handles(action)&&await RuleTools.handle(action,el,moduleContext(contextOrigin)))return;
+ if(action.startsWith('pet-draw')&&await handlePetDraw(action,el))return;
+ if((action.startsWith('draw')||action==='reward-picked')&&await DrawTools.handle(action,el,{state,act,toast,render}))return;
+ if((action.startsWith('panel-')||['clear-current-panel','clear-current-points','toggle-avatars','batch-photos'].includes(action))&&await PanelTools.handle(action,el,{...moduleContext(contextOrigin),acceptState,role}))return;
+ if((action.startsWith('tt-')||['timer-reset','timer-preset'].includes(action))&&await TimerTools.handle(action,el,{state,act,toast,api,role,render}))return;
+ if(action==='pet-switch')return switchPetDialog(el.dataset.id);
+ if(action==='adopt-pet')return adoptionDialog(el.dataset.id);
+ if(action==='pet-feedback-adopt'){clearTimeout(feedbackTimer);$('#pet-feedback').innerHTML='';return adoptionDialog(el.dataset.id);}
+ if(action==='pet-graduate')return graduationDialog(el.dataset.id);
+ if(action==='pet-honors')return honorsDialog(el.dataset.id);
+ if(action==='pet-enable')return rulesDialog(true);
+ if(action==='pet-undo')return toast('养成历史只读保留；请在积分记录中撤销当前积分操作');
+ if(action==='pet-rank-mode'){petRankingMode=el.dataset.mode;render();return;}
+ if(action==='pet-group-reward'){pendingRewardIds=state.students.filter(s=>s.group===el.dataset.group).map(s=>s.id);return rewardDialog();}
+ if(action==='pet-preset'){const rules=PetScoreProgression.DEFAULT_PROGRESSION;document.querySelectorAll('.pet-threshold').forEach((input,i)=>input.value=rules.costs[i]);$('#pet-repeat-cost').value=rules.repeatCost;document.querySelector('.pet-threshold')?.dispatchEvent(new Event('input',{bubbles:true}));return;}
+ if(action==='pet-detail'){petDetailId=el.dataset.id;page='pets';render();return;}
+ if(action==='pet-back'){petDetailId='';render();return;}
+ if(action==='pet-tab'){petTab=el.dataset.tab;render();return;}
+ if(action==='pet-reward'){pendingRewardIds=el.dataset.id?[el.dataset.id]:[...selected];return rewardDialog();}
+ if(action==='pet-edit-reason'||action==='pet-manage-reasons'){
+  const ids=[...pendingRewardIds],panelId=PanelTools.currentId(state),context=moduleContext(el);
+  const back=()=>{if(PanelTools.currentId(state)!==panelId)return closeModal();pendingRewardIds=ids;rewardDialog();};
+  if(action==='pet-edit-reason')return RuleTools.openEditor(el.dataset.id,context,{onReturn:back});
+  return RuleTools.openManager(context,{onReturn:back});
+ }
+ if(action==='pet-reason'){
+  if(rewardBusy)return;const context=pendingRewardContext,reason=context?.reasons[Number(el.dataset.index)];if(!reason)return;
+  if(context.panelId!==PanelTools.currentId(state))return toast('面板已变化，请重新打开积分窗口');
+  if(!petReasons().some(r=>r.id===reason.id)||!ScoreRules.same([reason],petReasons().filter(r=>r.id===reason.id)))return toast('计分卡片已修改，请重新打开积分窗口');
+  rewardBusy=true;const ids=[...pendingRewardIds];closeModal();
+  try {await act({type:'score',ids,delta:reason.delta,reason:reason.label,panelId:context.panelId,expectedRulesKey:context.expectedRulesKey,sharedRevision:context.sharedRevision,expectedRule:reason,expectedCycles:context.expectedCycles,expectedProgressionKey:context.progressionKey},'积分已记录，宠物等级已同步计算');}finally{rewardBusy=false;}return;
+ }
+ if(action==='pet-album'){petModalId=el.dataset.id;const profile=growth(state.students.find(s=>s.id===petModalId));petPreviewLevel=el.dataset.level!==undefined?Math.max(0,Math.min(7,Number(el.dataset.level))):profile.isEgg?0:Math.min(7,profile.level);return albumDialog();}
+ if(action==='pet-preview'){petPreviewLevel=Number(el.dataset.level);return renderAlbumPreview();}
+ if(action==='pet-more')return petMoreDialog();
+ if(action==='pet-rules')return rulesDialog();
+ if(action==='pet-catalog')return catalogDialog();
+ if(action==='catalog-stage'){catalogStage=Number(el.dataset.level);return renderCatalog();}
+ if(action==='catalog-family'){if(!['all','classic','adventure'].includes(el.dataset.family))return;catalogFamily=el.dataset.family;return renderCatalog();}
+ if(action==='pet-choice-family'){if(!['all','classic','adventure'].includes(el.dataset.family))return;petChoiceFamily=el.dataset.family;return filterPetChoices();}
+ if(action==='pet-choice-random'){const ids=Object.keys(petNames).filter(id=>inPetFamily(id,petChoiceFamily));if(!ids.length)return;const id=ids[Math.floor(Math.random()*ids.length)];const input=$(`#modal input[name=pet][value="${id}"]`);if(input){input.checked=true;$('#pet-choice-search').value='';filterPetChoices();updatePetChoice();input.closest('.pet-choice').scrollIntoView({block:'nearest'});}return;}
+ if(action==='pet-focus'){if(await act({type:'pet.focus',id:el.dataset.id}))return api.window({command:'open',role:'pet'});return;}
+ if(action==='pet-feedback-close')return dismissPetFeedback();
+
+ if(action.startsWith('open-'))return api.window({command:'open',role:action.slice(5)});
+ if(action==='close-window')return api.window({command:'close'});
+ if(action==='fullscreen')return api.window({command:'fullscreen'});
+ if(action==='modal-close')return closeModal();
+ if(action==='group-ranking'){rankingMode='average';page='rankings';render();return;}
+ if(action==='rank-mode'){rankingMode=el.dataset.mode;render();return;}
+ if(action==='excel-summary'){if(await api.file({command:'summary-export',panelId:PanelTools.currentId(state)}))toast('Excel汇总已保存');return;}
+ if(action==='group-base-plus'||action==='group-base-minus')return act({type:'group.base',group:el.dataset.group,delta:(state.settings.scoreStep||1)*(action==='group-base-plus'?1:-1)},'小组基础分已更新，学生积分不变');
+ if(action==='group-history'){const group=el.dataset.group,logs=[...(state.groupLogs||[])].reverse().filter(l=>l.group===group);modal(`<h2>${esc(group)}基础分历史</h2><div class="student-history-list">${logs.map(l=>`<div><strong>${esc(l.reason)}</strong><span>${l.before} → ${l.after}</span><small>${new Date(l.timestamp).toLocaleString('zh-CN')}${l.undone?' · 已撤销':''}</small></div>`).join('')||'<p>还没有基础分记录</p>'}</div>`);return;}
+ if(action==='student-history'){const s=state.students.find(s=>s.id===el.dataset.id);if(!s)return;const logs=[...state.logs].reverse().filter(l=>l.changes.some(c=>c.id===s.id));modal(`<h2>${esc(s.name)}的积分记录</h2><p>当前积分 ${s.score} · 宠物累计成长 ${growth(s).lifetimeNetGrowth}</p><div class="student-history-list">${logs.map(l=>{const c=l.changes.find(c=>c.id===s.id);return `<div><strong>${esc(l.reason||'课堂表现')}</strong><span>${c.beforeScore} → ${c.afterScore}（${l.delta>0?'+':''}${l.delta}）</span><small>${new Date(l.timestamp).toLocaleString('zh-CN',{hour12:false})}${l.undone?' · 已撤销':''}</small>${l.undone?'':`<button class="button" data-do="undo" data-id="${l.id}">${l.kind==='redemption'?'撤销兑换':'撤销'}</button>`}</div>`;}).join('')||'<p>还没有积分记录</p>'}</div>`);return;}
+ if(action==='bulk-group'){if(!selected.size)return toast('请先选择需要分组的学生');modal(`<h2>批量分组</h2><p>已选择 ${selected.size} 位学生，只修改所属小组，积分和成长保留</p><form id="bulk-group-form" data-panel-id="${PanelTools.currentId(state)}"><label>新小组名称<input name="group" required maxlength="40"></label><div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="submit" class="button primary">保存分组</button></div></form>`);return;}
+ if(action==='bulk-add'){modal(`<h2>批量添加学生</h2><p>每行一位学生。可用制表符分开姓名和小组；没有分组时放入“未分组”</p><form id="bulk-add-form" data-panel-id="${PanelTools.currentId(state)}"><label>学生名单<textarea name="students" rows="8" required placeholder="示例姓名甲&#9;向日葵组&#10;示例姓名乙&#9;四叶草组"></textarea></label><div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="submit" class="button primary">添加到当前面板</button></div></form>`);return;}
+ if(action==='score-step'){modal(`<h2>分值步进</h2><p>调整本面板学生卡片与侧栏的快捷加减分值</p><form id="score-step-form"><label>每次快捷加减分<input name="value" type="number" min="1" max="100" step="1" required value="${state.settings.scoreStep||1}"></label><div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="submit" class="button primary">保存</button></div></form>`);return;}
+ if(action==='show-reasons'){modal(`<h2>规则原因</h2><p>点击宠物的“鼓励成长”后，可以按这些课堂原因记分</p><div class="rules-reference-list">${petReasons().map(r=>`<div><span>${esc(r.label)}</span><strong>${r.delta>0?'+':''}${r.delta}</strong></div>`).join('')}</div>`);return;}
+ if(action==='add-student'||action==='edit-student')return editStudent(el.dataset.id);
+ if(action==='select-all'){const list=filtered();if(list.every(s=>selected.has(s.id)))list.forEach(s=>selected.delete(s.id));else list.forEach(s=>selected.add(s.id));return render();}
+ if(action==='select-group'){selected=new Set(state.students.filter(s=>s.group===el.dataset.group).map(s=>s.id));page='students';render();return;}
+ if(action==='quick-score')return act({type:'score',ids:[el.dataset.id],delta:Number(el.dataset.delta),reason:'课堂表现'},'积分已更新');
+ if(action==='batch-plus'||action==='batch-minus'){if(batchApplying)return;const delta=Number($('#score-delta').value);if(!selected.size)return toast('请先选择学生');if(!Number.isInteger(delta)||delta<1||delta>100)return toast('分值需为 1–100 的整数');batchApplying=true;el.disabled=true;try{return await act({type:'score',ids:[...selected],delta:delta*(action==='batch-minus'?-1:1),reason:$('#score-reason').value},`已更新 ${selected.size} 位同学的积分`);}finally{batchApplying=false;if(el.isConnected)el.disabled=false;}}
+ if(action==='undo'){const log=state.logs.find(l=>l.id===el.dataset.id);if(log?.kind==='redemption'){const logId=log.id,panelId=PanelTools.currentId(state);confirmDialog('撤销这次奖品兑换？',`将退回 ${-log.delta} 点普通积分，保留后来发生的其他积分操作。`,()=>act({type:'undo',logId,panelId},'已撤销兑换，普通积分已退回'));return;}return act({type:'undo',logId:el.dataset.id},'已撤销这笔积分');}
+ if(action==='draw'){if(drawAnimating)return;const count=Number($('#draw-count').value),mode=$('#draw-mode').value,scope=$('#draw-target').value,available=DrawTools.candidates(state,scope).length;if(!Number.isInteger(count)||count<1||count>Math.min(20,available))return toast('抽选数量需为有效整数，最多20个对象');drawAnimating=true;const token=++drawToken;render();await new Promise(r=>setTimeout(r,750));if(token!==drawToken)return;drawAnimating=false;const ok=await act({type:'draw',scope,count,mode});if(!ok)render();const picked=state.draw.scope==='groups'?(state.draw.lastGroups||[]).length:state.draw.lastIds.length;if(ok&&picked<count)toast(`本轮只剩 ${picked} 个对象，已全部抽出；下次开启新一轮`);return ok;}
+ if(action==='draw-reset'){drawToken++;drawAnimating=false;return act({type:'draw.reset'},'新一轮点名已就绪');}
+ if(action==='reward-picked')return act({type:'score',ids:state.draw.lastIds,delta:1,reason:'积极发言'},'已送上鼓励');
+ if(action==='timer-preset'){const ok=await act({type:'timer.set',seconds:Number(el.dataset.seconds)});TimerTools.settleReset(ok);return ok;}
+ if(action==='timer-set'){let seconds;try{seconds=TimerTools.validateInput($('#timer-minutes').value,$('#timer-seconds').value);}catch(error){return toast(error.message);}return act({type:'timer.set',seconds});}
+ if(action==='timer-toggle')return act({type:state.timer.running?'timer.pause':'timer.start'});
+ if(action==='timer-reset'){const ok=await act({type:'timer.reset'});TimerTools.settleReset(ok);return ok;}
+ if(action==='class-name-refresh'){classNameEditSequence++;classNameDraft=null;delete inputDrafts['class-name'];const field=$('#class-name');if(field){field.value=state.settings.className;field.dataset.reviewedName=state.settings.className;field.dataset.restoreGeneration=String(restoreGeneration);field.classNameContext=null;}render();return;}
+ if(action==='save-class'){const field=$('#class-name'),context=classNameDraft||field.classNameContext||{expectedClassName:field.dataset.reviewedName,expectedRestoreGeneration:Number(field.dataset.restoreGeneration),panelId:field.dataset.panelId},sequence=classNameEditSequence,value=field.value;field.classNameContext=context;classNameDraft=context;if(await act({type:'settings',className:value,...context},'班级名称已保存')){const current=$('#class-name'),sameScope=context.panelId===PanelTools.currentId(state)&&context.expectedRestoreGeneration===restoreGeneration;if(sameScope&&sequence===classNameEditSequence&&classNameDraft===context){classNameDraft=null;delete inputDrafts['class-name'];if(current){current.classNameContext=null;current.value=state.settings.className;}$('.class-name-conflict')?.remove();}else if(sameScope&&state.settings.className===value.trim()){const nextContext={...context,expectedClassName:value.trim()};if(classNameDraft===context)classNameDraft=nextContext;if(current?.classNameContext===context)current.classNameContext=nextContext;if(classNameDraft===nextContext)$('.class-name-conflict')?.remove();}}return;}
+ if(action==='narrow'){narrow=!narrow;await api.window({command:'sidebar-width',value:narrow?'narrow':'wide'});return render();}
+ if(action==='photo'){const form=$('#student-form'),startPanel=PanelTools.currentId(state),startedRestore=restoreGeneration;if(!form)return;if(Number(form.dataset.restoreGeneration)!==restoreGeneration)return toast('备份已恢复，请关闭学生档案后重新核对');const token=(form.photoRequest||0)+1;form.photoRequest=token;const photo=await api.file({command:'photo',panelId:startPanel});if(photo&&form.isConnected&&form===$('#student-form')&&startPanel===PanelTools.currentId(state)&&startedRestore===restoreGeneration&&form.photoRequest===token){dialogPhoto=photo;$('#photo-preview').innerHTML=`<img class="avatar" src="${esc(photo)}" alt="学生照片">`;AvatarUI.syncFormPhoto(photo);}return;}
+ if(action==='clear-photo'){const form=$('#student-form');if(form){if(Number(form.dataset.restoreGeneration)!==restoreGeneration)return toast('备份已恢复，请关闭学生档案后重新核对');form.photoRequest=(form.photoRequest||0)+1;}dialogPhoto='';$('#photo-preview').innerHTML='<span class="avatar initials">照片</span>';AvatarUI.syncFormPhoto('');return;}
+ if(action==='delete-student'){const id=el.dataset.id,s=state.students.find(s=>s.id===id);if(!s)return toast('找不到这位学生');const expectedRestoreGeneration=restoreGeneration,expectedRemoval=structuredClone({student:s,petAccount:state.petAccounts?.find(v=>v.studentId===id)||null});return confirmDialog('移除这位同学？',`将移除「${s.name}」的档案和照片。历史积分记录保留，建议先导出备份。`,()=>act({type:'student.remove',id,expectedRemoval,expectedRestoreGeneration},'学生已移除'));}
+ if(action==='template'){if(await api.file({command:'template'}))toast('模板已保存');return;}
+ if(action==='backup'){if(await api.file({command:'backup'}))toast('完整备份已导出');return;}
+ if(action==='data-folder')return api.file({command:'data-folder'});
+ if(action==='import'){
+  const mode=$('#import-mode').value,openedPage=page,openedPanel=PanelTools.currentId(state),openedDialog=$('#modal .dialog'),openedRestore=restoreGeneration,openedModalGeneration=modalGeneration,requestSequence=++filePreviewSequence;
+  const p=await api.file({command:'import-preview',mode});
+  if(!p||page!==openedPage||PanelTools.currentId(state)!==openedPanel||$('#modal .dialog')!==openedDialog||openedRestore!==restoreGeneration||openedModalGeneration!==modalGeneration||requestSequence!==filePreviewSequence)return;
+  confirmDialog(mode==='replace'?'确认替换学生名单与积分':'确认追加学生名单',`即将${mode==='replace'?'替换现有名单和积分，导入':'追加'} ${p.count} 位同学：${p.names.slice(0,15).join('、')}${p.count>15?'等':''}。重名也会建立独立档案。`,async()=>{
+   if(openedRestore!==restoreGeneration)throw Error('备份已恢复，请关闭预览后重新选择名单');
+   acceptState(await api.file({command:'import-apply',rows:p.rows,mode,panelId:p.panelId||openedPanel,...(mode==='replace'?{expectedRevision:p.expectedRevision}: {})}));toast('名单已导入');
+  });
+  if(p.avatarMatches){const matched=p.avatarMatches.filter(v=>v.status==='matched').length,warnings=p.avatarMatches.filter(v=>!['matched','default'].includes(v.status)).length;const section=document.createElement('section');section.className='avatar-import-preview';section.innerHTML=`<h3>头像匹配预览</h3><p>${matched} 位已匹配 · ${p.count-matched} 位使用默认姓名头像${warnings?`，其中 ${warnings} 项需要检查`:''}</p>${p.avatarWarning?`<p class="avatar-import-warning">${esc(p.avatarWarning)}</p>`:''}<p class="avatar-import-note">确认后保存这里显示的头像快照。空白或未匹配使用默认头像；需要修改时请取消，调整模板或头像文件后重新导入</p><div class="avatar-import-rows">${p.avatarMatches.map(row=>`<article data-avatar-match="${esc(row.status)}"><div>${row.photo?`<img src="${esc(row.photo)}" alt="${esc(row.name)}将使用的头像">`:'<span class="avatar-import-initial">'+esc(row.name.slice(-2))+'</span>'}</div><div><strong>${esc(row.name)}</strong><small>${esc(row.requested||'未填写头像名称')}</small></div><span class="avatar-match-status ${row.status}">${esc(row.detail)}</span></article>`).join('')}</div>`;$('#modal .dialog-content').insertBefore(section,$('#modal .dialog-actions'));$('#modal .dialog').classList.add('avatar-import-dialog');}
+  return;
+ }
+ if(action==='archive-logs'){const revision=state.revision,panelId=PanelTools.currentId(state);return confirmDialog('归档积分记录？','学生积分与宠物成长将保持不变。当前完整数据会先保存在程序旁的备份文件夹中，然后清空活动记录；归档后的旧操作不能直接撤销。',async()=>{acceptState(await api.file({command:'archive',expectedRevision:revision,panelId}));toast('记录已归档，积分和成长保留');});}
+ if(action==='blank-class'){const revision=state.revision,panelId=PanelTools.currentId(state);return confirmDialog('开始空白班级？','这会清空当前名单、照片、积分和记录，计时器也会重置。当前数据会保留在程序旁的备份文件夹中。',async()=>{const confirmation=$('#confirm-action'),saved=await api.file({command:'blank',expectedRevision:revision,panelId});acceptState(saved);if(confirmation?.isConnected){delete inputDrafts['class-name'];selected.clear();if($('#class-name'))$('#class-name').value=state.settings.className;}toast('空白班级已就绪');});}
+ if(action==='restore'){const openedPage=page,openedPanel=PanelTools.currentId(state),openedDialog=$('#modal .dialog'),openedRestore=restoreGeneration,openedModalGeneration=modalGeneration,requestSequence=++filePreviewSequence;const incoming=await api.file({command:'restore-preview',withRevision:true});if(!incoming||page!==openedPage||PanelTools.currentId(state)!==openedPanel||$('#modal .dialog')!==openedDialog||openedRestore!==restoreGeneration||openedModalGeneration!==modalGeneration||requestSequence!==filePreviewSequence)return;return restoreConfirmation(incoming,{openedPanel,openedRestore});}
+}
+document.addEventListener('click',async e=>{if(role==='flower'&&e.target.closest('[data-do="open-panel"]')){clearTimeout(flowerClickTimer);if(native){if(e.detail<2)api.window({command:'flower-single'}).catch(error=>toast(error.message));}else flowerClickTimer=setTimeout(()=>api.window({command:'open',role:'panel'}).catch(error=>toast(error.message)),260);return;}const nav=e.target.closest('[data-page]');if(nav){classNameEditSequence++;filePreviewSequence++;if(nav.dataset.page==='pets')petDetailId='';if(drawAnimating){drawToken++;drawAnimating=false;}page=nav.dataset.page;render();return;}const button=e.target.closest('[data-do]');if(button){e.stopPropagation();if(button.disabled)return;try{await handleDo(button.dataset.do,button);}catch(error){toast(error.message);}return;}const card=e.target.closest('[data-student]');if(card){const id=card.dataset.student;selected.has(id)?selected.delete(id):selected.add(id);render();}});
+document.addEventListener('keydown',e=>{if((e.target.id==='pet-choice-search'||(e.target.id==='avatar-search'&&e.target.closest('#student-form')))&&e.key==='Enter'){e.preventDefault();return;}if(e.key==='Tab' && $('#modal .dialog')&&!$('#classroom-lock-overlay:not([hidden])')){const controls=[...document.querySelectorAll('#modal button:not(:disabled),#modal input:not(:disabled),#modal select:not(:disabled),#modal textarea:not(:disabled),#modal a[href],#modal [tabindex="0"],#modal summary')].filter(el=>el.getClientRects().length&&!el.closest('[hidden]'));const first=controls[0],last=controls.at(-1);if(!$('#modal .dialog').contains(document.activeElement)){e.preventDefault();(e.shiftKey?last:first)?.focus();}else if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}if(e.key==='Escape'){if($('#pet-feedback .pet-celebration')){e.preventDefault();handleDo('pet-feedback-close');return;}closeModal();}if((e.key===' '||e.key==='Enter')&&e.target.matches('article[data-student]')){e.preventDefault();e.target.click();}});
+document.addEventListener('input',e=>{if(e.target.id==='class-name')classNameEditSequence++;if(e.target.classList.contains('pet-threshold')||e.target.id==='pet-repeat-cost'){const preview=$('#pet-rule-cumulative-preview');if(preview){try{const rules=PetScoreProgression.validate({version:1,costs:[...document.querySelectorAll('.pet-threshold')].map(input=>Number(input.value)),repeatCost:Number($('#pet-repeat-cost').value)});preview.textContent='LV.1–LV.7 累计门槛：'+PetScoreProgression.cumulative(rules).join(' / ');const table=$('#pet-level-reference-body');if(table)table.innerHTML=petLevelReferenceRows(rules);const note=$('#pet-repeat-note');if(note)note.textContent=`25级以后仍按每级 ${rules.repeatCost} 分继续升级，外观保留第7阶段。`;}catch(error){preview.textContent=error.message;}}return;}if(e.target.dataset.petDrawDelta!==undefined&&petDrawResult){const row=petDrawResult.rows[Number(e.target.dataset.petDrawDelta)];if(row)row.delta=e.target.value;return;}if(e.target.id==='pet-choice-search'){filterPetChoices();return;}if(e.target.id==='pet-catalog-search'){renderCatalog();return;}if(e.target.id==='search'){const pos=e.target.selectionStart;filter=e.target.value;render();$('#search').focus();$('#search').setSelectionRange(pos,pos);}});
+document.addEventListener('change',async e=>{if(!currentDraft(e.target)){e.preventDefault();if(e.target.id==='pet-hide-late')e.target.checked=state.settings.hideLateForms===true;return;}if(await DrawTools.change(e,{state,act,toast,render}))return;if(e.target.id==='pet-hide-late'){const target=e.target;if(!await act({type:'pet.visibility',hideLateForms:target.checked,expectedRestoreGeneration:draftEpoch(target)},target.checked?'图鉴最后两级已隐藏':'图鉴全部七级已显示'))target.checked=state.settings.hideLateForms===true;return;}if(e.target.id==='panel-select'){act({type:'panel.switch',id:e.target.value});return;}if(e.target.matches('#student-form input[name=pet],#pet-adopt-form input[name=pet],#pet-switch-form input[name=pet]')){updatePetChoice();return;}if(e.target.id==='pet-student-select'){act({type:'pet.focus',id:e.target.value});return;}if(e.target.id==='group-filter'){groupFilter=e.target.value;render();}});
+document.addEventListener('submit',async e=>{if(!currentDraft(e.target)){e.preventDefault();return;}if(OrganizationUI.handlesForm(e.target.id)){await OrganizationUI.submit(e,moduleContext(e.target));return;}if(PetExtraUI.handlesForm(e.target.id)){await PetExtraUI.submit(e,moduleContext(e.target));return;}if(ToolboxExtraUI.handlesForm(e.target.id)){await ToolboxExtraUI.submit(e,moduleContext(e.target));return;}if(GroupToolsUI.handlesForm(e.target.id)){await GroupToolsUI.submit(e,moduleContext(e.target));return;}if(e.target.id==='ct-vote-form'){await ClassroomToolsUI.submit(e,moduleContext(e.target));return;}if(e.target.id==='cw-config-form'){await ClassroomWheelsUI.submit(e,moduleContext(e.target));return;}if(['pet-rules-form','pet-growth-form','pet-adopt-form','pet-switch-form'].includes(e.target.id)){e.preventDefault();await handlePetSubmit(e);return;}if(['score-rule-edit-form','score-flexible-form','score-rule-confirm-form','score-rule-sheet-confirm-form','score-rule-share-form'].includes(e.target.id)){await RuleTools.submit(e,moduleContext(e.target));return;}if(['bulk-group-form','bulk-add-form','score-step-form'].includes(e.target.id)){e.preventDefault();const form=e.target;if(form.dataset.saving)return;form.dataset.saving='1';const fd=new FormData(form);let ok=false;try{if(form.id==='bulk-group-form')ok=await act({type:'students.group',ids:[...selected],group:fd.get('group'),panelId:form.dataset.panelId,expectedRestoreGeneration:draftEpoch(form)},'分组已更新');else if(form.id==='score-step-form')ok=await act({type:'score.step',value:Number(fd.get('value')),expectedRestoreGeneration:draftEpoch(form)},'快捷分值已更新');else{const rows=String(fd.get('students')).split(/\r?\n/).filter(s=>s.trim()).map(line=>{const parts=line.split('\t');if(parts.length>2)throw new Error('每行只支持姓名和小组两列');return {name:parts[0].trim(),group:parts[1]?.trim()||'未分组'};});acceptState(await api.file({command:'import-apply',rows,mode:'append',panelId:form.dataset.panelId,expectedRestoreGeneration:draftEpoch(form)}));toast(`已添加 ${rows.length} 位学生`);ok=true;}}catch(error){toast(error.message);}if(ok){if(form.isConnected&&form===$('#'+form.id))closeModal();}else form.dataset.saving='';return;}if(e.target.id==='panel-create-form'||e.target.id==='panel-rename-form'){e.preventDefault();const form=e.target;if(form.dataset.saving)return;form.dataset.saving='1';const data=new FormData(form);const action=form.id==='panel-create-form'?{type:'panel.create',mode:data.get('mode'),name:data.get('name')}:{type:'settings',className:data.get('name'),expectedClassName:form.dataset.reviewedName};action.panelId=form.dataset.panelId;action.expectedRestoreGeneration=draftEpoch(form);if(await act(action,'面板已保存')){if(form.isConnected&&form===$('#'+form.id))closeModal();}else form.dataset.saving='';return;}if(e.target.id!=='student-form')return;e.preventDefault();const form=e.target;if(Number(form.dataset.restoreGeneration)!==restoreGeneration){toast('备份已恢复，草稿尚未保存，请关闭学生档案后重新核对');return;}if(form.dataset.saving==='1')return;form.dataset.saving='1';const submit=form.querySelector('[type=submit]');submit.disabled=true;const fd=new FormData(form);const data={name:fd.get('name'),gender:fd.get('gender'),group:fd.get('group'),pet:fd.get('pet'),photo:dialogPhoto,...(!fd.has('adopted')||state.students.find(s=>s.id===form.dataset.id)?.adopted!==undefined?{adopted:fd.has('adopted')}:{}),...(fd.has('leader')||state.students.find(s=>s.id===form.dataset.id)?.leader!==undefined?{leader:fd.has('leader')}:{})};const id=form.dataset.id;let action={type:id?'student.update':'student.add',id,...data,panelId:form.dataset.panelId};
+ if(id&&form.studentDraft){
+  const draft=form.studentDraft,values={name:String(fd.get('name')||'').trim(),gender:String(fd.get('gender')||''),group:String(fd.get('group')||'').trim()||'未分组',pet:fd.get('pet'),photo:dialogPhoto,leader:fd.has('leader'),adopted:fd.has('adopted')},patch={},expectedStudent={};
+  for(const key of Object.keys(values))if(values[key]!==draft.fields[key]){patch[key]=values[key];expectedStudent[key]=draft.fields[key];}
+  action={type:'student.update',id,panelId:form.dataset.panelId,...patch,expectedStudent};
+  if(Object.hasOwn(patch,'pet')||Object.hasOwn(patch,'adopted'))action.expectedPetContext=draft.petContext;
+ }
+ action.expectedRestoreGeneration=draftEpoch(form);if(await act(action,'学生档案已保存')){if(form.isConnected)closeModal();}else{form.dataset.saving='';submit.disabled=false;}});
+function updateTimer(){if(!state)return;TimerTools.tick(state.timer);document.querySelectorAll('.timer-digits').forEach(el=>el.textContent=timeText(remain()));document.querySelectorAll('.timer-label').forEach(el=>el.textContent=state.timer.running?'专注中':remain()===0?'时间到啦':'准备就绪');}
+setInterval(updateTimer,200);
+api.get().then(data=>{state=data.state;petDrawCount=ConfigurationModel.toolDefaults(state).petDrawCount;restoreGeneration=Number.isSafeInteger(data.restoreGeneration)?data.restoreGeneration:0;native=data.desktop;appVersion=data.version||'开发版';workbookWarning=data.workbookWarning||'';readOnlyWarning=data.readOnly?(data.warning||'当前存档处于只读保护状态。请先导出备份，或恢复一份已核验的备份。'):'';render();if(data.warning&&!data.readOnly)toast(data.warning);api.subscribe(acceptState);api.onSidebarNarrow?.(value=>{narrow=value;render();});api.onCommand?.(command=>{handleDo(command,{dataset:{}}).catch(e=>toast(e.message));});api.onTimerFinished(async detail=>{toast('时间到啦！休息一下，准备下一段学习 🌸');if(detail?.play){const result=await TimerTools.play(detail.sound);if(!result.ok)toast(result.error);}});}).catch(e=>{$('#app').innerHTML=`<div class="fatal"><h1>未能打开课堂数据</h1><p>${esc(e.message)}</p><p>请重新启动应用。如仍失败，请保留数据目录并恢复备份</p></div>`;});
+
+function petEgg(big=false){return `<svg xmlns="http://www.w3.org/2000/svg" class="pet-egg ${big?'large':''}" data-pet-stage="egg" viewBox="0 0 240 240" role="img" aria-label="初生蛋，等待第一次成长破壳"><ellipse cx="120" cy="204" rx="60" ry="11" fill="#d6c8e6" opacity=".55"/><g class="egg-shell"><path d="M120 35C86 35 53 115 60 160C68 212 172 212 180 160C187 115 154 35 120 35Z" fill="#fff9e8" stroke="#bda8c6" stroke-width="3.5"/><path d="M122 42C93 44 65 115 70 156C71 166 74 174 78 180C65 169 63 150 67 130C76 89 100 45 122 42Z" fill="#fff" opacity=".85"/><ellipse cx="90" cy="132" rx="14" ry="17" transform="rotate(-18 90 132)" fill="#c8b5e8"/><ellipse cx="143" cy="98" rx="12" ry="15" transform="rotate(20 143 98)" fill="#b6dbc6"/><ellipse cx="146" cy="169" rx="17" ry="14" transform="rotate(-15 146 169)" fill="#efb9be"/><ellipse cx="98" cy="180" rx="9" ry="7" fill="#f2d596"/><path d="M96 68L108 80L120 67L133 81L145 73" fill="none" stroke="#cdbad5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M169 56v14m-7-7h14" fill="none" stroke="#dbc68f" stroke-width="3" stroke-linecap="round"/></g></svg>`;}
+function unadoptedPetCard(s,compact=false){const p=growth(s);return `<article class="pet-student-card unadopted-card" data-pet-student="${s.id}"><div class="pet-card-top"><span class="level-badge">等待领养</span><span class="stage-counter">荣誉徽章 ${p.medalTotal}</span></div><div class="pet-scene">${petEgg()}</div><div class="pet-owner"><h3>${esc(s.name)}</h3><span>${esc(s.group)}</span></div><p class="pet-partner">伙伴：未领养</p><p class="pet-fine-print">${p.graduates.length?'荣誉永久保留，迎接下一位伙伴':'选一位喜欢的成长伙伴'}</p><div class="pet-card-actions"><button class="button primary" data-do="adopt-pet" data-id="${s.id}">领养宠物</button><button class="button" data-do="pet-honors" data-id="${s.id}">毕业相册</button></div></article>`;}
+function petCard(s,compact=false){
+ const p=growth(s);if(!p.adopted)return unadoptedPetCard(s,compact);
+ const stage=p.shape,focused=state.settings.petFocusId===s.id;
+ return `<article class="pet-student-card ${selected.has(s.id)?'selected':''} ${focused?'is-featured':''} ${p.maxed?'is-maxed':''} ${p.isEgg?'is-egg':''}" data-pet-student="${s.id}">
+ <div class="pet-card-top"><span class="level-badge">${esc(currentPetLabel(p))}</span><span class="stage-counter">${p.isEgg?'初生蛋':`形态 ${stage}/7`} · 徽章 ${p.medalTotal}</span>${compact?'':`<button class="pet-select ${selected.has(s.id)?'checked':''}" data-student="${s.id}" aria-label="选择${esc(s.name)}" aria-pressed="${selected.has(s.id)}">${selected.has(s.id)?'✓':'＋'}</button>`}</div>
+ <button class="pet-scene pet-${p.pet}" data-do="${compact?'pet-reward':'pet-detail'}" data-id="${s.id}" aria-label="${compact?'鼓励':'查看'}${esc(s.name)}的宠物">${currentPetArt(p,true)}<span class="scene-sparkle">✦</span></button>
+ <div class="pet-owner"><h3 title="${esc(s.name)}">${esc(s.name)}</h3><span title="${esc(s.group)}">${esc(s.group)}</span></div><p class="pet-partner">伙伴：${esc(petNames[p.pet])} · ${esc(currentPetStage(p))}</p>${p.isEgg?`<p class="egg-first-growth">达到 ${PetScoreProgression.get(state).costs[0]} 分，伙伴就会破壳</p>`:''}
+ <div class="pet-growth"><span>本级积分 <strong>${growthText(p)}</strong></span><span>积分 ${s.score}</span></div><div class="progress"><i style="width:${growthPercent(p)}%"></i></div>
+ <div class="pet-card-actions"><button class="button primary" data-do="${p.enabled&&p.maxed?'pet-graduate':'pet-reward'}" data-id="${s.id}">${p.enabled&&p.maxed?'✦ 安排毕业':'✦ 鼓励成长'}</button><button class="button" data-do="pet-album" data-id="${s.id}">进化图鉴</button></div></article>`;
+}
+function petNavigation(standalone=false){return `<div class="pet-care-navigation"><div class="segmented"><button data-do="pet-tab" data-tab="students" class="${petTab==='students'?'active':''}">学生伙伴</button><button data-do="pet-tab" data-tab="groups" class="${petTab==='groups'?'active':''}">按小组看</button><button data-do="pet-tab" data-tab="rankings" class="${petTab==='rankings'?'active':''}">宠物排行榜</button><button data-do="pet-tab" data-tab="records" class="${petTab==='records'?'active':''}">成长记录</button></div><div class="button-row pet-extra-entry">${PetExtraUI.entry()}<button type="button" id="pet-more-button" class="button pet-more-button" data-do="pet-more" aria-haspopup="dialog">更多 · 规则与图鉴</button>${standalone?'<button class="button" data-do="open-panel">积分面板</button>':''}</div></div>`;}
+function petsView(standalone=false){
+ if(petDetailId){const s=state.students.find(s=>s.id===petDetailId);if(s)return petDetailView(s);}
+ const list=filtered(),groups=GroupTools.names(state).filter(g=>list.some(s=>s.group===g)),enabled=petEnabled();
+ const body=petTab==='rankings'?petRankingsView():petTab==='records'?petRecordsView():`<div class="section-toolbar"><div class="filters"><input id="search" type="search" placeholder="搜索学生姓名" aria-label="搜索学生姓名" value="${esc(filter)}"><select id="group-filter" aria-label="筛选小组"><option value="">全部小组</option>${GroupTools.names(state).map(g=>`<option ${g===groupFilter?'selected':''}>${esc(g)}</option>`).join('')}</select></div><div class="button-row"><button class="button" data-do="select-all">${list.length&&list.every(s=>selected.has(s.id))?'取消全选':'批量选择'}</button><span class="muted">${list.length} 位伙伴</span></div></div>${petTab==='groups'?'<p class="pet-group-note">每位组员有自己的宠物，小组鼓励会逐人增加积分</p>':''}
+ ${list.length?(petTab==='groups'?groups.map(g=>`<section class="pet-group"><div class="section-label"><h3>${esc(g)} <small>${list.filter(s=>s.group===g).length} 位同学</small></h3><button class="button" data-do="pet-group-reward" data-group="${esc(g)}">鼓励本组已领养伙伴</button></div><div class="pet-grid">${list.filter(s=>s.group===g).map(s=>petCard(s)).join('')}</div></section>`).join(''):`<div class="pet-grid">${list.map(s=>petCard(s)).join('')}</div>`):'<div class="empty">还没有匹配的伙伴<br>在「学生积分」添加同学，或在「班级设置」导入名单</div>'}
+ <div class="pet-batch-bar ${selected.size?'has-selection':''}"><div><strong>${selected.size?`已选 ${selected.size} 位伙伴`:'每一次鼓励，都让伙伴向前一步'}</strong><small>点击卡片的 ＋ 进行多选，批量操作可整笔撤销</small></div><button class="button primary" data-do="pet-reward" ${selected.size?'':'disabled'}>✦ 批量鼓励成长</button></div>`;
+ return `${petNavigation(standalone)}${body}`;
+}
+function petMoreDialog(){
+ const rules=PetScoreProgression.get(state),cumulative=PetScoreProgression.cumulative(rules);
+ modal(`<h2>伙伴设置与图鉴</h2><div class="pet-secondary-menu"><button type="button" class="button" data-do="pet-rules"><strong>进阶规则</strong><span>所有面板共用一套积分门槛</span></button><button type="button" class="button" data-do="pet-catalog"><strong>${Object.keys(petNames).length} 种伙伴图鉴</strong><span>浏览每种伙伴的七级造型</span></button></div><section class="pet-menu-rules"><h3>当前积分决定等级</h3><p>低于 ${rules.costs[0]} 分时显示蛋（LV.0），负分也保持蛋。加分跨门槛升级，扣分跨门槛降级。</p><p>LV.1–LV.7 累计积分门槛：${cumulative.join(' / ')}</p><p>LV.25 累计积分门槛：${cumulative[6]+18*rules.repeatCost}，之后仍继续升级。</p><p>7级以后每级需要 ${rules.repeatCost} 分；数字等级继续增加，外观保留第7种形态。领养和换宠不修改积分。</p></section>`);
+}
+function petDetailView(s){
+ const p=growth(s),rules=PetScoreProgression.get(state);
+ const heading=`<div class="pet-detail-heading"><button class="text-button" data-do="pet-back">‹ 返回宠物花园</button><div class="button-row"><button class="button" data-do="edit-student" data-id="${s.id}">学生档案</button><button class="button" data-do="pet-honors" data-id="${s.id}">历史荣誉</button><button class="button" data-do="pet-focus" data-id="${s.id}">◧ 放到悬浮侧栏</button></div></div>`;
+ if(!p.adopted)return `${heading}<section class="pet-unadopted-detail"><div class="unadopted-egg">${petEgg(true)}</div><h2>${esc(s.name)}正在等待新伙伴</h2><p>领养不会修改积分。伙伴等级按照当前 ${s.score} 分计算，低于 ${rules.costs[0]} 分时保持蛋。</p><button class="button primary large-button" data-do="adopt-pet" data-id="${s.id}">领养伙伴</button></section>`;
+ return `${heading}<section class="pet-detail-hero"><div class="pet-big-stage pet-${p.pet}"><span class="stage-constellation">✧ · ✦ · ✧</span>${currentPetArt(p,true)}<span class="stage-platform"></span><span class="pill">${esc(currentPetStage(p))}</span></div><div class="pet-profile"><span class="eyebrow">${esc(s.group)} · 专属成长伙伴</span><h2>${esc(s.name)}的${esc(petNames[p.pet])}</h2><span class="level-badge">${esc(currentPetLabel(p))}</span><p class="pet-detail-copy">${p.isEgg?`达到 ${rules.costs[0]} 分，伙伴就会破壳`:'每一次积分变化，都能看见伙伴的变化'}</p><div class="pet-growth"><strong>本级积分 ${growthText(p)}</strong><span>还差 ${p.remainingToNext} 分${p.isEgg?'破壳':'升级'}</span></div><div class="progress"><i style="width:${growthPercent(p)}%"></i></div><div class="pet-totals"><div><strong>${s.score}</strong><small>当前积分</small></div><div><strong>${p.level}</strong><small>当前等级</small></div><div><strong>${p.medalTotal}</strong><small>永久荣誉徽章</small></div></div><div class="button-row"><button class="button primary large-button" data-do="pet-reward" data-id="${s.id}">✦ 加减积分</button><button class="button" data-do="pet-album" data-id="${s.id}">进化图鉴</button></div><p class="pet-fine-print">全班与所有面板共用一套积分门槛。加分升级、扣分降级，低于首级门槛回到蛋；第7种外观之后，数字等级仍继续增加。领养、换宠不会清零积分。</p><details class="pet-history-note"><summary>已有养成与荣誉记录</summary><p>已保存的成长 ${p.historicalGrowth??0}、毕业相册与徽章继续保留；这些历史数值不参与当前等级计算。</p></details></div></section>`;
+}
+
+function petFloatingView(){
+ const focus=state.students.find(s=>s.id===state.settings.petFocusId),list=focus?[focus,...state.students.filter(s=>s.id!==focus.id)]:state.students;
+ return `<div class="pet-floating"><div class="utility-title"><span>♧ 悬浮宠物 · 拖动此处</span><button class="icon-button" data-do="close-window" aria-label="关闭宠物侧栏">×</button></div><div class="floating-pet-toolbar"><button class="text-button" data-do="open-main">⌂ 主界面</button><button class="text-button" data-do="open-panel">学生积分</button><button class="text-button" data-do="open-pets">课堂展示</button></div><div class="floating-pet-content"><p class="muted">${esc(state.settings.className)} · 点击伙伴送鼓励</p><label class="floating-student-label">优先展示<select id="pet-student-select" aria-label="优先展示学生"><option value="" disabled ${!focus?'selected':''}>选择一位同学</option>${state.students.map(s=>`<option value="${s.id}" ${focus?.id===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label><div class="floating-pet-list">${list.length?list.map(s=>petCard(s,true)).join(''):'<div class="empty">请先在主界面添加学生</div>'}</div></div></div>`;
+}
+function rewardDialog(){
+ const requested=new Set(pendingRewardIds),students=state.students.filter(s=>requested.has(s.id)&&growth(s).adopted),skipped=requested.size-students.length;
+ if(!students.length)return toast('请先为选中的同学领养宠物');pendingRewardIds=students.map(s=>s.id);
+ pendingRewardContext={panelId:PanelTools.currentId(state),enabled:true,reasons:petReasons(),expectedRulesKey:ScoreRules.key(state),sharedRevision:state.sharedScoreRules?.revision,progressionKey:PetScoreProgression.key(state),expectedCycles:students.map(s=>({id:s.id,cycleId:growth(s).activeCycleId}))};
+ modal(`<h2>为伙伴记录积分</h2><p class="reward-students">${esc(students.map(s=>s.name).join('、'))}</p><p>这里直接加减学生当前积分，宠物等级同步升降，可在积分记录中撤销。</p>${students.length===1?`<button class="button pet-switch-entry" data-do="pet-switch" data-id="${students[0].id}">换宠物</button>`:''}${skipped?`<p class="rule-warning">本次跳过 ${skipped} 位尚未领养的同学</p>`:''}<div class="reason-editor-toolbar"><div><strong>课堂计分卡片</strong><small>点卡片记分 · 点“编辑”修改卡片</small></div><button type="button" class="button" data-do="pet-manage-reasons">编辑计分卡片</button></div><div class="pet-reasons">${pendingRewardContext.reasons.map((r,i)=>`<div class="reason-editable-card"><button class="reason-card ${r.delta<0?'minus':''}" data-do="pet-reason" data-index="${i}"><span>${esc(r.label)}</span><strong>${r.delta>0?'+':''}${r.delta}<small> 分</small></strong><em>宠物等级随积分变化</em></button><button type="button" class="reason-edit-button" data-do="pet-edit-reason" data-id="${r.id}" aria-label="编辑${esc(r.label)}计分卡片">编辑</button></div>`).join('')}</div><form id="pet-growth-form" data-panel-id="${PanelTools.currentId(state)}"><h3>自定义积分</h3><div class="pet-custom-growth"><label>分值<input name="delta" type="number" min="1" max="100" value="1" step="1" required></label><label>原因<input name="reason" maxlength="80" value="课堂表现" required></label></div><div class="button-row"><button class="button" type="submit" name="direction" value="minus">− 扣分</button><button class="button primary" type="submit" name="direction" value="plus">＋ 加分</button></div></form><p class="pet-fine-print">${students.length>1?'本次为批量操作，撤销时会同时还原所有选中学生。':'可在积分记录中撤销整笔。'}</p>`);
+ $('#modal .dialog').classList.add('reward-dialog');
+}
+function petLevelReferenceRows(rules){const cumulative=PetScoreProgression.cumulative(rules);return Array.from({length:25},(_,i)=>{const cost=i<7?rules.costs[i]:rules.repeatCost,total=i<7?cumulative[i]:cumulative[6]+(i-6)*rules.repeatCost;return `<tr><td>LV.${i+1}</td><td>${cost}</td><td>${total}</td></tr>`;}).join('');}
+function stageRuleFields(values){return `<div class="pet-threshold-grid">${values.map((v,i)=>`<label>LV.${i} → LV.${i+1}<input class="pet-threshold" name="threshold-${i}" type="number" min="1" max="1000000000" step="1" value="${v}" required><small>这一段所需积分</small></label>`).join('')}</div>`;}
+function rulesDialog(){
+ const rules=PetScoreProgression.get(state),cumulative=PetScoreProgression.cumulative(rules);
+ modal(`<h2>全局宠物进阶规则</h2><p class="egg-rule-summary">所有面板、所有伙伴都按学生当前积分计算等级。低于首级门槛时为蛋（LV.0），扣分跨过门槛会降级；不修改已有积分或历史记录。</p><form id="pet-rules-form" data-panel-id="${PanelTools.currentId(state)}" data-progression-key="${esc(PetScoreProgression.key(state))}">${stageRuleFields(rules.costs)}<label>LV.7 以后每级所需积分<input id="pet-repeat-cost" name="repeatCost" type="number" min="1" max="1000000000" value="${rules.repeatCost}" required></label><p id="pet-rule-cumulative-preview" aria-live="polite">当前 LV.1–LV.7 累计门槛：${cumulative.join(' / ')}</p><p class="rule-warning">输入的是各段所需积分；配置.xlsx“宠物进阶”会同时列出累计门槛。第7种外观之后仍可升级，外观保持第7阶段。</p><button class="button" type="button" data-do="pet-preset" data-preset="standard">填写标准规则</button><div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="submit" class="button primary">保存全局规则</button></div></form><label class="pet-visibility-setting"><input id="pet-hide-late" type="checkbox" ${state.settings.hideLateForms?'checked':''}>隐藏图鉴最后两种形态（LV.6 / LV.7，立即生效）</label><details class="pet-level-reference"><summary>查看 LV.1–LV.25 积分门槛</summary><div class="rule-import-table-wrap"><table class="rule-import-table"><thead><tr><th>等级</th><th>本级所需积分</th><th>累计积分</th></tr></thead><tbody id="pet-level-reference-body">${petLevelReferenceRows(rules)}</tbody></table></div><p id="pet-repeat-note">25级以后仍按每级 ${rules.repeatCost} 分继续升级，外观保留第7阶段。</p></details><p class="pet-fine-print">图鉴显示设置只影响预览，不改变真实积分、等级或伙伴卡片。</p>`);
+ $('#modal .dialog').classList.add('pet-rules-dialog');
+}
+function capturePetAlbumView(){
+ const dialog=$('#modal .dialog'),active=document.activeElement;
+ let focus='';
+ if(dialog?.contains(active)){
+  if(active.matches('.album-arrow'))focus='.album-arrow[aria-label="'+CSS.escape(active.getAttribute('aria-label'))+'"]';
+  else if(active.matches('.album-tile'))focus='.album-tile[data-level="'+CSS.escape(active.dataset.level)+'"]';
+  else if(active.matches('.modal-close'))focus='.modal-close';
+  else if(active.dataset.do)focus='[data-do="'+CSS.escape(active.dataset.do)+'"]';
+ }
+ return {focus,scroll:dialog?.querySelector('.dialog-content')?.scrollTop||0,trackScroll:dialog?.querySelector('.album-track')?.scrollLeft||0};
+}
+function restorePetAlbumView(view){
+ const dialog=$('#modal .dialog');if(!dialog)return;
+ const content=dialog.querySelector('.dialog-content'),track=dialog.querySelector('.album-track');
+ if(content)content.scrollTop=view.scroll;if(track)track.scrollLeft=view.trackScroll;
+ if(view.focus&&!$('#pet-feedback').contains(document.activeElement))dialog.querySelector(view.focus)?.focus({preventScroll:true});
+}
+function refreshPetAlbum(previous,restored=false){
+ if(!$('#album-preview'))return;
+ const student=state.students.find(s=>s.id===petModalId);if(!student){closeModal();return;}
+ const signature=source=>{const s=source.students.find(s=>s.id===petModalId);if(!s)return '';const p=growth(s,source);return JSON.stringify([s.name,p.pet,p.adopted,p.isEgg,p.startFromEgg,p.growth,p.level,p.shape,p.current,p.needed,p.maxed,source.settings.petStep,source.settings.petRules?.thresholds,source.settings.hideLateForms]);};
+ if(!restored&&signature(previous)===signature(state))return;
+ const view=capturePetAlbumView();
+ albumDialog({autofocus:false});
+ restorePetAlbumView(view);
+}
+function albumDialog(options={}){
+ const s=state.students.find(s=>s.id===petModalId);if(!s){if($('#album-preview'))closeModal();return;}const p=growth(s);
+ modal(`<div class="album-title"><span class="eyebrow">EVOLUTION ALBUM · 原创伙伴</span><h2>${esc(petNames[p.pet])} · 进化图鉴</h2><p>初生蛋是共同的序章，达到首级积分门槛后破壳。等级可达到25级及以上；七种形态对应等级1–7，更高等级保留第7种外观。${state.settings.hideLateForms?'老师已隐藏最后两级预览。':''}预览不会修改真实等级</p></div><div id="album-preview"></div><div class="album-track"><button class="album-tile egg-prelude" data-do="pet-preview" data-level="0" aria-label="预览初生蛋"><span>成长序章</span>${petEgg()}<strong>初生蛋</strong></button>${Array.from({length:7},(_,i)=>`<button class="album-tile" data-do="pet-preview" data-level="${i+1}" aria-label="预览第${i+1}级"><span>LV.${i+1}</span>${petPreviewArt(p.pet,i+1)}<strong>${hiddenPetForm(i+1)?'神秘形态':esc(PetArt.stages[i])}</strong></button>`).join('')}</div><p class="album-foot">${esc(s.name)} 当前：${esc(currentPetLabel(p))} · ${p.isEgg?`达到 ${PetScoreProgression.get(state).costs[0]} 分破壳`:p.maxed?'已满级':`本级积分 ${growthText(p)}`}</p>`,options);
+ $('#modal .dialog').classList.add('album-dialog');renderAlbumPreview();
+}
+function renderAlbumPreview(){
+ const s=state.students.find(s=>s.id===petModalId);if(!s||!$('#album-preview'))return;const p=growth(s);
+ const n=Math.max(0,Math.min(7,petPreviewLevel)),actual=!p.adopted?-1:p.isEgg?0:p.shape;
+ const note=n===actual?'当前形态':n===0?(p.startFromEgg?'已破壳的成长序章':'新伙伴的共同起点 · 预览'):actual>n?'已到达的形态':'未来的形态 · 预览';
+ const preview=$('#album-preview');
+ // Keep the native arrow buttons alive while their destinations change so a
+ // second Enter still activates the same previous/next control.
+ if(!preview.querySelector('.album-feature'))preview.innerHTML='<button class="album-arrow" data-do="pet-preview" aria-label="上一形态">‹</button><div class="album-feature"></div><button class="album-arrow" data-do="pet-preview" aria-label="下一形态">›</button>';
+ preview.querySelector('.album-feature').innerHTML=`<div class="album-art">${n===0?petEgg(true):petPreviewArt(p.pet,n,true)}</div><span class="level-badge">${n===0?'成长序章':`LV.${n}`}</span><h3>${n===0?'初生蛋':hiddenPetForm(n)?'神秘形态':esc(PetArt.stages[n-1])}</h3><p>${hiddenPetForm(n)?'老师已隐藏此形态':note}</p>`;
+ const arrows=preview.querySelectorAll('.album-arrow');arrows[0].dataset.level=String(Math.max(0,n-1));arrows[0].disabled=n===0;arrows[1].dataset.level=String(Math.min(7,n+1));arrows[1].disabled=n===7;
+ document.querySelectorAll('.album-tile').forEach(b=>{const active=Number(b.dataset.level)===n;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+}
+function petTransitionText(change){
+ const label=p=>p.isEgg?'初生蛋':`LV.${p.level}`;
+ return `${label(change.before)} → ${label(change.after)} · 成长 ${change.before.growth} → ${change.after.growth}`;
+}
+function showPetTransitionFeedback(changes){
+ if(!['main','pet','pets'].includes(role)||!changes.length)return;
+ if(changes.length===1)return showPetFeedback([changes[0].student],changes[0].direction,changes[0]);
+ const groups=[['hatch','伙伴破壳'],['up','伙伴升级'],['down','等级回退'],['egg','回到初生蛋'],['growth','成长已调整']];
+ $('#pet-feedback').innerHTML=`<section class="pet-celebration pet-batch-feedback" role="status"><header class="celebration-header"><strong>本次成长变化 · ${changes.length} 位同学</strong><button type="button" class="icon-button celebration-close" data-do="pet-feedback-close" aria-label="关闭成长提示">×</button></header><div class="celebration-content"><h2>每位伙伴的成长都已同步</h2><p>按变化分组，查看每位同学的本次结果</p>${groups.map(([direction,title])=>{const rows=changes.filter(change=>change.direction===direction);return rows.length?`<section class="pet-feedback-group" data-feedback-direction="${direction}"><h3>${title} · ${rows.length} 位</h3><div class="pet-feedback-rows">${rows.map(change=>`<article data-feedback-student="${esc(change.student.id)}">${currentPetArt(change.after)}<div><strong>${esc(change.student.name)}</strong><span>${esc(petNames[change.after.pet])}</span><small>${esc(petTransitionText(change))}</small></div></article>`).join('')}</div></section>`:'';}).join('')}<button class="button primary" data-do="pet-feedback-close">查看完毕，继续课堂</button></div></section>`;
+ // Keep whole-class results readable until dismissal or a newer growth result.
+ clearTimeout(feedbackTimer);
+}
+function showPetFeedback(students,direction='up',transition){
+ if(!['main','pet','pets'].includes(role))return;
+ const s=students[0],p=growth(s),down=direction==='down',hatch=direction==='hatch',egg=direction==='egg';
+ const headline=egg?'伙伴回到蛋里啦':hatch?'伙伴破壳啦！':down?'伙伴等级回退了':'伙伴升级啦！';
+ const summary=egg?'成长已回到 0，下一次鼓励会再次唤醒伙伴':hatch?'第一份努力，唤醒了你的成长伙伴':down?'成长已同步调整，可以继续积累':'每一份努力，都让伙伴更闪亮';
+ $('#pet-feedback').innerHTML=`<section class="pet-celebration ${down||egg?'pet-level-down':''} ${hatch?'pet-hatch-feedback':''} ${egg?'pet-return-egg':''}" role="status"><header class="celebration-header"><strong>${hatch?'破壳时刻':egg?'成长回溯':'成长时刻'}</strong><button type="button" class="icon-button celebration-close" data-do="pet-feedback-close" aria-label="关闭成长提示">×</button></header><div class="celebration-content"><span class="celebration-stars">${down||egg?'↶':'✧ ✦ ✧'}</span><span class="pill">${egg?'回到初生蛋':hatch?'达到首级积分 · 破壳':down?'成长已调整':p.maxed?'成长满级':'成长升级'}</span><div class="celebration-art">${currentPetArt(p,true)}</div><h2>${students.length===1?esc(s.name)+'的'+headline:students.length+' 位'+headline}</h2><p>${summary}</p><p>${esc(petNames[p.pet])} · ${esc(currentPetLabel(p))} · ${esc(currentPetStage(p))}</p>${transition?`<p>${esc(petTransitionText(transition))}</p>`:''}${students.length>1?`<p class="celebration-names">${esc(students.map(s=>s.name).join('、'))}</p>`:''}<button class="button primary" data-do="pet-feedback-close">${down||egg?'知道了，继续努力':p.maxed?'伙伴已满级，准备毕业':'太棒了，继续成长！'}</button></div></section>`;
+ clearTimeout(feedbackTimer);feedbackTimer=setTimeout(dismissPetFeedback,hatch?8500:7000);
+}
+function graduationDialog(){return toast('暂不设置新的毕业方式；已有毕业记录和徽章保留，可在历史荣誉查看');}
+function showGraduationFeedback(students,previous){
+ if(!['main','pet','pets'].includes(role))return;
+ const graduates=(Array.isArray(students)?students:[students]).flatMap(student=>{const p=growth(student),old=previous?.students.find(s=>s.id===student.id),count=old?growth(old,previous).graduates.length:p.graduates.length-1;return p.graduates.slice(Math.max(0,count)).map(snapshot=>({student,profile:p,snapshot}));});
+ if(!graduates.length)return;
+ const {student:s,profile:p,snapshot:g}=graduates[0],batch=graduates.length>1;
+ $('#pet-feedback').innerHTML=`<section class="pet-celebration pet-graduation-feedback ${batch?'pet-batch-feedback':''}" role="status"><header class="celebration-header"><strong>毕业时刻${batch?` · ${graduates.length} 位伙伴`:''}</strong><button type="button" class="icon-button celebration-close" data-do="pet-feedback-close" aria-label="关闭毕业提示">×</button></header><div class="celebration-content"><span class="celebration-stars">✧ 🏅 ✧</span><span class="pill">毕业快乐</span>${batch?'':`<div class="celebration-art">${petSvg(g.petSnapshot,true,7)}</div>`}<h2>+${graduates.length} 永久荣誉徽章</h2>${batch?`<p>${graduates.length} 位伙伴已收入毕业荣誉世界，每位同学获得 1 枚永久荣誉徽章</p><div class="pet-feedback-rows">${graduates.map(({student,profile,snapshot})=>`<article class="pet-graduate-row" data-feedback-student="${esc(student.id)}">${petSvg(snapshot.petSnapshot,false,7)}<div><strong>${esc(student.name)} · +1 永久荣誉徽章</strong><span>${esc(petNames[snapshot.petSnapshot])} · LV.${snapshot.levelSnapshot} · 本轮 ${snapshot.growthSnapshot} 成长</span><small>累计荣誉徽章 ${profile.medalTotal} 枚</small><button class="button" data-do="pet-feedback-adopt" data-id="${esc(student.id)}">为${esc(student.name)}领养新伙伴</button></div></article>`).join('')}</div><button class="button primary" data-do="pet-feedback-close">查看完毕，继续课堂</button>`:`<p>${esc(s.name)}的${esc(petNames[g.petSnapshot])}已收入毕业荣誉世界</p><p>累计荣誉徽章 ${p.medalTotal} 枚 · 可以迎接下一位伙伴啦</p><button class="button primary" data-do="pet-feedback-adopt" data-id="${esc(s.id)}">领养新的伙伴</button>`}</div></section>`;
+ clearTimeout(feedbackTimer);if(!batch)feedbackTimer=setTimeout(dismissPetFeedback,10000);
+}
+function switchPetDialog(id){const student=state.students.find(s=>s.id===id);if(!student)return;const profile=growth(student);if(!profile.adopted)return adoptionDialog(id);modal(`<h2>${esc(student.name)}，换一位成长伙伴</h2><p>只更换当前伙伴外形，普通积分、成长、等级与已有荣誉保留</p><form id="pet-switch-form" data-id="${student.id}" data-panel-id="${PanelTools.currentId(state)}" data-expected-pet="${student.pet}" data-cycle-id="${profile.activeCycleId||''}">${petChoicePicker(student.pet)}<div class="dialog-actions"><button type="button" class="button" data-do="modal-close">取消</button><button type="submit" class="button primary">确定更换</button></div></form>`);$('#modal .dialog').classList.add('student-edit-dialog');}
+function adoptionDialog(id){const s=state.students.find(s=>s.id===id);if(!s)return;const p=growth(s);if(p.adopted)return toast('这位同学已经有成长伙伴');modal(`<h2>${esc(s.name)}，迎接新的成长伙伴</h2><p>领养不会扣除或清空当前 ${s.score} 分。伙伴按同一套积分规则显示等级；低于 ${PetScoreProgression.get(state).costs[0]} 分时显示蛋。</p><form id="pet-adopt-form" data-id="${s.id}" data-cycle-id="${p.activeCycleId||''}" data-panel-id="${PanelTools.currentId(state)}">${petChoicePicker(s.pet)}<div class="dialog-actions"><button class="button" type="button" data-do="modal-close">再想想</button><button class="button primary" type="submit">确认领养</button></div></form>`);$('#modal .dialog').classList.add('student-edit-dialog');}
+
+function petRecordsView(id='',compact=false){
+ const logs=[...state.logs].reverse().filter(log=>!id||log.changes.some(change=>change.id===id)).slice(0,compact?8:300);
+ const legacy=[...(state.petLogs||[])].reverse().filter(log=>!id||log.changes.some(change=>change.id===id));
+ return `<section class="pet-history"><h2>积分与等级记录</h2><p>等级由当前积分计算。撤销积分后，各伙伴按实际积分重新显示。</p><div class="log-list">${logs.map(log=>`<article class="log-row ${log.undone?'undone':''}"><div class="log-detail"><strong>${esc(log.reason)}</strong><p>${esc(log.changes.map(c=>c.name||state.students.find(s=>s.id===c.id)?.name||'已移除学生').join('、'))}</p><small>${new Date(log.timestamp).toLocaleString('zh-CN',{hour12:false})}</small></div><strong class="log-delta ${log.delta<0?'negative':''}">${log.delta>0?'+':''}${log.delta}</strong>${log.undone?'<span class="muted">已撤销</span>':`<button class="button" data-do="undo" data-id="${log.id}">撤销积分</button>`}</article>`).join('')||'<div class="empty">还没有积分记录</div>'}</div>${legacy.length?`<details><summary>已保存的养成历史（${legacy.length}条）</summary><p>这些记录只读保留，不参与当前积分等级计算。</p>${legacy.slice(0,compact?8:300).map(log=>`<p>${esc(log.reason)} · ${new Date(log.timestamp).toLocaleString('zh-CN',{hour12:false})}${log.undone?' · 已撤销':''}</p>`).join('')}</details>`:''}</section>`;
+}
+function petRankingsView(){const groups=petRankingMode==='groups',level=petRankingMode==='level';const rows=groups?PetProgress.groupRankings(state):PetProgress.studentRankings(state,{sortBy:level?'level':'medals'});return `<section class="pet-ranking-section"><h2>宠物成长荣誉榜</h2><p>${groups?'按小组成员永久徽章总数 ÷ 全组人数计算平均徽章，包括尚未领养的同学':level?'按当前宠物等级排序，新伙伴显示待破壳，未领养同学显示等待领养':'按每位同学的永久荣誉徽章总数排序'}。同分并列，普通积分榜单独展示</p><div class="segmented"><button data-do="pet-rank-mode" data-mode="students" class="${petRankingMode==='students'?'active':''}">学生总徽章</button><button data-do="pet-rank-mode" data-mode="level" class="${level?'active':''}">学生当前等级</button><button data-do="pet-rank-mode" data-mode="groups" class="${groups?'active':''}">小组平均徽章</button></div><div class="ranking-list pet-ranking-list">${rows.map(r=>`<article ${groups?'':`data-pet-rank-student="${esc(r.id)}"`}><strong class="rank-number">${r.rank}</strong>${groups?'':`<div class="pet-rank-art">${currentPetArt(growth(r.id))}</div>`}<div><h3>${esc(groups?r.group:r.name)}</h3><small>${groups?`${r.count} 位成员 · 总徽章 ${r.medalTotal}`:esc(r.group)}</small>${groups?'':`<small class="pet-rank-facts">当前宠物：${r.adopted?esc(petNames[r.pet]):'未领养'} · 等级：${currentPetLabel(growth(r.id))} · 总徽章：${r.medalTotal}</small>`}</div><b>${groups?Number(r.averageMedals.toFixed(3)):level?currentPetLabel(growth(r.id)):r.medalTotal}<small> ${groups?'枚 / 人':level?'':'枚徽章'}</small></b></article>`).join('')||'<div class="empty">添加学生后即可查看荣誉榜</div>'}</div></section>`;}
+function refreshPetHonors(previous,restored=false){
+ const dialog=$('#modal .honors-dialog');if(!dialog)return;
+ const id=dialog.dataset.honorsStudentId||'';
+ if(id&&!state.students.some(s=>s.id===id)){closeModal();return;}
+ const signature=source=>JSON.stringify([id?'':source.settings.className,source.students.filter(s=>!id||s.id===id).map(s=>{const p=growth(s,source);return [s.id,s.name,p.medalTotal,p.medalAvailable,p.graduates];})]);
+ if(!restored&&signature(previous)===signature(state))return;
+ const view=capturePetAlbumView();honorsDialog(id,{autofocus:false});restorePetAlbumView(view);
+}
+function honorsDialog(id='',options={}){
+ if(id&&!state.students.some(s=>s.id===id)){if($('#modal .honors-dialog'))closeModal();return;}
+ const students=id?state.students.filter(s=>s.id===id):state.students,profiles=students.map(s=>({student:s,...growth(s)})),graduates=profiles.flatMap(p=>p.graduates.map(g=>({...g,owner:p.student.name}))).sort((a,b)=>b.graduatedAt-a.graduatedAt),total=profiles.reduce((n,p)=>n+p.medalTotal,0),unknown=profiles.some(p=>p.medalAvailable===null),available=unknown?null:profiles.reduce((n,p)=>n+p.medalAvailable,0);
+ modal(`<div class="album-title"><span class="eyebrow">GRADUATION HONORS</span><h2>毕业荣誉世界</h2><p>${id?esc(students[0]?.name||''):esc(state.settings.className)} · 每一位毕业伙伴，都值得珍藏</p></div><div class="honor-stats"><div><strong>${total}</strong><span>总荣誉徽章</span></div><div><strong>${available===null?'待核定':available}</strong><span>可兑换徽章</span></div><div><strong>${graduates.length}</strong><span>已记录毕业次数</span></div></div>${unknown?'<p class="pet-fine-print">当前档案未提供可验证的兑换余额，显示“待核定”；不将永久荣誉总数当作可兑换余额。已有徽章计入总荣誉，但没有可靠物种记录时不分配到相册。</p>':''}<div class="button-row">${PetExtraUI.honorActions(id)}</div><div class="honor-species-grid">${Object.entries(petNames).map(([pet,name])=>{const count=graduates.filter(g=>g.petSnapshot===pet).length;return `<article class="honor-species ${count?'has-graduates':'no-graduates'}" data-honor-pet="${pet}">${petSvg(pet,false,7)}<h3>${esc(name)}</h3><span>${count?`毕业 ${count} 次`:'尚未毕业'}</span></article>`;}).join('')}</div><h3>毕业时刻</h3><div class="graduation-snapshots">${graduates.map(g=>`<article>${petSvg(g.petSnapshot,false,7)}<div><h4>${esc(g.studentName)} · ${esc(petNames[g.petSnapshot])}</h4><p>${new Date(g.graduatedAt).toLocaleString('zh-CN',{hour12:false})} · ${esc(g.groupName)}</p><small>LV.${g.levelSnapshot} · 本轮 ${g.growthSnapshot} 成长 · 毕业门槛 ${g.ruleSnapshot.thresholds.join(' / ')}</small></div><strong>+1 🏅</strong></article>`).join('')||'<div class="empty">已有毕业快照会保留在这里；当前等级不通过毕业重置</div>'}</div>`,options);const dialog=$('#modal .dialog');dialog.classList.add('honors-dialog');dialog.dataset.honorsStudentId=id;
+}
+
+async function handlePetSubmit(event){
+ const form=event.target;if(!['pet-rules-form','pet-growth-form','pet-adopt-form','pet-switch-form'].includes(form.id))return false;event.preventDefault();if(form.dataset.saving)return true;
+ if(form.dataset.panelId!==PanelTools.currentId(state)){toast('面板已切换，请重新打开操作');return true;}
+ let command,message;const data=new FormData(form);
+ try{
+  if(form.id==='pet-rules-form'){
+   const petProgression=PetScoreProgression.validate({version:1,costs:[...form.querySelectorAll('.pet-threshold')].map(input=>Number(input.value)),repeatCost:Number(data.get('repeatCost'))});
+   command={type:'petProgression.update',petProgression,expectedProgressionKey:form.dataset.progressionKey};message='全局进阶规则已保存，所有面板按当前积分重算等级';
+  }else if(form.id==='pet-growth-form'){
+   if(!pendingRewardContext||pendingRewardContext.panelId!==PanelTools.currentId(state))throw Error('积分目标已变化，请重新选择');const amount=Number(data.get('delta')),reason=String(data.get('reason')||'').trim();if(!Number.isInteger(amount)||amount<1||amount>100)throw Error('分值需为1–100整数');if(!reason)throw Error('请填写积分原因');command={type:'score',ids:[...pendingRewardIds],expectedCycles:pendingRewardContext.expectedCycles,expectedProgressionKey:pendingRewardContext.progressionKey,delta:amount*(event.submitter?.value==='minus'?-1:1),reason};message='积分已更新，宠物等级同步计算';
+  }else if(form.id==='pet-switch-form'){const pet=data.get('pet');if(!Object.hasOwn(petNames,pet))throw Error('请选择伙伴');command={type:'pet.switch',id:form.dataset.id,pet,expectedPet:form.dataset.expectedPet,expectedCycleId:form.dataset.cycleId||null};message='伙伴已更换，积分、成长和荣誉保留';}
+  else{const pet=data.get('pet');if(!Object.hasOwn(petNames,pet))throw Error('请选择一位成长伙伴');command={type:'pet.adopt',id:form.dataset.id,pet,expectedCycleId:form.dataset.cycleId||null};message='领养成功，一起开启新的成长';}
+  form.dataset.saving='1';form.querySelectorAll('[type=submit]').forEach(button=>button.disabled=true);
+  if(await act({...command,panelId:form.dataset.panelId,expectedRestoreGeneration:draftEpoch(form)},message)){if(form.isConnected&&form===$('#'+form.id))closeModal();}else{form.dataset.saving='';form.querySelectorAll('[type=submit]').forEach(button=>button.disabled=false);}
+ }catch(error){toast(error.message);form.dataset.saving='';form.querySelectorAll('[type=submit]').forEach(button=>button.disabled=false);}return true;
+}
+function petDrawSignature(){return OrganizationTools.petDrawKey(state);}
+function makePetDrawResult(){const draw=state.petDraw;if(!draw?.lastIds?.length)return null;return {signature:petDrawSignature(),panelId:PanelTools.currentId(state),scope:draw.scope,rows:draw.scope==='groups'?draw.groups.map(g=>({label:g.group,ids:[...g.ids],expectedCycles:g.ids.map(id=>({id,cycleId:growth(id).activeCycleId})),delta:'1',rewarded:false})):[{label:'本次抽中的同学',ids:[...draw.lastIds],expectedCycles:draw.lastIds.map(id=>({id,cycleId:growth(id).activeCycleId})),delta:'1',rewarded:false}]};}
+function petDrawDialog(){
+ if(petDrawResult&&petDrawResult.signature!==petDrawSignature())petDrawResult=null;
+ const saved=ConfigurationModel.toolDefaults(state),existing=$('#modal .pet-draw-dialog'),draw=state.petDraw||{scope:'students',mode:'cycle',round:0},scope=existing?.querySelector('#pet-draw-scope')?.value||(petDrawResult?draw.scope:saved.petDrawScope),mode=existing?.querySelector('#pet-draw-mode')?.value||(petDrawResult?draw.mode:saved.petDrawMode);petDrawCount=existing?Number(existing.querySelector('#pet-draw-count')?.value||petDrawCount):petDrawResult?petDrawCount:saved.petDrawCount;const adopted=state.students.filter(s=>growth(s).adopted),groupCount=new Set(adopted.map(s=>s.group)).size;
+ modal(`<h2>宠物随机鼓励</h2><p>抽取已领养宠物的同学。抽小组后，每位已领养组员分别获得积分，伙伴等级同步变化；普通点名记录保持不变</p><div class="pet-draw-controls"><label>抽取对象<select id="pet-draw-scope"><option value="students" ${scope==='students'?'selected':''}>抽学生（${adopted.length}人）</option><option value="groups" ${scope==='groups'?'selected':''}>抽小组（${groupCount}组）</option></select></label><label>数量<input id="pet-draw-count" type="number" min="1" max="20" value="${petDrawCount}" step="1"></label><label>抽取方式<select id="pet-draw-mode"><option value="cycle" ${mode==='cycle'?'selected':''}>本轮不重复</option><option value="repeat" ${mode==='repeat'?'selected':''}>允许再次抽中</option></select></label></div><div class="button-row"><button class="button primary" data-do="pet-draw-start" ${petDrawBusy||!adopted.length?'disabled':''}>${petDrawBusy?'正在抽取…':'✦ 开始抽取'}</button><button class="button" data-do="pet-draw-reset" ${petDrawBusy?'disabled':''}>重新开始一轮</button><button class="button" data-do="pet-draw-use-defaults" ${petDrawBusy?'disabled':''}>使用默认设置</button><span class="muted" id="pet-draw-round">第 ${draw.round||0} 轮 · 不足所选数量时只抽本轮剩余对象</span></div><div id="pet-draw-results">${petDrawResult?petDrawResults():'<div class="empty">选好对象和数量，开始一次随机鼓励吧</div>'}</div>`);$('#modal .dialog').classList.add('pet-draw-dialog');$('#modal .dialog').dataset.petDrawIdentity=petDrawSignature();watchPetDrawCompletion($('#modal .dialog'));
+}
+function petDrawStudentFacts(id){const student=state.students.find(s=>s.id===id);if(!student)return '';const p=growth(student);return `${currentPetArt(p)}${esc(student.name)}<small>${esc(currentPetLabel(p))}</small>`;}
+function refreshPetDrawFacts(dialog){
+ if(!dialog?.isConnected||dialog!==$('#modal .dialog'))return;
+ // Live score, rule, name and species changes must not replace award inputs,
+ // their native selection/focus, pending amounts, or already rewarded rows.
+ dialog.querySelectorAll('.pet-draw-names [data-pet-draw-student]').forEach(node=>{const html=petDrawStudentFacts(node.dataset.petDrawStudent);if(node.innerHTML!==html)node.innerHTML=html;});
+}
+function petDrawResults(){if(!petDrawResult)return '';return `<h3>${petDrawResult.scope==='groups'?'本次抽中小组':'本次抽中学生'}</h3><div class="pet-draw-result-rows">${petDrawResult.rows.map((row,i)=>`<section class="pet-draw-result"><h4>${esc(row.label)}</h4><div class="pet-draw-names">${row.ids.map(id=>`<span data-pet-draw-student="${esc(id)}">${petDrawStudentFacts(id)}</span>`).join('')}</div><div class="pet-draw-award"><label>每位积分<input type="number" min="-100" max="100" step="1" data-pet-draw-delta="${i}" value="${esc(row.delta)}" ${row.rewarded||petDrawBusy?'disabled':''}></label><button class="button primary" data-do="pet-draw-award" data-index="${i}" ${row.rewarded||petDrawBusy?'disabled':''}>${row.rewarded?'已记录积分':'确认本项'}</button></div></section>`).join('')}</div><p class="pet-fine-print">填写非零整数，正数增加、负数减少（−100 至 100）。每组可设置不同值</p><button class="button primary" data-do="pet-draw-award-all" ${petDrawBusy||petDrawResult.rows.every(r=>r.rewarded)?'disabled':''}>确认全部未记录项</button>`;}
+function refreshPetDrawDialog(dialog,results=false){
+ if(!dialog?.isConnected||dialog!==$('#modal .dialog')||!dialog.querySelector('#pet-draw-results'))return;
+ if(results)dialog.querySelector('#pet-draw-results').innerHTML=petDrawResult?petDrawResults():'<div class="empty">选好对象和数量，开始一次随机鼓励吧</div>';
+ const start=dialog.querySelector('[data-do="pet-draw-start"]'),reset=dialog.querySelector('[data-do="pet-draw-reset"]');
+ if(start){start.disabled=petDrawBusy||!state.students.some(s=>growth(s).adopted);start.textContent=petDrawBusy?'正在处理…':'✦ 开始抽取';}
+ if(reset)reset.disabled=petDrawBusy;const defaults=dialog.querySelector('[data-do="pet-draw-use-defaults"]');if(defaults)defaults.disabled=petDrawBusy;
+ dialog.querySelectorAll('[data-pet-draw-delta]').forEach(input=>{input.disabled=petDrawBusy||!!petDrawResult?.rows[Number(input.dataset.petDrawDelta)]?.rewarded;});
+ dialog.querySelectorAll('[data-do="pet-draw-award"]').forEach(button=>{const row=petDrawResult?.rows[Number(button.dataset.index)];button.disabled=petDrawBusy||!row||row.rewarded;button.textContent=row?.rewarded?'已记录积分':'确认本项';});
+ const all=dialog.querySelector('[data-do="pet-draw-award-all"]');if(all)all.disabled=petDrawBusy||!petDrawResult||petDrawResult.rows.every(row=>row.rewarded);
+ const round=dialog.querySelector('#pet-draw-round');if(round)round.textContent=`第 ${state.petDraw?.round||0} 轮 · 不足所选数量时只抽本轮剩余对象`;
+}
+function watchPetDrawCompletion(dialog){
+ const pending=petDrawPending;if(!pending)return;
+ const refresh=()=>queueMicrotask(()=>{if(!dialog?.isConnected||dialog!==$('#modal .dialog')||petDrawBusy)return;if(!petDrawResult||petDrawResult.signature!==petDrawSignature())petDrawResult=makePetDrawResult();refreshPetDrawDialog(dialog,true);});
+ pending.then(refresh,refresh);
+}
+async function handlePetDraw(action,el){
+ if(action==='pet-draw'){if(!petDrawResult||petDrawResult.signature!==petDrawSignature())petDrawResult=makePetDrawResult();petDrawDialog();return true;}if(petDrawBusy)return true;
+ if(action==='pet-draw-use-defaults'){const saved=ConfigurationModel.toolDefaults(state);$('#pet-draw-scope').value=saved.petDrawScope;$('#pet-draw-mode').value=saved.petDrawMode;$('#pet-draw-count').value=String(saved.petDrawCount);petDrawCount=saved.petDrawCount;toast('默认设置已载入，下一次抽取时使用；当前结果保留');return true;}
+ if(action==='pet-draw-reset'){
+  const dialog=$('#modal .dialog');petDrawBusy=true;refreshPetDrawDialog(dialog);const pending=petDrawPending=act({type:'pet.draw.reset'},'宠物抽取已开始新一轮');
+  try{if(await pending&&dialog?.isConnected&&dialog===$('#modal .dialog'))petDrawResult=null;}finally{petDrawBusy=false;petDrawPending=null;refreshPetDrawDialog(dialog,true);}return true;
+ }
+ if(action==='pet-draw-start'){
+  const dialog=$('#modal .dialog'),scope=$('#pet-draw-scope').value,mode=$('#pet-draw-mode').value,count=Number($('#pet-draw-count').value),panelId=PanelTools.currentId(state);if(!Number.isInteger(count)||count<1||count>20){toast('抽取数量需为1–20的整数');return true;}
+  petDrawCount=count;petDrawBusy=true;refreshPetDrawDialog(dialog);const pending=petDrawPending=act({type:'pet.draw',scope,count,mode,panelId});
+  try{if(await pending&&dialog?.isConnected&&dialog===$('#modal .dialog')&&panelId===PanelTools.currentId(state))petDrawResult=makePetDrawResult();}finally{petDrawBusy=false;petDrawPending=null;refreshPetDrawDialog(dialog,true);}return true;
+ }
+ if(action==='pet-draw-award'||action==='pet-draw-award-all'){
+  if(!petDrawResult||petDrawResult.signature!==petDrawSignature()){toast('抽取名单或所属小组已变化，请重新抽取');petDrawResult=null;petDrawDialog();return true;}
+  const rows=action==='pet-draw-award-all'?petDrawResult.rows.filter(row=>!row.rewarded):[petDrawResult.rows[Number(el.dataset.index)]].filter(row=>row&&!row.rewarded);if(!rows.length)return true;
+  const awards=rows.map(row=>({ids:[...row.ids],expectedCycles:row.expectedCycles,delta:Number(row.delta)}));if(awards.some(a=>!Number.isInteger(a.delta)||a.delta===0||Math.abs(a.delta)>100)){toast('每项积分需为−100至100的非零整数');return true;}
+  const panelId=petDrawResult.panelId,signature=petDrawResult.signature,dialog=$('#modal .dialog');petDrawBusy=true;refreshPetDrawDialog(dialog);
+  const pending=petDrawPending=act({...(awards.length===1?{type:'score',...awards[0]}:{type:'score.mixed',awards:awards.flatMap(a=>a.ids.map(id=>({id,delta:a.delta}))),expectedCycles:awards.flatMap(a=>a.expectedCycles)}),reason:petDrawResult.scope==='groups'?'宠物随机小组鼓励':'宠物随机学生鼓励',panelId,expectedPetDraw:signature},'已记录积分，宠物等级同步计算');
+  try{if(await pending&&petDrawResult?.signature===signature)rows.forEach(row=>row.rewarded=true);}finally{petDrawBusy=false;petDrawPending=null;refreshPetDrawDialog(dialog,true);}return true;
+ }return false;
+}
+
+
+document.addEventListener('dblclick',e=>{if(role==='flower'&&e.target.closest('[data-do="open-panel"]')){clearTimeout(flowerClickTimer);api.window({command:native?'flower-double':'toggle',role:'panel',value:e.detail}).catch(error=>toast(error.message));}});
+
+
+function petMatches(id,query){const q=String(query||'').trim().toLocaleLowerCase();if(!q)return true;if(Object.hasOwn(petNames,q))return id===q;return `${id} ${petNames[id]} ${petAliases[id]||''}`.toLocaleLowerCase().includes(q);}
+function petChoicePicker(chosen){
+ petChoiceFamily='all';
+ return `<fieldset class="pet-choice-fieldset"><legend>选择成长伙伴 <span>${Object.keys(petNames).length}种不同宠物 · 每种25级以上 · 7种进化造型</span></legend><p class="pet-choice-egg-note">图卡只预览伙伴外形。领养或换宠不改变积分；低于首级门槛显示蛋，达到门槛后按当前积分显示等级</p>${petFamilyControls('pet-choice-family')}<div class="pet-choice-tools"><input id="pet-choice-search" type="search" placeholder="搜索伙伴，例如：熊猫 / 机甲 / 恐龙" aria-label="搜索成长伙伴"><button type="button" class="button" data-do="pet-choice-random">随机一位</button></div><p id="pet-choice-summary" class="pet-choice-summary" aria-live="polite">已选：${esc(petNames[chosen])} · 点击图卡更换，保存后生效</p><div class="pet-choice-grid">${Object.entries(petNames).map(([id,name])=>`<label class="pet-choice ${chosen===id?'chosen':''}" data-pet="${id}"><input type="radio" name="pet" value="${id}" ${chosen===id?'checked':''} aria-label="${esc(name)}">${petSvg(id,false,4)}<strong>${esc(name)}</strong><small>${adventurePets.has(id)?'冒险伙伴':'经典伙伴'}</small></label>`).join('')}</div><p id="pet-choice-empty" class="pet-search-empty" hidden>没有找到这位伙伴，试试其他名称或清空搜索</p><small id="pet-choice-count">显示全部${Object.keys(petNames).length}种伙伴</small></fieldset>`;
+}
+function updatePetChoice(){
+ const chosen=$('#modal input[name=pet]:checked')?.value;if(!chosen)return;
+ document.querySelectorAll('.pet-choice').forEach(card=>card.classList.toggle('chosen',card.dataset.pet===chosen));
+ $('#pet-choice-summary').textContent=`已选：${petNames[chosen]} · 点击图卡更换，保存后生效`;
+}
+function filterPetChoices(){
+ const query=$('#pet-choice-search')?.value.trim()||'';let count=0;
+ document.querySelectorAll('.pet-choice').forEach(card=>{card.hidden=!(petMatches(card.dataset.pet,query)&&inPetFamily(card.dataset.pet,petChoiceFamily));if(!card.hidden)count++;});
+ $('#pet-choice-count').textContent=`找到 ${count} / ${Object.keys(petNames).length} 种伙伴`;
+ $('#pet-choice-empty').hidden=count!==0;
+ document.querySelectorAll('[data-do=pet-choice-family]').forEach(b=>{const active=b.dataset.family===petChoiceFamily;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+}
+function catalogDialog(){
+ catalogStage=4;catalogFamily='all';
+ modal(`<div class="catalog-heading"><span class="eyebrow">MEET YOUR COMPANION · 原创宠物图鉴</span><h2>${Object.keys(petNames).length}种伙伴，等你来认识</h2><p>每种均可达到25级及以上，并有七种进化造型，合计${Object.keys(petNames).length*7}种造型。这里仅供浏览，选择学生后可在档案中更换</p></div>${petFamilyControls('catalog-family')}<div class="catalog-controls"><input id="pet-catalog-search" type="search" placeholder="搜索中文名或英文物种" aria-label="搜索宠物图鉴"><div class="segmented"><button type="button" data-do="catalog-stage" data-level="1">破壳宝宝</button><button type="button" data-do="catalog-stage" data-level="4">出发旅行</button><button type="button" data-do="catalog-stage" data-level="7">星光守护</button></div></div><p id="catalog-count" class="catalog-count" aria-live="polite"></p><div id="catalog-grid" class="catalog-grid"></div><p class="catalog-foot">完整七阶段可在每位学生的「进化图鉴」中逐一查看 · 预览不会改变课堂数据</p>`);
+ $('#modal .dialog').classList.add('catalog-dialog');renderCatalog();
+}
+function renderCatalog(){
+ if(!$('#catalog-grid'))return;const query=$('#pet-catalog-search')?.value.trim()||'';
+ const entries=Object.entries(petNames).filter(([id])=>petMatches(id,query)&&inPetFamily(id,catalogFamily));
+ $('#catalog-count').textContent=`${entries.length} / ${Object.keys(petNames).length}种伙伴 · 正在预览 LV.${catalogStage} ${hiddenPetForm(catalogStage)?'神秘形态（老师已隐藏）':PetArt.stages[catalogStage-1]}`;
+ $('#catalog-grid').innerHTML=entries.length?entries.map(([id,name],index)=>`<article class="catalog-card" data-catalog-pet="${id}"><span class="catalog-number">${String(Object.keys(petNames).indexOf(id)+1).padStart(2,'0')}</span>${petPreviewArt(id,catalogStage)}<h3>${esc(name)}</h3><p>25级以上 · 7种进化造型</p></article>`).join(''):'<div class="pet-search-empty">没有找到这位伙伴，试试“海豹”“熊猫”或清空搜索</div>';
+ document.querySelectorAll('[data-do=catalog-family]').forEach(b=>{const active=b.dataset.family===catalogFamily;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+ document.querySelectorAll('[data-do=catalog-stage]').forEach(b=>{const active=Number(b.dataset.level)===catalogStage;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+}

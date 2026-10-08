@@ -1,0 +1,58 @@
+{
+  "snapshot": {
+    "expectedCaseNames": [
+      "Avatar-library preview snapshot survives source replacement and deletion before quick save",
+      "Batch photo import rejects an older conflicting quick-avatar draft on save",
+      "CSV all 120 avatar snapshots survive replacement and deletion of source files",
+      "Canceled import native picker remains completely inert",
+      "Canceled restore native picker remains completely inert",
+      "Catalog and delivered source identity",
+      "Changed backup file requires fresh preview before restoring intended name and avatar",
+      "Chosen single-photo snapshot survives source replacement and deletion before student save",
+      "Competing append import previews select only the newest request",
+      "Competing replace import previews select only the newest request",
+      "Delayed import canceled by modal close and reopen cannot replace new student editor",
+      "Delayed restore canceled by dialog close and reopen cannot replace newer quick avatar editor",
+      "Failed append save then unrelated edit allows one explicit snapshot retry",
+      "Failed batch save followed by restore and fresh retry matches only current synthetic roster",
+      "Failed quick avatar save then restore invalidates retry despite identical student IDs",
+      "Failed replace-import save then concurrent changes reject unchanged confirmation retry",
+      "Failed restore save then concurrent changes reject unchanged confirmation retry",
+      "Import then restore competing previews preserve newest backup choice",
+      "Quick avatar save conflicts with newer manual photo without reverting student edits",
+      "Same-ID different-record restore invalidates pre-existing import confirmation",
+      "Student form merges unrelated concurrent avatar and score edits",
+      "Two competing backup previews apply only the newest backup snapshot",
+      "Unmatched and ambiguous CSV avatar names preserve explicit preview outcomes after sources change",
+      "XLSX all 120 avatar snapshots survive replacement and deletion of source files",
+      "form canceled photo picker preserves current unsaved draft without a write",
+      "form photo callback after clear respects newest draft and context",
+      "form photo callback after library respects newest draft and context",
+      "form photo callback after reopen respects newest draft and context",
+      "form photo callback after restore respects newest draft and context",
+      "form photo callback after second-picker respects newest draft and context",
+      "quick canceled photo picker preserves current unsaved draft without a write",
+      "quick photo callback after clear respects newest draft and context",
+      "quick photo callback after library respects newest draft and context",
+      "quick photo callback after reopen respects newest draft and context",
+      "quick photo callback after restore respects newest draft and context",
+      "quick photo callback after second-picker respects newest draft and context"
+    ],
+    "expectedLeaves": 147
+  },
+  "focused": {
+    "expectedCaseNames": [
+      "300-photo roster import preserves every identity and a 301st append rejects atomically",
+      "Batch save failure preserves all prior photos and disk bytes; explicit retry commits once",
+      "Concurrent scoring during batch preparation is retained when photos commit",
+      "Concurrent student photo edit during batch preparation rejects entire batch",
+      "Delayed native chooser without restore still imports once and cancel stays inert",
+      "Late invalid replacement row rejects without destroying any of 300 existing student photos",
+      "Mixed batch matches one student, rejects corrupt photo and skips duplicate names without altering sources",
+      "Restore while batch chooser is pending cancels stale photo commit",
+      "Restore while batch queued is pending cancels stale photo commit",
+      "Restore while batch scan is pending cancels stale photo commit"
+    ],
+    "expectedLeaves": 10
+  }
+}

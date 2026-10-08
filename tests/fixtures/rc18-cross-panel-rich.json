@@ -1,0 +1,467 @@
+{
+  "version": 2,
+  "revision": 18,
+  "settings": {
+    "className": "合成完整原班",
+    "petStep": 20,
+    "petFocusId": "",
+    "toolDefaults": {
+      "timerDurationSeconds": 300,
+      "drawScope": "groups",
+      "drawMode": "cycle",
+      "drawCount": 1,
+      "petDrawScope": "students",
+      "petDrawMode": "cycle",
+      "petDrawCount": 1,
+      "bombSeconds": 30
+    },
+    "petRules": {
+      "thresholds": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    },
+    "studentSort": "custom",
+    "studentOrder": [
+      "s_cc9728cf-d194-4dba-9f4c-1f12582996ce",
+      "s_aab439f4-3d09-49f5-8a99-8d3d47623ba3",
+      "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+      "s_c1649c0d-e0c0-457e-a0c2-64add33d4339"
+    ]
+  },
+  "students": [
+    {
+      "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+      "name": "合成交互1",
+      "group": "合成组1",
+      "score": 7,
+      "growth": 7,
+      "pet": "robot",
+      "photo": "",
+      "adopted": true,
+      "startFromEgg": true
+    },
+    {
+      "id": "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+      "name": "合成交互2",
+      "group": "合成组2",
+      "score": 7,
+      "growth": 7,
+      "pet": "fox",
+      "photo": "",
+      "startFromEgg": true
+    },
+    {
+      "id": "s_aab439f4-3d09-49f5-8a99-8d3d47623ba3",
+      "name": "合成交互3",
+      "group": "合成组1",
+      "score": 0,
+      "growth": 0,
+      "pet": "bunny",
+      "photo": "",
+      "startFromEgg": true
+    },
+    {
+      "id": "s_cc9728cf-d194-4dba-9f4c-1f12582996ce",
+      "name": "合成交互4",
+      "group": "合成组2",
+      "score": 0,
+      "growth": 0,
+      "pet": "cat",
+      "photo": "",
+      "startFromEgg": true
+    }
+  ],
+  "logs": [
+    {
+      "id": "l_6efc5f20-abec-4f0f-8a79-e30bd0081b51",
+      "timestamp": 1791381818599,
+      "delta": 7,
+      "reason": "合成原班课堂表现",
+      "undone": false,
+      "changes": [
+        {
+          "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+          "name": "合成交互1",
+          "beforeScore": 0,
+          "afterScore": 7,
+          "beforeGrowth": 0,
+          "afterGrowth": 7,
+          "petEffect": {
+            "accountId": "pa_3b93115f-505a-4726-b774-dea95b5979c3",
+            "cycleId": "pc_07a0b5b1-7662-44e7-8f59-8393389256eb",
+            "delta": 7
+          }
+        },
+        {
+          "id": "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+          "name": "合成交互2",
+          "beforeScore": 0,
+          "afterScore": 7,
+          "beforeGrowth": 0,
+          "afterGrowth": 7,
+          "petEffect": {
+            "accountId": "pa_60fc80eb-bc14-479a-86c1-ad72204fa653",
+            "cycleId": "pc_9ef8ae1b-4b28-45da-bf9b-159d642e0214",
+            "delta": 7
+          }
+        }
+      ]
+    }
+  ],
+  "draw": {
+    "mode": "cycle",
+    "bag": [
+      "合成组1"
+    ],
+    "lastIds": [
+      "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+      "s_cc9728cf-d194-4dba-9f4c-1f12582996ce"
+    ],
+    "round": 1,
+    "eventId": "28180e42-e18a-43b5-a397-f94d50873173",
+    "scope": "groups",
+    "lastGroups": [
+      "合成组2"
+    ],
+    "groups": [
+      {
+        "group": "合成组2",
+        "ids": [
+          "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+          "s_cc9728cf-d194-4dba-9f4c-1f12582996ce"
+        ]
+      }
+    ]
+  },
+  "timer": {
+    "durationMs": 300000,
+    "remainingMs": 300000,
+    "endsAt": null,
+    "running": false
+  },
+  "petAccounts": [
+    {
+      "id": "pa_3b93115f-505a-4726-b774-dea95b5979c3",
+      "studentId": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_f6b5e094-91c5-46aa-890d-f50f3c6f1e62",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 40,
+      "cycles": [
+        {
+          "id": "pc_07a0b5b1-7662-44e7-8f59-8393389256eb",
+          "pet": "owl",
+          "status": "graduated",
+          "netGrowth": 37,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        },
+        {
+          "id": "pc_f6b5e094-91c5-46aa-890d-f50f3c6f1e62",
+          "pet": "robot",
+          "status": "active",
+          "netGrowth": 3,
+          "openedAt": 1791381818604,
+          "origin": "explicit-adoption",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [
+        {
+          "id": "gr_2819f5bc-f683-4173-bd1a-1627b2967a72",
+          "cycleId": "pc_07a0b5b1-7662-44e7-8f59-8393389256eb",
+          "graduatedAt": 1791381818603,
+          "petSnapshot": "owl",
+          "ruleSnapshot": {
+            "thresholds": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ]
+          },
+          "growthSnapshot": 37,
+          "levelSnapshot": 7,
+          "shapeSnapshot": 7,
+          "studentName": "合成交互1",
+          "groupName": "合成组1",
+          "sourceActionId": "ga_10279d59-b94c-4ab1-8e73-cf06c761079f"
+        }
+      ],
+      "badgeEvents": [
+        {
+          "id": "pb_0049f60e-259b-4e3b-b8b9-fe7e010b1b8f",
+          "type": "graduation",
+          "graduationId": "gr_2819f5bc-f683-4173-bd1a-1627b2967a72",
+          "amount": 1,
+          "timestamp": 1791381818603
+        }
+      ]
+    },
+    {
+      "id": "pa_60fc80eb-bc14-479a-86c1-ad72204fa653",
+      "studentId": "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_9ef8ae1b-4b28-45da-bf9b-159d642e0214",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 7,
+      "cycles": [
+        {
+          "id": "pc_9ef8ae1b-4b28-45da-bf9b-159d642e0214",
+          "pet": "fox",
+          "status": "active",
+          "netGrowth": 7,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    },
+    {
+      "id": "pa_0cb47a5f-f560-4393-8eb6-19306970818a",
+      "studentId": "s_aab439f4-3d09-49f5-8a99-8d3d47623ba3",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_48d70a63-1a2a-4310-a506-2cd7bb9cc793",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 0,
+      "cycles": [
+        {
+          "id": "pc_48d70a63-1a2a-4310-a506-2cd7bb9cc793",
+          "pet": "bunny",
+          "status": "active",
+          "netGrowth": 0,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    },
+    {
+      "id": "pa_770a1afa-f8c0-4249-bfaa-b25cf8a14f9d",
+      "studentId": "s_cc9728cf-d194-4dba-9f4c-1f12582996ce",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_4d4f48c8-8857-4339-bf08-972005befdb6",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 0,
+      "cycles": [
+        {
+          "id": "pc_4d4f48c8-8857-4339-bf08-972005befdb6",
+          "pet": "cat",
+          "status": "active",
+          "netGrowth": 0,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    }
+  ],
+  "petLogs": [
+    {
+      "id": "pg_1a7f9703-3eb4-4b79-bbcc-0815b183f379",
+      "timestamp": 1791381818602,
+      "delta": 30,
+      "reason": "宠物成长",
+      "undone": false,
+      "changes": [
+        {
+          "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+          "name": "合成交互1",
+          "accountId": "pa_3b93115f-505a-4726-b774-dea95b5979c3",
+          "cycleId": "pc_07a0b5b1-7662-44e7-8f59-8393389256eb",
+          "beforeGrowth": 7,
+          "afterGrowth": 37
+        }
+      ]
+    },
+    {
+      "id": "pg_924f67db-88e4-41c0-8220-38d9e94c7d6f",
+      "timestamp": 1791381818604,
+      "delta": 3,
+      "reason": "宠物成长",
+      "undone": false,
+      "changes": [
+        {
+          "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+          "name": "合成交互1",
+          "accountId": "pa_3b93115f-505a-4726-b774-dea95b5979c3",
+          "cycleId": "pc_f6b5e094-91c5-46aa-890d-f50f3c6f1e62",
+          "beforeGrowth": 0,
+          "afterGrowth": 3
+        }
+      ]
+    }
+  ],
+  "petDraw": {
+    "scope": "students",
+    "mode": "cycle",
+    "bag": [
+      "s_aab439f4-3d09-49f5-8a99-8d3d47623ba3",
+      "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+      "s_cc9728cf-d194-4dba-9f4c-1f12582996ce"
+    ],
+    "lastIds": [
+      "s_c1649c0d-e0c0-457e-a0c2-64add33d4339"
+    ],
+    "lastGroups": [],
+    "groups": [],
+    "round": 1,
+    "eventId": "f4b35348-65c4-43b1-899d-173630cf0fe3"
+  },
+  "classroomTools": {
+    "version": 1,
+    "revision": 3,
+    "vote": {
+      "candidates": [
+        {
+          "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+          "votes": 0
+        },
+        {
+          "id": "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+          "votes": 1
+        }
+      ]
+    },
+    "attendance": {
+      "presentIds": [
+        "s_c1649c0d-e0c0-457e-a0c2-64add33d4339"
+      ]
+    }
+  },
+  "drawSessions": {
+    "students_cycle": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "groups_cycle": {
+      "mode": "cycle",
+      "bag": [
+        "合成组1"
+      ],
+      "lastIds": [
+        "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+        "s_cc9728cf-d194-4dba-9f4c-1f12582996ce"
+      ],
+      "round": 1,
+      "eventId": "28180e42-e18a-43b5-a397-f94d50873173",
+      "scope": "groups",
+      "lastGroups": [
+        "合成组2"
+      ],
+      "groups": [
+        {
+          "group": "合成组2",
+          "ids": [
+            "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+            "s_cc9728cf-d194-4dba-9f4c-1f12582996ce"
+          ]
+        }
+      ]
+    }
+  },
+  "toolboxExtra": {
+    "version": 1,
+    "revision": 5,
+    "links": [
+      {
+        "id": "rich_link",
+        "title": "合成未访问网站",
+        "url": "https://example.org/"
+      }
+    ],
+    "homework": {
+      "subjects": [
+        "语文",
+        "数学",
+        "英语"
+      ],
+      "tasks": [
+        {
+          "id": "rich_task",
+          "title": "合成复查练习",
+          "subject": "语文",
+          "date": "2026-10-03",
+          "submittedIds": [
+            "s_c1649c0d-e0c0-457e-a0c2-64add33d4339"
+          ]
+        }
+      ],
+      "history": [
+        {
+          "id": "rich_history",
+          "taskId": "rich_task",
+          "title": "合成复查练习",
+          "subject": "语文",
+          "date": "2026-10-03",
+          "timestamp": 1791381818609,
+          "kind": "reset",
+          "members": [
+            {
+              "id": "s_c1649c0d-e0c0-457e-a0c2-64add33d4339",
+              "name": "合成交互1",
+              "group": "合成组1",
+              "submitted": true
+            },
+            {
+              "id": "s_3b2fceeb-175b-49cc-afb9-08ae40b1e7f0",
+              "name": "合成交互2",
+              "group": "合成组2",
+              "submitted": false
+            },
+            {
+              "id": "s_aab439f4-3d09-49f5-8a99-8d3d47623ba3",
+              "name": "合成交互3",
+              "group": "合成组1",
+              "submitted": false
+            },
+            {
+              "id": "s_cc9728cf-d194-4dba-9f4c-1f12582996ce",
+              "name": "合成交互4",
+              "group": "合成组2",
+              "submitted": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "groupBases": [
+    {
+      "group": "合成组1",
+      "score": 4
+    }
+  ],
+  "groupLogs": [
+    {
+      "id": "g_f2cb44b9-541f-4bec-b54f-294ed7f2d22d",
+      "group": "合成组1",
+      "delta": 4,
+      "before": 0,
+      "after": 4,
+      "reason": "小组基础分",
+      "timestamp": 1791381818604,
+      "undone": false
+    }
+  ]
+}

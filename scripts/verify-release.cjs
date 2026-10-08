@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const ASAR=require('@electron/asar'),PE=require('pe-library'),Res=require('resedit');
+const root=path.resolve(__dirname,'..'),dir=path.join(root,process.env.FLOWER_DIST||'dist','win-unpacked'),out=path.resolve(process.env.FLOWER_PACKAGE_QA_OUT||path.join(root,'artifacts/qa'));
+fs.mkdirSync(out,{recursive:true});
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const archive=path.join(dir,'resources/app.asar'),exe=path.join(dir,'花伴课堂.exe');
+const resource=PE.NtExecutableResource.from(PE.NtExecutable.from(fs.readFileSync(exe)));
+const integrity=resource.entries.find(e=>e.type==='INTEGRITY');assert.ok(integrity,'missing embedded ASAR integrity resource');
+const integrityData=JSON.parse(Buffer.from(integrity.bin).toString());
+const headerHash=sha(Buffer.from(ASAR.getRawHeader(archive).headerString));assert.equal(integrityData[0].value,headerHash,'PE ASAR integrity mismatch');
+const version=Res.Resource.VersionInfo.fromEntries(resource.entries)[0].getStringValues({lang:1033,codepage:1200});
+const expected=require('../package.json').version;assert.equal(version.FileVersion,expected.split('-')[0]+'.0');assert.equal(version.ProductVersion,expected.split('-')[0]+'.0');
+const pkg=JSON.parse(ASAR.extractFile(archive,'package.json'));assert.equal(pkg.version,expected);
+const result={status:'passed',appVersion:pkg.version,windowsPEVersion:version.FileVersion,asarSha256:sha(fs.readFileSync(archive)),runtimeExeSha256:sha(fs.readFileSync(exe)),embeddedIntegrityMatchesHeader:true,asarHeaderSha256:headerHash,windowsExecution:false,codeSigned:false};
+fs.writeFileSync(path.join(out,'pe-verification.json'),JSON.stringify(result,null,2));console.log('PASS_PE',JSON.stringify(result));

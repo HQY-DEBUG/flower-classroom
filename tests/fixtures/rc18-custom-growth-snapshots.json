@@ -1,0 +1,6184 @@
+{
+  "custom": {
+    "version": 2,
+    "revision": 2,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 3,
+          "growthDelta": 7
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ]
+    },
+    "students": [
+      {
+        "id": "s_580c9d54-d380-4253-a1ff-3544051d9aef",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 3,
+        "growth": 7,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_5a002cda-7391-44e0-8671-2c9e23809016",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_9138353c-79be-4c7f-9561-84f67cb7f7a5",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e2bda077-aaaf-49aa-9da4-e2c725399a7a",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_32b4b61d-8c96-4b8a-ac47-287b45b3e19b",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_66f274bc-76df-4f8a-a429-d2f9adca7fe2",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_820c3f3b-591f-4a35-9cc8-57956ab2c3d3",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b158782a-5c58-4c3c-ae21-9531df9137ff",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d4c78f8c-409d-4ef5-a15b-5e6594cf8280",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_2fa50964-9af3-44db-aacb-2ab6123398e0",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_9335a24f-e1d4-406c-a022-de81374ed97f",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_cd8144ca-aad1-431e-bd5d-e7f255086f55",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_94047ede-93ae-4485-bd1a-b587c73cc409",
+        "timestamp": 14000000,
+        "delta": 3,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_580c9d54-d380-4253-a1ff-3544051d9aef",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": 3,
+            "beforeGrowth": 0,
+            "afterGrowth": 7
+          }
+        ],
+        "growthDelta": 7
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 3,
+          "growthDelta": 7
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "migrated": {
+    "version": 2,
+    "revision": 5,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 4,
+          "growthDelta": 0
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_f2282ad8-e07f-456c-a9cd-f1147c038b3d",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 2,
+        "growth": 7,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_693cd04c-cf64-4d48-b13e-51cde195da8f",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_a21d0fe6-1c15-45c5-b56d-ab2521cc5c57",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_6f6571ef-5955-4b7d-9b06-e1d10300544b",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e2569bb9-842f-4db3-ad99-a976f20790be",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_f7b3533c-2114-4c21-bb20-468d921ce0b3",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_2a1cbf20-8105-4074-81d6-a7624b84053b",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_f069c166-0404-446c-ba6a-9746538b0f76",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_c267e335-c9e4-4e04-8cce-fb2d047b5fdb",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d2ce86a6-8881-4752-9e70-9b1ef96d999a",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_24d47369-68a6-4cea-877c-ab98f3d79e32",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_517d71aa-0ae7-41b8-988a-2e9ca40d4967",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_e6291b6e-1615-467d-9b32-a59972032a1a",
+        "timestamp": 14000000,
+        "delta": -2,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_f2282ad8-e07f-456c-a9cd-f1147c038b3d",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": -2,
+            "beforeGrowth": 0,
+            "afterGrowth": 7,
+            "petEffect": {
+              "accountId": "pa_f0516a1d-f94a-4bd9-a30d-44dfe3d27567",
+              "cycleId": "pc_0570b23e-6a23-451b-ad79-84abaa0272c2",
+              "delta": 7
+            }
+          }
+        ],
+        "growthDelta": 7
+      },
+      {
+        "id": "l_1302e9c7-2aee-460c-89f9-0ce638ced260",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_f2282ad8-e07f-456c-a9cd-f1147c038b3d",
+            "name": "示例同学01",
+            "beforeScore": -2,
+            "afterScore": 2,
+            "beforeGrowth": 7,
+            "afterGrowth": 7,
+            "petEffect": null
+          }
+        ],
+        "growthDelta": 0
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_f0516a1d-f94a-4bd9-a30d-44dfe3d27567",
+        "studentId": "s_f2282ad8-e07f-456c-a9cd-f1147c038b3d",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0570b23e-6a23-451b-ad79-84abaa0272c2",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 7,
+        "cycles": [
+          {
+            "id": "pc_0570b23e-6a23-451b-ad79-84abaa0272c2",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 7,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_a81867fa-ec90-4d32-bae5-8e074d304d3b",
+        "studentId": "s_693cd04c-cf64-4d48-b13e-51cde195da8f",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_80f2041c-b57f-4234-a15f-02bbae4e22da",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_80f2041c-b57f-4234-a15f-02bbae4e22da",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_e0508857-5964-4656-a8f9-5876fcf3acc2",
+        "studentId": "s_a21d0fe6-1c15-45c5-b56d-ab2521cc5c57",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_632db88f-7386-46ed-b98c-07a268abe97c",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_632db88f-7386-46ed-b98c-07a268abe97c",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_6ab2e56b-cc6a-4077-90b1-8501accc4cbe",
+        "studentId": "s_6f6571ef-5955-4b7d-9b06-e1d10300544b",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b2935ec7-31ae-4f46-95fa-2ff716b5f6cd",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_b2935ec7-31ae-4f46-95fa-2ff716b5f6cd",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9dfa4cab-ce3d-4697-83d2-ae957e5e4818",
+        "studentId": "s_e2569bb9-842f-4db3-ad99-a976f20790be",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5d21ae56-be88-41b1-b16d-0f44b64b26d6",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5d21ae56-be88-41b1-b16d-0f44b64b26d6",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_56be459a-57a7-4607-b321-45d001e787a6",
+        "studentId": "s_f7b3533c-2114-4c21-bb20-468d921ce0b3",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_f30c2cf7-41ae-40b8-b35f-d35ef4e3c214",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_f30c2cf7-41ae-40b8-b35f-d35ef4e3c214",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_749e67e1-83f0-43b2-a5f4-6a1b2868ca8a",
+        "studentId": "s_2a1cbf20-8105-4074-81d6-a7624b84053b",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8c82b04d-609b-47f0-b283-7e6298c17718",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8c82b04d-609b-47f0-b283-7e6298c17718",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9e70c5e8-bb08-4e2a-be9b-b34514b9c441",
+        "studentId": "s_f069c166-0404-446c-ba6a-9746538b0f76",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_7a50ff41-418b-4d17-a637-eeb4c68aa38d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_7a50ff41-418b-4d17-a637-eeb4c68aa38d",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_82ac54ca-dd15-4900-a03d-51cde543bafa",
+        "studentId": "s_c267e335-c9e4-4e04-8cce-fb2d047b5fdb",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_9c550772-4d67-4408-954c-6725c8fc2309",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_9c550772-4d67-4408-954c-6725c8fc2309",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_a708e606-0bf7-429d-93f4-60c70232dd51",
+        "studentId": "s_d2ce86a6-8881-4752-9e70-9b1ef96d999a",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_179d7e64-4bb7-4b2b-a293-a6cceea6d80e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_179d7e64-4bb7-4b2b-a293-a6cceea6d80e",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ba542c83-5874-49d7-af28-36212781eb08",
+        "studentId": "s_24d47369-68a6-4cea-877c-ab98f3d79e32",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0b2819c9-a317-439c-a942-5540cfbaa0ca",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_0b2819c9-a317-439c-a942-5540cfbaa0ca",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_53ae2273-e5bf-4126-8693-43d272fb1ff5",
+        "studentId": "s_517d71aa-0ae7-41b8-988a-2e9ca40d4967",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b968e12c-7e37-4778-b0e5-02e2ff7cd0c3",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_b968e12c-7e37-4778-b0e5-02e2ff7cd0c3",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 2,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 4,
+          "growthDelta": 0
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "linked": {
+    "version": 2,
+    "revision": 3,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -3,
+          "growthDelta": 6
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_2a9609b8-fd29-48f0-b812-2f91bb60b190",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": -3,
+        "growth": 6,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_16061193-8c5c-446a-b4f9-bf149c5df044",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_96f6ed22-c7e5-49ed-9f32-77da1a22dd69",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_5dd89618-ff20-4ea9-90c3-bd3728a59162",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e8ac89e9-902b-4172-b67d-51bca676655c",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_484c7e9c-fe81-4a3f-9e00-6b30773dc39d",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d8183d39-b9c1-4a4e-9a30-07f36a63b755",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7ae951c3-b28b-479b-a4be-0137bc46dbfc",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_0d09855b-ba7f-4133-a43d-05f4a1ddc6be",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e3478a21-8f3a-4db9-b030-8fa260c6d97e",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_04565acf-c741-4922-9622-acaebdc9567f",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_18638c8f-b4d6-42d7-9b58-9b0559a68f6a",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_9d563c53-426b-40ea-8f38-19a6c87bb67c",
+        "timestamp": 14000000,
+        "delta": -3,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_2a9609b8-fd29-48f0-b812-2f91bb60b190",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": -3,
+            "beforeGrowth": 0,
+            "afterGrowth": 6,
+            "petEffect": {
+              "accountId": "pa_8fc5c983-40b9-4724-afb7-ea1dc90974f5",
+              "cycleId": "pc_09bdb8cf-b435-4642-9b22-5986402f5cbb",
+              "delta": 6
+            }
+          }
+        ],
+        "growthDelta": 6
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_8fc5c983-40b9-4724-afb7-ea1dc90974f5",
+        "studentId": "s_2a9609b8-fd29-48f0-b812-2f91bb60b190",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_09bdb8cf-b435-4642-9b22-5986402f5cbb",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 6,
+        "cycles": [
+          {
+            "id": "pc_09bdb8cf-b435-4642-9b22-5986402f5cbb",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 6,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_fe755894-4e04-492b-a04f-84fd8e95d4f0",
+        "studentId": "s_16061193-8c5c-446a-b4f9-bf149c5df044",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0586c8a3-1a84-4f43-a662-f07a7b617443",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_0586c8a3-1a84-4f43-a662-f07a7b617443",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_03987b6f-4094-44af-86cf-dd9cdea18360",
+        "studentId": "s_96f6ed22-c7e5-49ed-9f32-77da1a22dd69",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_7b77674a-8f03-4a57-944b-311525f0c478",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_7b77674a-8f03-4a57-944b-311525f0c478",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_142fa1c1-61b3-4f97-afd4-cc49f6f5f2a8",
+        "studentId": "s_5dd89618-ff20-4ea9-90c3-bd3728a59162",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d50bfd8b-d8f4-4ecd-8f51-bf90b5be43f1",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d50bfd8b-d8f4-4ecd-8f51-bf90b5be43f1",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_69fd5d48-308e-4b76-8dd2-dfd75d0c6386",
+        "studentId": "s_e8ac89e9-902b-4172-b67d-51bca676655c",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_bbbf009a-aade-461a-b122-ba3fb1b6280d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_bbbf009a-aade-461a-b122-ba3fb1b6280d",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_3e5e5f1a-bea3-4d06-895a-c30024de4e6d",
+        "studentId": "s_484c7e9c-fe81-4a3f-9e00-6b30773dc39d",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_7029fb92-440d-4884-8c0f-5a887266ccab",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_7029fb92-440d-4884-8c0f-5a887266ccab",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_75e77bdc-3179-46e3-945d-c79ad477e42c",
+        "studentId": "s_d8183d39-b9c1-4a4e-9a30-07f36a63b755",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_c968c6e7-b7f6-417d-9b89-c43e58c10d22",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_c968c6e7-b7f6-417d-9b89-c43e58c10d22",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_32efc1ef-a1be-4e08-b599-7a5fe9aaaf5f",
+        "studentId": "s_7ae951c3-b28b-479b-a4be-0137bc46dbfc",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_73dc0cb2-76cd-42f0-938f-c5b73514989d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_73dc0cb2-76cd-42f0-938f-c5b73514989d",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_3eea71ef-0510-401b-b064-c674838f9259",
+        "studentId": "s_0d09855b-ba7f-4133-a43d-05f4a1ddc6be",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_2ce9327d-4240-45a1-b6a8-a6c3c8ed3a62",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_2ce9327d-4240-45a1-b6a8-a6c3c8ed3a62",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_768c2c4f-5510-41d3-b7b1-f7b847053e48",
+        "studentId": "s_e3478a21-8f3a-4db9-b030-8fa260c6d97e",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_6787890b-51e1-4db8-9c1d-274774a5f86a",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_6787890b-51e1-4db8-9c1d-274774a5f86a",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_523cdfeb-308f-4c2b-b0bd-992278675b7e",
+        "studentId": "s_04565acf-c741-4922-9622-acaebdc9567f",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_4d9f10b9-80fb-45c2-8ae7-961f912201ae",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_4d9f10b9-80fb-45c2-8ae7-961f912201ae",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_5a6e88d4-d0da-4315-a7a6-ad79972490a1",
+        "studentId": "s_18638c8f-b4d6-42d7-9b58-9b0559a68f6a",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_38927964-3a43-41a3-82e8-cc5d31a20f20",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_38927964-3a43-41a3-82e8-cc5d31a20f20",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -3,
+          "growthDelta": 6
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "oldCycle": {
+    "version": 2,
+    "revision": 6,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 2,
+          "growthDelta": 30
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_ef3401cf-7a91-4f65-a34f-7da1615b8a29",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 2,
+        "growth": 30,
+        "pet": "cat",
+        "photo": "",
+        "adopted": true,
+        "startFromEgg": true
+      },
+      {
+        "id": "s_97046768-1e75-4205-88da-f8f7de9f0ebe",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_1d8eff06-797e-4d48-b745-431a580f8c9e",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7ea1b0ac-5e7d-4d3a-ba46-d3717e3a7000",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b2c194ad-fcbe-4f6a-bd24-9b94e502b01a",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b89729a2-2dea-4520-a44e-f754dd37bfb0",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_c5ce8375-13f5-4762-af70-c5172b71dbb9",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_9000baa8-ea8b-4c39-8f86-62f406c5a00b",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_aea051d4-fb3e-415a-ae9b-4be74c6a4804",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_c0a3da5a-071a-4c43-a5e1-048b3db87caf",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_bcadc603-b2f9-4ecf-a582-5d08f0472ede",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_97959c51-1908-4617-94d9-3fb93fb6e0f5",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_ee7c55db-0b59-4bb7-994d-d33c2282d848",
+        "timestamp": 14000000,
+        "delta": 2,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_ef3401cf-7a91-4f65-a34f-7da1615b8a29",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": 2,
+            "beforeGrowth": 0,
+            "afterGrowth": 30,
+            "petEffect": {
+              "accountId": "pa_bdb0207b-2c03-4310-babc-5125128d17e3",
+              "cycleId": "pc_f732ecfe-22cf-4da4-8bf2-b761152bc667",
+              "delta": 30
+            }
+          }
+        ],
+        "growthDelta": 30
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_bdb0207b-2c03-4310-babc-5125128d17e3",
+        "studentId": "s_ef3401cf-7a91-4f65-a34f-7da1615b8a29",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b8c09314-8393-470e-bc24-5b7dd099a9fe",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 35,
+        "cycles": [
+          {
+            "id": "pc_f732ecfe-22cf-4da4-8bf2-b761152bc667",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          },
+          {
+            "id": "pc_b8c09314-8393-470e-bc24-5b7dd099a9fe",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 5,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_5a261d69-bc4a-4e94-8928-313a53af48ae",
+            "cycleId": "pc_f732ecfe-22cf-4da4-8bf2-b761152bc667",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "示例同学01",
+            "groupName": "向日葵组",
+            "sourceActionId": "ga_7d8c4079-ad76-4d87-9bb9-453d95699dae"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_7ee85cfc-c772-4437-beee-9cf9d5e8f9a4",
+            "type": "graduation",
+            "graduationId": "gr_5a261d69-bc4a-4e94-8928-313a53af48ae",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_65eedf36-7b18-4819-b6e2-cc644edeafe3",
+        "studentId": "s_97046768-1e75-4205-88da-f8f7de9f0ebe",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5c549166-4065-49a9-aee0-b2d1c9974418",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5c549166-4065-49a9-aee0-b2d1c9974418",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_2aa9e3bf-c475-4a82-a399-9dffdeaaafef",
+        "studentId": "s_1d8eff06-797e-4d48-b745-431a580f8c9e",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_502aeb44-71bf-4c84-bd86-de8e9520f5b7",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_502aeb44-71bf-4c84-bd86-de8e9520f5b7",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_76d186d7-84a3-4c2e-bb82-eca23354f43c",
+        "studentId": "s_7ea1b0ac-5e7d-4d3a-ba46-d3717e3a7000",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_ca81ccd5-690c-4f4f-b1a4-65e9770f6b36",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_ca81ccd5-690c-4f4f-b1a4-65e9770f6b36",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_d48638d8-6283-45eb-9483-7321abfc6fc5",
+        "studentId": "s_b2c194ad-fcbe-4f6a-bd24-9b94e502b01a",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_11219edb-c9af-4690-907e-419951d171b5",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_11219edb-c9af-4690-907e-419951d171b5",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c89c1677-d644-42a0-93ce-94ca2da0bfa7",
+        "studentId": "s_b89729a2-2dea-4520-a44e-f754dd37bfb0",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_7572b20b-f47e-457f-ad27-1bbc08befd34",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_7572b20b-f47e-457f-ad27-1bbc08befd34",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9058d8e9-9c94-4c1f-a962-6477761471ec",
+        "studentId": "s_c5ce8375-13f5-4762-af70-c5172b71dbb9",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_a43c7239-a1b6-40b6-b928-e84cd26360cd",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_a43c7239-a1b6-40b6-b928-e84cd26360cd",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_46fa3ed0-6ae4-4da1-b46f-b53266f49951",
+        "studentId": "s_9000baa8-ea8b-4c39-8f86-62f406c5a00b",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0d0539de-f2fd-4677-af4d-5ca6642300fd",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_0d0539de-f2fd-4677-af4d-5ca6642300fd",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_99a4bda3-ef1b-4429-8293-4cadd0afeae0",
+        "studentId": "s_aea051d4-fb3e-415a-ae9b-4be74c6a4804",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d20e8faa-709a-4d15-bcc5-856b6d98aa50",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d20e8faa-709a-4d15-bcc5-856b6d98aa50",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_0a339777-b337-4891-81f2-29ae91b3447f",
+        "studentId": "s_c0a3da5a-071a-4c43-a5e1-048b3db87caf",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_205591d2-5e05-43c2-a087-a0766211b0fd",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_205591d2-5e05-43c2-a087-a0766211b0fd",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_dcc49826-6b4a-4fff-9034-10bd9fcb831a",
+        "studentId": "s_bcadc603-b2f9-4ecf-a582-5d08f0472ede",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_59228fb5-5e4d-4f83-bab9-eb3827e1c6a3",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_59228fb5-5e4d-4f83-bab9-eb3827e1c6a3",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_89821a0c-cc82-402e-8e90-d074ab0cbea8",
+        "studentId": "s_97959c51-1908-4617-94d9-3fb93fb6e0f5",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_20a2a24c-cb78-475f-bea6-019ec003fa9f",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_20a2a24c-cb78-475f-bea6-019ec003fa9f",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_31c448d4-613a-4342-830f-f63f827a2c9a",
+        "timestamp": 14000000,
+        "delta": 5,
+        "reason": "宠物成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_ef3401cf-7a91-4f65-a34f-7da1615b8a29",
+            "name": "示例同学01",
+            "accountId": "pa_bdb0207b-2c03-4310-babc-5125128d17e3",
+            "cycleId": "pc_b8c09314-8393-470e-bc24-5b7dd099a9fe",
+            "beforeGrowth": 0,
+            "afterGrowth": 5
+          }
+        ]
+      }
+    ],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 2,
+          "growthDelta": 30
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "unassigned": {
+    "version": 2,
+    "revision": 6,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -1,
+          "growthDelta": 5
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_b97ae1b1-5331-4d18-bb83-dca34a38b62e",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": -1,
+        "growth": 5,
+        "pet": "cat",
+        "photo": "",
+        "adopted": true,
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7aa8064b-5532-48a5-95c4-9793c3801ecc",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b61efb7b-4f8d-4582-8474-0bf9f4f064e9",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_510ac5b0-eb91-404b-9e3f-3396018c4f07",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7c000859-4a58-4894-a1ad-947f61d7bea5",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_23c0000a-a231-4a0a-9f30-1a9988adeaf9",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_1ef9d497-83ea-4e8f-b121-4b613cdd99d1",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_56f567a0-ada2-4ecd-a78d-d7535c990d35",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_2a3a6556-e340-4738-bb00-8630482003a8",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7af3c350-2baf-4471-84a2-ba04b7de7a9c",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_4b4cc661-238f-401b-836f-e762baf5ea64",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d9a70e9b-959f-4dd0-af98-ad25e100088b",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_7c120412-5de1-43b7-91b6-fd034762e083",
+        "timestamp": 14000000,
+        "delta": -1,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_b97ae1b1-5331-4d18-bb83-dca34a38b62e",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": -1,
+            "beforeGrowth": 0,
+            "afterGrowth": 5,
+            "petEffect": {
+              "accountId": "pa_1c16461a-15f7-4744-9722-06a05a855f00",
+              "cycleId": null,
+              "delta": 5
+            }
+          }
+        ],
+        "growthDelta": 5
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_1c16461a-15f7-4744-9722-06a05a855f00",
+        "studentId": "s_b97ae1b1-5331-4d18-bb83-dca34a38b62e",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_90c71150-2896-4a4f-a995-643ceb060171",
+        "legacyMedals": 0,
+        "unassignedGrowth": 5,
+        "lifetimeNetGrowth": 35,
+        "cycles": [
+          {
+            "id": "pc_cfc8eade-9f05-4e52-a9fd-dbff3a999174",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          },
+          {
+            "id": "pc_90c71150-2896-4a4f-a995-643ceb060171",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_b5be6a04-d306-4db7-bb04-c98f2fe18eae",
+            "cycleId": "pc_cfc8eade-9f05-4e52-a9fd-dbff3a999174",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "示例同学01",
+            "groupName": "向日葵组",
+            "sourceActionId": "ga_4f11a8ec-0496-41a7-a575-f72d01340617"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_8440ffa3-e4b7-4d0a-99b5-c70108fae7e0",
+            "type": "graduation",
+            "graduationId": "gr_b5be6a04-d306-4db7-bb04-c98f2fe18eae",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_9f2b1d9e-6ec9-4cf7-99e1-76171b4ddf31",
+        "studentId": "s_7aa8064b-5532-48a5-95c4-9793c3801ecc",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b5743bdd-5f90-45b2-a35c-eee4b6b4307d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_b5743bdd-5f90-45b2-a35c-eee4b6b4307d",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_3a39f573-8435-4cd4-8959-d7dde2db7b9a",
+        "studentId": "s_b61efb7b-4f8d-4582-8474-0bf9f4f064e9",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_75422a4a-8ddf-4079-913d-f6f8ef6b0e7e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_75422a4a-8ddf-4079-913d-f6f8ef6b0e7e",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_53359da4-06d5-406f-bc62-a35114b17d60",
+        "studentId": "s_510ac5b0-eb91-404b-9e3f-3396018c4f07",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_c828fcf0-00e4-487d-9e6d-0b2cb8ef03f2",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_c828fcf0-00e4-487d-9e6d-0b2cb8ef03f2",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_6d66854a-bd00-4bde-a042-63ddb5f9854e",
+        "studentId": "s_7c000859-4a58-4894-a1ad-947f61d7bea5",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_52a17475-3df2-44ac-90a5-d88dc721d5bd",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_52a17475-3df2-44ac-90a5-d88dc721d5bd",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_cb890c48-501f-4436-82da-eb0a9e42891a",
+        "studentId": "s_23c0000a-a231-4a0a-9f30-1a9988adeaf9",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_54f3b6f6-dbaf-4375-8c93-c0d16aa63fb4",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_54f3b6f6-dbaf-4375-8c93-c0d16aa63fb4",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9d09316f-ea8d-463d-83f3-6d93b1ef5fff",
+        "studentId": "s_1ef9d497-83ea-4e8f-b121-4b613cdd99d1",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8920860a-4100-4f1b-a689-4d8444ddb2fa",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8920860a-4100-4f1b-a689-4d8444ddb2fa",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_cd24f8fd-f036-4db9-91a6-938de2800131",
+        "studentId": "s_56f567a0-ada2-4ecd-a78d-d7535c990d35",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5bf0c4a0-86eb-4fa8-99cb-9d0c88809c4e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5bf0c4a0-86eb-4fa8-99cb-9d0c88809c4e",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_234b6444-63cf-436f-87d4-9d9adcf559dc",
+        "studentId": "s_2a3a6556-e340-4738-bb00-8630482003a8",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_89c207b4-0fb2-48d0-85b0-2ea6c54eb3d5",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_89c207b4-0fb2-48d0-85b0-2ea6c54eb3d5",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_1cde8b9a-fc93-4d67-a1af-caa6d86823fa",
+        "studentId": "s_7af3c350-2baf-4471-84a2-ba04b7de7a9c",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_be19646a-f715-4882-bca0-0f1980287280",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_be19646a-f715-4882-bca0-0f1980287280",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9eb8fc2a-7520-4dcd-84eb-2d19512a29ec",
+        "studentId": "s_4b4cc661-238f-401b-836f-e762baf5ea64",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_db2a9792-62cb-40a5-9051-4c2a9c9f99d0",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_db2a9792-62cb-40a5-9051-4c2a9c9f99d0",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_4e075f37-695f-40a2-975c-ade4f7858514",
+        "studentId": "s_d9a70e9b-959f-4dd0-af98-ad25e100088b",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_bd1cab1f-1d16-47ff-a171-0e4721e5ceb2",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_bd1cab1f-1d16-47ff-a171-0e4721e5ceb2",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_c512c8c1-28a0-47eb-9d6c-dea330888e91",
+        "timestamp": 14000000,
+        "delta": 30,
+        "reason": "宠物成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_b97ae1b1-5331-4d18-bb83-dca34a38b62e",
+            "name": "示例同学01",
+            "accountId": "pa_1c16461a-15f7-4744-9722-06a05a855f00",
+            "cycleId": "pc_cfc8eade-9f05-4e52-a9fd-dbff3a999174",
+            "beforeGrowth": 0,
+            "afterGrowth": 30
+          }
+        ]
+      }
+    ],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -1,
+          "growthDelta": 5
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "staged": {
+    "version": 2,
+    "revision": 5,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 7,
+          "growthDelta": -3
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_8df43b29-b9e1-4cab-88ae-0f730c48a5e3",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d921ebe1-c383-4cdb-92d6-077d0f5fe05e",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_235196ef-06da-415d-af1f-673d03f5d9a6",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_5a014ae2-440b-412c-880d-ec2b14b51d51",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_a2198bbb-8596-4b00-9819-cf7921281094",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_bee3ea6d-afd6-41a5-833f-1b97e8997d2f",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_4958a3ba-aa3d-4ab1-b54e-aa480bdb80a8",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_6fa2bced-1215-46ea-948a-bce924a52317",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e8b951ea-7735-40f0-9146-9762103bcc1a",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d7d0686f-5bd2-467d-a31f-8d5eec5e7fe6",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_f0d67f9c-eb44-42b4-9421-ca794e705700",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_3c8568d6-4eee-4951-9027-fe56e876cf05",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_4ed6d372-cfab-44b2-b28b-292fe8240104",
+        "studentId": "s_8df43b29-b9e1-4cab-88ae-0f730c48a5e3",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_a74a33ca-74d2-4f91-9595-632c7b53b706",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 1,
+        "cycles": [
+          {
+            "id": "pc_a74a33ca-74d2-4f91-9595-632c7b53b706",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 1,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c44282d3-df25-427d-83c5-fe7daf8bccbe",
+        "studentId": "s_d921ebe1-c383-4cdb-92d6-077d0f5fe05e",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_ccefb28a-bf4f-493d-8de4-b61ed0bd6c29",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_ccefb28a-bf4f-493d-8de4-b61ed0bd6c29",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9cd66c2a-59c3-4b11-83c4-eb023b1b8144",
+        "studentId": "s_235196ef-06da-415d-af1f-673d03f5d9a6",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_27a9ab7e-f482-41c2-87ba-3a66f8b7559b",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_27a9ab7e-f482-41c2-87ba-3a66f8b7559b",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_1d34293b-4c25-4b3f-bf7a-6620b7708a91",
+        "studentId": "s_5a014ae2-440b-412c-880d-ec2b14b51d51",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d8aee9b7-40f4-4410-821d-0f9d3189393a",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d8aee9b7-40f4-4410-821d-0f9d3189393a",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_dde30af4-68b2-4199-a7e5-7b83474c50fa",
+        "studentId": "s_a2198bbb-8596-4b00-9819-cf7921281094",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d5e9ea54-1e14-4df2-8a8e-79fbaea15038",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d5e9ea54-1e14-4df2-8a8e-79fbaea15038",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_f8e28727-c005-4855-971d-0c4543371580",
+        "studentId": "s_bee3ea6d-afd6-41a5-833f-1b97e8997d2f",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_47789882-837d-429f-8115-05e5215d5cb0",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_47789882-837d-429f-8115-05e5215d5cb0",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_607ff3d9-c4bf-4cfe-9c00-dfe6fb8f0772",
+        "studentId": "s_4958a3ba-aa3d-4ab1-b54e-aa480bdb80a8",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5d4b7b41-1e1e-460b-86de-a9ab619959b3",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5d4b7b41-1e1e-460b-86de-a9ab619959b3",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ab5bbe02-82aa-4b23-b14c-c29ebee76db0",
+        "studentId": "s_6fa2bced-1215-46ea-948a-bce924a52317",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_e178358d-c830-447d-b8a1-9887202d4a93",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_e178358d-c830-447d-b8a1-9887202d4a93",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_26c7b771-da01-4520-9d01-cc89f414b1e9",
+        "studentId": "s_e8b951ea-7735-40f0-9146-9762103bcc1a",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_a2dcaeed-0780-4cf5-b148-3d13ad122017",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_a2dcaeed-0780-4cf5-b148-3d13ad122017",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_afb9115c-cfb7-406d-9448-0d19af0d5c48",
+        "studentId": "s_d7d0686f-5bd2-467d-a31f-8d5eec5e7fe6",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_63a9d7b1-1118-4fb4-a8f7-c09bd0a6551d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_63a9d7b1-1118-4fb4-a8f7-c09bd0a6551d",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_29255818-37ee-40c6-ac62-e8232cc2d1fa",
+        "studentId": "s_f0d67f9c-eb44-42b4-9421-ca794e705700",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_fa856d8f-2f5d-4b61-bf6c-9cee79570a43",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_fa856d8f-2f5d-4b61-bf6c-9cee79570a43",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_bdff141d-e9bf-48fa-b3a9-344d4dc9eafb",
+        "studentId": "s_3c8568d6-4eee-4951-9027-fe56e876cf05",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8b447e1c-b2e5-4ab3-97ff-2c1e9f8ef8c4",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8b447e1c-b2e5-4ab3-97ff-2c1e9f8ef8c4",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_a5bf0688-2841-4621-bb8f-42187c62cd6e",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_8df43b29-b9e1-4cab-88ae-0f730c48a5e3",
+            "name": "示例同学01",
+            "accountId": "pa_4ed6d372-cfab-44b2-b28b-292fe8240104",
+            "cycleId": "pc_a74a33ca-74d2-4f91-9595-632c7b53b706",
+            "beforeGrowth": 0,
+            "afterGrowth": 4
+          }
+        ]
+      },
+      {
+        "id": "pg_fed1c3fd-1958-40c7-904d-344b8c8bec24",
+        "timestamp": 14000000,
+        "delta": -3,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_8df43b29-b9e1-4cab-88ae-0f730c48a5e3",
+            "name": "示例同学01",
+            "accountId": "pa_4ed6d372-cfab-44b2-b28b-292fe8240104",
+            "cycleId": "pc_a74a33ca-74d2-4f91-9595-632c7b53b706",
+            "beforeGrowth": 4,
+            "afterGrowth": 1
+          }
+        ]
+      }
+    ],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 2,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": 7,
+          "growthDelta": -3
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "clamp": {
+    "version": 2,
+    "revision": 5,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -1,
+          "growthDelta": -5
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "growthFloor": "clamp"
+      }
+    },
+    "students": [
+      {
+        "id": "s_dd8bfd7d-472c-4f3e-9915-ffb6a97922fa",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_2c0b4b9e-5c7c-4843-93ed-67eb74569a94",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_f6e18a93-06ab-4352-bed3-9c416bc8ab00",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_9146ebc7-c7cb-47e2-8bb6-90ccb7e0d358",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7773db0a-7edc-49cb-a5b1-213f37feec40",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b44f308a-b9e0-453f-82e2-c56aa209b160",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_384d7133-30be-4440-9b76-1e58f208ed26",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_a6427216-d903-42ca-8e8b-72793e8bccff",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_c6e6fc42-5752-4d6e-b8eb-d0191cf1d1eb",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e127b163-d72e-4807-a0ec-b52eac2e50d4",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b2a78700-7d25-4d3d-b4ff-b455d2426c7e",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_f3586bfb-be6c-4b39-b32b-8d8a3f69aec1",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_02a805a6-4b9a-48a7-902d-c5318b9526c0",
+        "studentId": "s_dd8bfd7d-472c-4f3e-9915-ffb6a97922fa",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_2a3bd0d4-2b36-4910-a160-79867385aebe",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_2a3bd0d4-2b36-4910-a160-79867385aebe",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_f6d75eac-398f-4217-8e9f-9ddbde75fbcb",
+        "studentId": "s_2c0b4b9e-5c7c-4843-93ed-67eb74569a94",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_4f1903c8-a4b2-45b4-b32d-5803d88f4ae3",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_4f1903c8-a4b2-45b4-b32d-5803d88f4ae3",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_722020f2-7c8f-4f58-8473-e02e69e609bd",
+        "studentId": "s_f6e18a93-06ab-4352-bed3-9c416bc8ab00",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5bc19500-3ce4-4968-9582-6c737a27da85",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5bc19500-3ce4-4968-9582-6c737a27da85",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ca51c699-98f6-4440-a8ab-1e326b7efdef",
+        "studentId": "s_9146ebc7-c7cb-47e2-8bb6-90ccb7e0d358",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_50c9412b-ae47-4425-a74c-56fb9772284e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_50c9412b-ae47-4425-a74c-56fb9772284e",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_a3014656-62dd-4657-99e9-189edc0c2a32",
+        "studentId": "s_7773db0a-7edc-49cb-a5b1-213f37feec40",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_e92b2c6e-afeb-4f76-8c9b-8b53ebacee1b",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_e92b2c6e-afeb-4f76-8c9b-8b53ebacee1b",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ca66e4d5-6d2e-44d2-978c-f75ef5eab7ad",
+        "studentId": "s_b44f308a-b9e0-453f-82e2-c56aa209b160",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_c869ea9c-cc54-4b12-95e0-10fe56869bbc",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_c869ea9c-cc54-4b12-95e0-10fe56869bbc",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_b69a3150-5a25-4b8d-b42a-62795edb4969",
+        "studentId": "s_384d7133-30be-4440-9b76-1e58f208ed26",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_09b1f351-c6c9-4675-82cf-16785e87034e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_09b1f351-c6c9-4675-82cf-16785e87034e",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c67b3e39-b3c5-474a-8f2f-8534faef9d81",
+        "studentId": "s_a6427216-d903-42ca-8e8b-72793e8bccff",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_27d1cafe-e800-4e58-b6fb-d491769fc321",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_27d1cafe-e800-4e58-b6fb-d491769fc321",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c67adca1-84e2-4f0d-8831-03312e62d99a",
+        "studentId": "s_c6e6fc42-5752-4d6e-b8eb-d0191cf1d1eb",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b2f0bd48-1b2b-4378-b89a-8d6df2d21185",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_b2f0bd48-1b2b-4378-b89a-8d6df2d21185",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_3b78f423-c325-45e6-bf43-b84378825ef3",
+        "studentId": "s_e127b163-d72e-4807-a0ec-b52eac2e50d4",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_32fcb784-0ed2-41e6-af0d-ccc6db1ffc18",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_32fcb784-0ed2-41e6-af0d-ccc6db1ffc18",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_0e14fe70-8dd6-49f3-b436-20ebf6b6fdf7",
+        "studentId": "s_b2a78700-7d25-4d3d-b4ff-b455d2426c7e",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0de4ed89-55f7-4061-8704-c35f6365e8d9",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_0de4ed89-55f7-4061-8704-c35f6365e8d9",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_45539a00-310e-4cd8-9438-44708aa7f524",
+        "studentId": "s_f3586bfb-be6c-4b39-b32b-8d8a3f69aec1",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_cc9f503d-a61b-4e39-bbde-3902f2f338ae",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_cc9f503d-a61b-4e39-bbde-3902f2f338ae",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_28e405be-e4d4-4cda-aeb9-3c44750be9ac",
+        "timestamp": 14000000,
+        "delta": 2,
+        "reason": "宠物成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_dd8bfd7d-472c-4f3e-9915-ffb6a97922fa",
+            "name": "示例同学01",
+            "accountId": "pa_02a805a6-4b9a-48a7-902d-c5318b9526c0",
+            "cycleId": "pc_2a3bd0d4-2b36-4910-a160-79867385aebe",
+            "beforeGrowth": 0,
+            "afterGrowth": 2,
+            "actualDelta": 2
+          }
+        ],
+        "floorPolicy": "clamp"
+      },
+      {
+        "id": "pg_02a24ab0-995b-4f6c-b05d-4368100506e7",
+        "timestamp": 14000000,
+        "delta": -5,
+        "reason": "积极发言",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_dd8bfd7d-472c-4f3e-9915-ffb6a97922fa",
+            "name": "示例同学01",
+            "accountId": "pa_02a805a6-4b9a-48a7-902d-c5318b9526c0",
+            "cycleId": "pc_2a3bd0d4-2b36-4910-a160-79867385aebe",
+            "beforeGrowth": 2,
+            "afterGrowth": 0,
+            "actualDelta": -2
+          }
+        ],
+        "floorPolicy": "clamp"
+      }
+    ],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "积极发言",
+          "delta": -1,
+          "growthDelta": -5
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "full": {
+    "version": 2,
+    "revision": 3,
+    "settings": {
+      "className": "阳光示例班",
+      "petStep": 20,
+      "petFocusId": "",
+      "scoreRules": [
+        {
+          "id": "rule_participate",
+          "label": "合成第一面板原因",
+          "delta": 1,
+          "growthDelta": 6
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_7ef2cf44-f749-44fe-9eb4-7af0c5bbf751",
+        "name": "示例同学01",
+        "group": "向日葵组",
+        "score": 1,
+        "growth": 6,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_29a99d91-39fa-49ae-8373-839afb7efbd6",
+        "name": "示例同学02",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_48f804ba-7359-43da-a59f-d0556befbfef",
+        "name": "示例同学03",
+        "group": "向日葵组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_8c10522d-f4c8-4b07-9552-72bd5a6def04",
+        "name": "示例同学04",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d767b112-d6bf-402f-840d-485b59d698b2",
+        "name": "示例同学05",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "penguin",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_8a826132-dae1-425a-9519-5d5bb0db7b43",
+        "name": "示例同学06",
+        "group": "四叶草组",
+        "score": 0,
+        "growth": 0,
+        "pet": "panda",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_ccdea66f-0af1-4a37-b634-9c3b6e57c0b8",
+        "name": "示例同学07",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "bear",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_519d4ac8-c2fe-4f01-8366-1c9f0fbec313",
+        "name": "示例同学08",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "dog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_e66a278c-5746-4577-9914-72aa9f164afe",
+        "name": "示例同学09",
+        "group": "郁金香组",
+        "score": 0,
+        "growth": 0,
+        "pet": "deer",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_d8eb0ff5-86db-4c34-a225-12c38c2025f9",
+        "name": "示例同学10",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "squirrel",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_b17668e5-f166-4942-89ce-33632378a928",
+        "name": "示例同学11",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "hedgehog",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_84f7ccfa-69b8-4f75-9c21-acce43b732d7",
+        "name": "示例同学12",
+        "group": "彩虹组",
+        "score": 0,
+        "growth": 0,
+        "pet": "raccoon",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_9e50c61c-7784-4891-bcc3-d175a4b0949f",
+        "timestamp": 14000000,
+        "delta": 1,
+        "reason": "合成第一面板原因",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_7ef2cf44-f749-44fe-9eb4-7af0c5bbf751",
+            "name": "示例同学01",
+            "beforeScore": 0,
+            "afterScore": 1,
+            "beforeGrowth": 0,
+            "afterGrowth": 6,
+            "petEffect": {
+              "accountId": "pa_0cce7295-d22e-4a86-a741-00b89a7fca14",
+              "cycleId": "pc_3427673d-f322-41ba-b981-a8f0ee608c4e",
+              "delta": 6
+            }
+          }
+        ],
+        "growthDelta": 6
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_0cce7295-d22e-4a86-a741-00b89a7fca14",
+        "studentId": "s_7ef2cf44-f749-44fe-9eb4-7af0c5bbf751",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_3427673d-f322-41ba-b981-a8f0ee608c4e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 6,
+        "cycles": [
+          {
+            "id": "pc_3427673d-f322-41ba-b981-a8f0ee608c4e",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 6,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_2c327801-71ec-45aa-b2e9-f375bfe6f9ae",
+        "studentId": "s_29a99d91-39fa-49ae-8373-839afb7efbd6",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_148cf95d-782c-4d4d-a18d-dac8b07b415d",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_148cf95d-782c-4d4d-a18d-dac8b07b415d",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ffbf4cdb-44db-4e75-ab85-5358da4b8e8a",
+        "studentId": "s_48f804ba-7359-43da-a59f-d0556befbfef",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_4d40a448-f453-4192-bdf4-a5727c9eeaf4",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_4d40a448-f453-4192-bdf4-a5727c9eeaf4",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_780c7476-af93-4543-b485-a44081520f14",
+        "studentId": "s_8c10522d-f4c8-4b07-9552-72bd5a6def04",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_1804fdb9-52e2-4b26-b5c7-e4134b52df63",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_1804fdb9-52e2-4b26-b5c7-e4134b52df63",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c3a35d81-70ca-4131-b0a2-60f978bd07e7",
+        "studentId": "s_d767b112-d6bf-402f-840d-485b59d698b2",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_96e13351-94b0-4da7-9510-ae7524c17766",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_96e13351-94b0-4da7-9510-ae7524c17766",
+            "pet": "penguin",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_0258282c-0976-461b-a575-091f72c510a8",
+        "studentId": "s_8a826132-dae1-425a-9519-5d5bb0db7b43",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_6cf02b63-2a1f-49e8-ac9b-5095a4b28971",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_6cf02b63-2a1f-49e8-ac9b-5095a4b28971",
+            "pet": "panda",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_46529e48-6890-44af-b2de-e9688cab1727",
+        "studentId": "s_ccdea66f-0af1-4a37-b634-9c3b6e57c0b8",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_7f3da9bf-a4f9-4450-92ae-1b3c4e5f0fb9",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_7f3da9bf-a4f9-4450-92ae-1b3c4e5f0fb9",
+            "pet": "bear",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_8999b51a-d3e6-40f6-957c-18a142d204c4",
+        "studentId": "s_519d4ac8-c2fe-4f01-8366-1c9f0fbec313",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8b52c05d-8f73-42fc-9b96-1f49862edcda",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8b52c05d-8f73-42fc-9b96-1f49862edcda",
+            "pet": "dog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_51dd2133-2c61-42f8-bae2-6a0aab79c6af",
+        "studentId": "s_e66a278c-5746-4577-9914-72aa9f164afe",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_05150ce8-ae62-417b-8708-e9d77c71cd2e",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_05150ce8-ae62-417b-8708-e9d77c71cd2e",
+            "pet": "deer",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_c62e5eb0-6bd2-4e4c-afd5-f1e9f08298a4",
+        "studentId": "s_d8eb0ff5-86db-4c34-a225-12c38c2025f9",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d0167c51-e82a-4a4c-b09d-a4e3f7926578",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d0167c51-e82a-4a4c-b09d-a4e3f7926578",
+            "pet": "squirrel",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_2d7683cb-c8bd-4afd-aea1-c49381b554e1",
+        "studentId": "s_b17668e5-f166-4942-89ce-33632378a928",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_5f0dbf77-d804-42e9-a0e9-f1d145de1892",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_5f0dbf77-d804-42e9-a0e9-f1d145de1892",
+            "pet": "hedgehog",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_9b51da92-da34-4e2b-96e9-7e129c413593",
+        "studentId": "s_84f7ccfa-69b8-4f75-9c21-acce43b732d7",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8bb38b5f-f3a5-4345-9bce-56ec39c379fc",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8bb38b5f-f3a5-4345-9bce-56ec39c379fc",
+            "pet": "raccoon",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [],
+    "sharedScoreRules": {
+      "version": 1,
+      "revision": 1,
+      "rules": [
+        {
+          "id": "rule_participate",
+          "label": "合成第一面板原因",
+          "delta": 1,
+          "growthDelta": 6
+        },
+        {
+          "id": "rule_practice",
+          "label": "认真做题",
+          "delta": 2
+        },
+        {
+          "id": "rule_help",
+          "label": "乐于助人",
+          "delta": 2
+        },
+        {
+          "id": "rule_improve",
+          "label": "进步很大",
+          "delta": 5
+        },
+        {
+          "id": "rule_team",
+          "label": "团队合作",
+          "delta": 2
+        },
+        {
+          "id": "rule_correct",
+          "label": "需要改进",
+          "delta": -1
+        },
+        {
+          "id": "rule_writing",
+          "label": "字迹工整",
+          "delta": 1
+        },
+        {
+          "id": "rule_posture",
+          "label": "坐姿端正",
+          "delta": 1
+        },
+        {
+          "id": "rule_punctual",
+          "label": "从来没有迟到过",
+          "delta": 2
+        },
+        {
+          "id": "rule_duty",
+          "label": "认真做值日",
+          "delta": 2
+        },
+        {
+          "id": "rule_progress",
+          "label": "成绩进步",
+          "delta": 3
+        },
+        {
+          "id": "rule_top5",
+          "label": "考试前五名",
+          "delta": 5
+        },
+        {
+          "id": "rule_reflection",
+          "label": "知错能改",
+          "delta": 2
+        },
+        {
+          "id": "rule_activities",
+          "label": "积极参加学校活动",
+          "delta": 2
+        }
+      ],
+      "migration": {
+        "panels": [
+          {
+            "id": "panel_default",
+            "name": "阳光示例班",
+            "explicit": false,
+            "rules": [
+              {
+                "id": "rule_participate",
+                "label": "积极发言",
+                "delta": 1
+              },
+              {
+                "id": "rule_practice",
+                "label": "认真做题",
+                "delta": 2
+              },
+              {
+                "id": "rule_help",
+                "label": "乐于助人",
+                "delta": 2
+              },
+              {
+                "id": "rule_improve",
+                "label": "进步很大",
+                "delta": 5
+              },
+              {
+                "id": "rule_team",
+                "label": "团队合作",
+                "delta": 2
+              },
+              {
+                "id": "rule_correct",
+                "label": "需要改进",
+                "delta": -1
+              },
+              {
+                "id": "rule_writing",
+                "label": "字迹工整",
+                "delta": 1
+              },
+              {
+                "id": "rule_posture",
+                "label": "坐姿端正",
+                "delta": 1
+              },
+              {
+                "id": "rule_punctual",
+                "label": "从来没有迟到过",
+                "delta": 2
+              },
+              {
+                "id": "rule_duty",
+                "label": "认真做值日",
+                "delta": 2
+              },
+              {
+                "id": "rule_progress",
+                "label": "成绩进步",
+                "delta": 3
+              },
+              {
+                "id": "rule_top5",
+                "label": "考试前五名",
+                "delta": 5
+              },
+              {
+                "id": "rule_reflection",
+                "label": "知错能改",
+                "delta": 2
+              },
+              {
+                "id": "rule_activities",
+                "label": "积极参加学校活动",
+                "delta": 2
+              }
+            ]
+          }
+        ],
+        "mappings": [
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_participate",
+            "sharedRuleId": "rule_participate"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_practice",
+            "sharedRuleId": "rule_practice"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_help",
+            "sharedRuleId": "rule_help"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_improve",
+            "sharedRuleId": "rule_improve"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_team",
+            "sharedRuleId": "rule_team"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_correct",
+            "sharedRuleId": "rule_correct"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_writing",
+            "sharedRuleId": "rule_writing"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_posture",
+            "sharedRuleId": "rule_posture"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_punctual",
+            "sharedRuleId": "rule_punctual"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_duty",
+            "sharedRuleId": "rule_duty"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_progress",
+            "sharedRuleId": "rule_progress"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_top5",
+            "sharedRuleId": "rule_top5"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_reflection",
+            "sharedRuleId": "rule_reflection"
+          },
+          {
+            "panelId": "panel_default",
+            "ruleId": "rule_activities",
+            "sharedRuleId": "rule_activities"
+          }
+        ]
+      }
+    }
+  },
+  "toolbox": {
+    "version": 2,
+    "revision": 22,
+    "settings": {
+      "className": "纯合成1.0兼容测试班",
+      "petStep": 20,
+      "petFocusId": "",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "growthFloor": "clamp"
+      }
+    },
+    "students": [
+      {
+        "id": "s_legacy_owl",
+        "name": "虚构兼容甲",
+        "group": "纯合成第一组",
+        "score": 19,
+        "growth": 19,
+        "pet": "owl",
+        "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGOsWHCCgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAEl4AiCcDJG+AAAAAElFTkSuQmCC"
+      },
+      {
+        "id": "s_legacy_fox",
+        "name": "虚构兼容乙",
+        "group": "纯合成第一组",
+        "score": -3,
+        "growth": 27,
+        "pet": "fox",
+        "photo": ""
+      },
+      {
+        "id": "s_legacy_bunny",
+        "name": "虚构兼容丙",
+        "group": "纯合成第二组",
+        "score": 200,
+        "growth": 200,
+        "pet": "bunny",
+        "photo": "",
+        "adopted": false
+      },
+      {
+        "id": "s_legacy_cat",
+        "name": "虚构兼容丁",
+        "group": "纯合成第二组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": ""
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_legacy_award_owl",
+        "timestamp": 1000000,
+        "delta": 19,
+        "reason": "纯合成旧版加分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "beforeScore": 0,
+            "afterScore": 19,
+            "beforeGrowth": 0,
+            "afterGrowth": 19,
+            "petEffect": {
+              "accountId": "pa_2ce9534a-4a69-41e5-8492-9350042d649f",
+              "cycleId": "pc_0cfba91b-00aa-4077-9995-da40ee684605",
+              "delta": 19
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_award_fox",
+        "timestamp": 1001000,
+        "delta": 27,
+        "reason": "纯合成旧版加分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": 0,
+            "afterScore": 27,
+            "beforeGrowth": 0,
+            "afterGrowth": 27,
+            "petEffect": {
+              "accountId": "pa_034bd14e-f435-4946-b04c-44b9a4036e8e",
+              "cycleId": "pc_aecacedc-6046-40b5-ab7d-7872a0ea05a9",
+              "delta": 27
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_penalty",
+        "timestamp": 1002000,
+        "delta": -30,
+        "reason": "纯合成旧版扣分不减成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": 27,
+            "afterScore": -3,
+            "beforeGrowth": 27,
+            "afterGrowth": 27,
+            "petEffect": null
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_undone",
+        "timestamp": 1003000,
+        "delta": 5,
+        "reason": "纯合成旧版已撤销记录",
+        "undone": true,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": -3,
+            "afterScore": 2,
+            "beforeGrowth": 27,
+            "afterGrowth": 32,
+            "petEffect": {
+              "accountId": "pa_034bd14e-f435-4946-b04c-44b9a4036e8e",
+              "cycleId": "pc_aecacedc-6046-40b5-ab7d-7872a0ea05a9",
+              "delta": 5
+            }
+          }
+        ]
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [
+        "s_legacy_fox",
+        "s_legacy_cat"
+      ],
+      "lastIds": [
+        "s_legacy_owl"
+      ],
+      "round": 3
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 115000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_2ce9534a-4a69-41e5-8492-9350042d649f",
+        "studentId": "s_legacy_owl",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_0cfba91b-00aa-4077-9995-da40ee684605",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_0cfba91b-00aa-4077-9995-da40ee684605",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_034bd14e-f435-4946-b04c-44b9a4036e8e",
+        "studentId": "s_legacy_fox",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_aecacedc-6046-40b5-ab7d-7872a0ea05a9",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 27,
+        "cycles": [
+          {
+            "id": "pc_aecacedc-6046-40b5-ab7d-7872a0ea05a9",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 27,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_0e37482a-dc7c-47d6-b90e-4b98caa3794f",
+        "studentId": "s_legacy_bunny",
+        "mode": "legacy-linked",
+        "activeCycleId": null,
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 200,
+        "cycles": [
+          {
+            "id": "pc_d49404d0-eae7-4427-83f1-6b848c35a654",
+            "pet": "bunny",
+            "status": "graduated",
+            "netGrowth": 200,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_215bc56c-ea3a-4be4-8aaf-56d3aec3be5a",
+            "cycleId": "pc_d49404d0-eae7-4427-83f1-6b848c35a654",
+            "graduatedAt": 14000000,
+            "petSnapshot": "bunny",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 200,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "虚构兼容丙",
+            "groupName": "纯合成第二组",
+            "sourceActionId": "ga_09fdf2bc-a8e0-4a65-b3f6-db1afd65b6b7"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_bf660930-9329-4225-aa4e-c83e8b158b92",
+            "type": "graduation",
+            "graduationId": "gr_215bc56c-ea3a-4be4-8aaf-56d3aec3be5a",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ],
+        "badgeTransactions": [
+          {
+            "id": "br_9d0cf4ee-fe5d-4c73-b86f-3538c13e6f32",
+            "type": "redeem",
+            "amount": 1,
+            "timestamp": 14000000,
+            "reason": "合成奖励"
+          }
+        ]
+      },
+      {
+        "id": "pa_c04ee501-08ba-4f80-b3a0-aaa5973ee53e",
+        "studentId": "s_legacy_cat",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_d35be5a9-047f-4af4-bd65-9d22fe2f3c02",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_d35be5a9-047f-4af4-bd65-9d22fe2f3c02",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_21d4ca25-cef1-4d3e-8ae9-36d9e67ed084",
+        "timestamp": 14000000,
+        "delta": -25,
+        "reason": "扣至零",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "accountId": "pa_2ce9534a-4a69-41e5-8492-9350042d649f",
+            "cycleId": "pc_0cfba91b-00aa-4077-9995-da40ee684605",
+            "beforeGrowth": 19,
+            "afterGrowth": 0,
+            "actualDelta": -19
+          }
+        ],
+        "floorPolicy": "clamp"
+      }
+    ],
+    "petOperations": [
+      {
+        "id": "test_badge",
+        "kind": "badge.redeem",
+        "timestamp": 14000000
+      }
+    ]
+  }
+}

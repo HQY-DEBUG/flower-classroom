@@ -1,0 +1,37 @@
+from pathlib import Path
+import zipfile,json,hashlib,shutil
+r=Path(__file__).resolve().parent.parent;out=r.parent.parent/'flower-rc17-deliverables';out.mkdir(exist_ok=True)
+reports=r/'outputs/flower-rc16-next-reaudit-report';verification=reports/'RC17-REPORT-MANIFEST.json'
+v=json.loads(verification.read_text())['verification'];assert v['visualReviewComplete'] and v['xlsxFormulaErrors']==0 and v['evidenceHashesVerified']>0
+evidence=json.loads((r/'artifacts/reaudit-rc16/report/report-input.json').read_text())['evidence'];
+f=json.loads((r/'artifacts/rc17/frozen-source.json').read_text());sha=lambda b:hashlib.sha256(b).hexdigest()
+for p,h in {**f['files'],**f['assetFiles'],**f['packagedDocuments'],**f['packageFiles']}.items():assert sha((r/p).read_bytes())==h,p
+reportdir=r/'artifacts/rc17-report';reportdir.mkdir(exist_ok=True)
+for p in reports.iterdir():
+ if p.is_file() and (p.suffix in ['.xlsx','.pdf','.txt'] or p.name in ['verification.json','RC17-REPORT-MANIFEST.json']):shutil.copy2(p,reportdir/p.name)
+files=[]
+for name in ['src','assets','scripts','tests','artifacts']:
+ for p in (r/name).rglob('*'):
+  if not p.is_file() or '__pycache__' in p.parts or 'lock-io-review' in p.parts or 'cloud-pristine-extraction' in p.parts or 'node_modules' in p.parts or 'node_modules-rc14-reference' in p.parts or p.suffix in ['.pyc','.tmp','.asar','.exe','.zip','.7z']:continue
+  # Negative tests generate large/sparse fixtures; scripts reproduce them.
+  if p.stat().st_size>8*1024*1024 and ('oversized' in p.name.lower() or p.suffix in ['.png','.jpg','.webp','.bin']):continue
+  files.append(p)
+files.extend(p for p in r.iterdir() if p.is_file() and (p.suffix in ['.md','.json','.txt'] or p.name=='LICENSE'))
+files=sorted(set(files));plain={'.json','.ndjson','.log','.txt','.md','.csv','.cjs','.mjs','.js','.py','.xlsx','.pdf','.html','.css','.ps1','.svg','.ico','.tap','.patch'}
+important=['artifacts/rc17/folder-ui-packaged/','artifacts/rc17/package/','artifacts/rc17/features-packaged/','artifacts/rc17-independent-review/workbook-final/packaged/','artifacts/rc17/features-source/keyboard-close-retest/','artifacts/avatar-defaults/','artifacts/avatar-expansion-rc15/','artifacts/rc17/focused-packaged/']
+requiredEvidence={e['file'] for e in evidence}
+compact=[p for p in files if str(p.relative_to(r)) in requiredEvidence or not str(p.relative_to(r)).startswith('artifacts/') or p.suffix in plain or (p.suffix=='.png' and any(str(p.relative_to(r)).startswith(x) for x in important))]
+records=[]
+for title,chosen in [('源码与测试记录',compact)]:
+ dest=out/f'花伴课堂-1.3.0-rc.17-{title}.zip';temp=dest.with_suffix('.zip.tmp')
+ note='花伴课堂1.3.0-rc.17。60个运行源文件与120张默认头像对应最终生产ASAR；全部40种宠物280形态保持原样。运行发行包仅为完整文件夹，所有应用数据留在EXE同级目录，头像/配置/表格解压即有。\n包括完整代码、资源、依赖锁、测试脚本、结构化证据、Excel/PDF及使用指南。'+('包含所有保留截图。' if chosen is files else '包含主要新增功能及头像总览截图；重复布局截图在完整证据包中。')+'\n正式冻结源码26套与最终生产包24套全部通过，覆盖弹层、独立窗口、头像、宠物、积分和存档；修复过程、首次未完成运行与测试脚本适配均保留。所有原独立缺陷在同一最终ASAR复测闭环，详见报告。不存在全软件零缺陷的保证。\n9项Windows实机验收仍未验证；原先中止的额外专项保持未验证，原始中止脚本不纳入。源码中的 Markdown 是工程与测试资料，实际运行发行文件夹不包含多余 Markdown。测试均为合成资料，不含原片学生照片或真实名单。\n本轮发现并修复3类缺陷：抽取身份与晚到奖励、迁移来源快照、表格警告清理，逐项修复并独立复验；详见报告，不把未完成运行当通过。最终清单：artifacts/rc17/final-test-manifest.json。未包含node_modules、发行二进制或大型/稀疏负向测试临时文件；可从锁文件安装依赖，测试脚本会生成这些合成临时输入。\nWindows现场项目与云端Linux Electron结果分开说明。\n'
+ with zipfile.ZipFile(temp,'w',zipfile.ZIP_DEFLATED,compresslevel=6,strict_timestamps=False) as z:
+  for p in chosen:z.write(p,'FlowerClassroom-source/'+str(p.relative_to(r)))
+  z.writestr('源码包内容说明.txt',note)
+ with zipfile.ZipFile(temp) as z:
+  assert z.testzip() is None
+  for p,h in {**f['files'],**f['assetFiles']}.items():assert sha(z.read('FlowerClassroom-source/'+p))==h,p
+  for p in reportdir.iterdir():assert z.read('FlowerClassroom-source/'+str(p.relative_to(r)))==p.read_bytes()
+  for item in evidence:assert sha(z.read('FlowerClassroom-source/'+item['file']))==item['sha256'],item['file']
+ temp.replace(dest);record={'path':str(dest),'sizeBytes':dest.stat().st_size,'sha256':sha(dest.read_bytes()),'entries':len(chosen)+1,'sourceFilesVerified':len(f['files']),'avatarAssetsVerified':120,'bundledAssetFilesVerified':len(f['assetFiles']),'zipCrcPassed':True,'reportEvidenceFilesVerified':len(evidence),'allRetainedScreenshotsIncluded':chosen is files,'blockedSpecialistRawArtifactsExcluded':True};records.append(record);print(json.dumps(record,ensure_ascii=False),flush=True)
+full_records={str(p.relative_to(r)):sha(p.read_bytes()) for p in files};(out/'full-source-file-hashes.json').write_text(json.dumps(full_records,ensure_ascii=False,indent=2)+'\n');(out/'full-source-files.txt').write_text(''.join('FlowerClassroom-source/'+str(p.relative_to(r))+'\n' for p in files));(out/'source-archives.json').write_text(json.dumps(records,ensure_ascii=False,indent=2)+'\n')

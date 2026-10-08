@@ -1,0 +1,208 @@
+{
+  "version": 2,
+  "revision": 3,
+  "settings": {
+    "className": "阳光示例班",
+    "petStep": 20,
+    "petFocusId": "",
+    "petRules": {
+      "thresholds": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    }
+  },
+  "students": [
+    {
+      "id": "s_px_a",
+      "name": "合成伙伴A",
+      "group": "合成第一组",
+      "score": 10,
+      "growth": 0,
+      "pet": "owl",
+      "photo": "",
+      "adopted": true,
+      "startFromEgg": true,
+      "medals": 4
+    },
+    {
+      "id": "s_px_b",
+      "name": "合成伙伴B",
+      "group": "合成第一组",
+      "score": 11,
+      "growth": 0,
+      "pet": "fox",
+      "photo": "",
+      "adopted": true,
+      "startFromEgg": true,
+      "medals": 0
+    },
+    {
+      "id": "s_px_c",
+      "name": "合成伙伴C",
+      "group": "合成第二组",
+      "score": 12,
+      "growth": 0,
+      "pet": "bunny",
+      "photo": "",
+      "adopted": true,
+      "startFromEgg": true,
+      "medals": 0
+    },
+    {
+      "id": "s_px_d",
+      "name": "合成伙伴D",
+      "group": "合成第二组",
+      "score": 13,
+      "growth": 0,
+      "pet": "cat",
+      "photo": "",
+      "adopted": false,
+      "startFromEgg": true,
+      "medals": 0
+    }
+  ],
+  "logs": [],
+  "draw": {
+    "mode": "cycle",
+    "bag": [],
+    "lastIds": [],
+    "round": 0
+  },
+  "timer": {
+    "durationMs": 300000,
+    "remainingMs": 300000,
+    "endsAt": null,
+    "running": false
+  },
+  "petAccounts": [
+    {
+      "id": "pa_d7d729e1-b160-4750-9faf-e673e914fc09",
+      "studentId": "s_px_a",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_07626baa-98ad-430c-89cd-36747b0ee715",
+      "legacyMedals": 4,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 22,
+      "cycles": [
+        {
+          "id": "pc_07626baa-98ad-430c-89cd-36747b0ee715",
+          "pet": "owl",
+          "status": "active",
+          "netGrowth": 22,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    },
+    {
+      "id": "pa_46da622a-3e06-4cf9-8d4a-82d96a23c9d4",
+      "studentId": "s_px_b",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_51c317e0-f704-4465-8a3a-d2aa897156e3",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 3,
+      "cycles": [
+        {
+          "id": "pc_51c317e0-f704-4465-8a3a-d2aa897156e3",
+          "pet": "fox",
+          "status": "active",
+          "netGrowth": 3,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    },
+    {
+      "id": "pa_5bc4928e-89e1-4925-82d7-de79a99be752",
+      "studentId": "s_px_c",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_3549ea21-aeea-4939-859f-701eb17b793f",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 0,
+      "cycles": [
+        {
+          "id": "pc_3549ea21-aeea-4939-859f-701eb17b793f",
+          "pet": "bunny",
+          "status": "active",
+          "netGrowth": 0,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    },
+    {
+      "id": "pa_352a2a06-8c73-4ba0-81fa-73cbea1ea910",
+      "studentId": "s_px_d",
+      "mode": "legacy-linked",
+      "activeCycleId": "pc_cd74a2fa-1621-46c0-9e37-a46ca738c864",
+      "legacyMedals": 0,
+      "unassignedGrowth": 0,
+      "lifetimeNetGrowth": 0,
+      "cycles": [
+        {
+          "id": "pc_cd74a2fa-1621-46c0-9e37-a46ca738c864",
+          "pet": "cat",
+          "status": "dormant",
+          "netGrowth": 0,
+          "openedAt": null,
+          "origin": "legacy-import",
+          "startFromEgg": true
+        }
+      ],
+      "graduations": [],
+      "badgeEvents": []
+    }
+  ],
+  "petLogs": [
+    {
+      "id": "pg_fac60b6a-67c5-40de-bd01-bc38333560a0",
+      "timestamp": 14000000,
+      "delta": 22,
+      "reason": "宠物成长",
+      "undone": false,
+      "changes": [
+        {
+          "id": "s_px_a",
+          "name": "合成伙伴A",
+          "accountId": "pa_d7d729e1-b160-4750-9faf-e673e914fc09",
+          "cycleId": "pc_07626baa-98ad-430c-89cd-36747b0ee715",
+          "beforeGrowth": 0,
+          "afterGrowth": 22
+        }
+      ]
+    },
+    {
+      "id": "pg_745112de-738b-4439-925f-76e74bb863c8",
+      "timestamp": 14000000,
+      "delta": 3,
+      "reason": "宠物成长",
+      "undone": false,
+      "changes": [
+        {
+          "id": "s_px_b",
+          "name": "合成伙伴B",
+          "accountId": "pa_46da622a-3e06-4cf9-8d4a-82d96a23c9d4",
+          "cycleId": "pc_51c317e0-f704-4465-8a3a-d2aa897156e3",
+          "beforeGrowth": 0,
+          "afterGrowth": 3
+        }
+      ]
+    }
+  ]
+}

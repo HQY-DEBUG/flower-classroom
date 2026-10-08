@@ -1,0 +1,459 @@
+{
+  "state": {
+    "version": 2,
+    "revision": 28,
+    "settings": {
+      "className": "纯合成1.2独立验收班",
+      "petStep": 20,
+      "petFocusId": "",
+      "showAvatars": true,
+      "scoreStep": 2,
+      "petRules": {
+        "thresholds": [
+          5,
+          10,
+          15,
+          20,
+          25,
+          30
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_legacy_owl",
+        "name": "虚构兼容甲",
+        "group": "纯合成第一组",
+        "score": 42,
+        "growth": 42,
+        "pet": "dragon",
+        "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGOsWHCCgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAEl4AiCcDJG+AAAAAElFTkSuQmCC",
+        "adopted": true
+      },
+      {
+        "id": "s_legacy_fox",
+        "name": "虚构兼容乙",
+        "group": "纯合成第一组",
+        "score": -3,
+        "growth": 27,
+        "pet": "fox",
+        "photo": "",
+        "medals": 3
+      },
+      {
+        "id": "s_legacy_bunny",
+        "name": "虚构兼容丙",
+        "group": "纯合成第二组",
+        "score": 200,
+        "growth": 200,
+        "pet": "bunny",
+        "photo": ""
+      },
+      {
+        "id": "s_legacy_cat",
+        "name": "虚构兼容丁",
+        "group": "纯合成第二组",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "adopted": false
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_legacy_award_owl",
+        "timestamp": 1000000,
+        "delta": 19,
+        "reason": "纯合成旧版加分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "beforeScore": 0,
+            "afterScore": 19,
+            "beforeGrowth": 0,
+            "afterGrowth": 19,
+            "petEffect": {
+              "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+              "cycleId": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+              "delta": 19
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_award_fox",
+        "timestamp": 1001000,
+        "delta": 27,
+        "reason": "纯合成旧版加分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": 0,
+            "afterScore": 27,
+            "beforeGrowth": 0,
+            "afterGrowth": 27,
+            "petEffect": {
+              "accountId": "pa_c2b9db29-b348-443b-a719-7ccb36a35fc5",
+              "cycleId": "pc_49a6c845-5cbe-4627-a431-add7b35f1364",
+              "delta": 27
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_penalty",
+        "timestamp": 1002000,
+        "delta": -30,
+        "reason": "纯合成旧版扣分不减成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": 27,
+            "afterScore": -3,
+            "beforeGrowth": 27,
+            "afterGrowth": 27,
+            "petEffect": null
+          }
+        ]
+      },
+      {
+        "id": "l_legacy_undone",
+        "timestamp": 1003000,
+        "delta": 5,
+        "reason": "纯合成旧版已撤销记录",
+        "undone": true,
+        "changes": [
+          {
+            "id": "s_legacy_fox",
+            "name": "虚构兼容乙",
+            "beforeScore": -3,
+            "afterScore": 2,
+            "beforeGrowth": 27,
+            "afterGrowth": 32,
+            "petEffect": {
+              "accountId": "pa_c2b9db29-b348-443b-a719-7ccb36a35fc5",
+              "cycleId": "pc_49a6c845-5cbe-4627-a431-add7b35f1364",
+              "delta": 5
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_754389d2-58ca-473a-bb95-eb9a1c82b2b6",
+        "timestamp": 14000000,
+        "delta": 11,
+        "reason": "纯合成旧周期积分11",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "beforeScore": 19,
+            "afterScore": 30,
+            "beforeGrowth": 19,
+            "afterGrowth": 30,
+            "petEffect": {
+              "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+              "cycleId": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+              "delta": 11
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_99163a9d-711d-4124-94f7-a453ad6eff36",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "纯合成空档积分4",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "beforeScore": 30,
+            "afterScore": 34,
+            "beforeGrowth": 30,
+            "afterGrowth": 34,
+            "petEffect": {
+              "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+              "cycleId": null,
+              "delta": 4
+            }
+          }
+        ]
+      },
+      {
+        "id": "l_4a3959cf-92d5-4003-bac3-af2c3482b1d3",
+        "timestamp": 14000000,
+        "delta": 8,
+        "reason": "纯合成第二周期积分8",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "beforeScore": 34,
+            "afterScore": 42,
+            "beforeGrowth": 34,
+            "afterGrowth": 42,
+            "petEffect": {
+              "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+              "cycleId": "pc_928c73db-aa5e-470a-ac38-433c17aca8ed",
+              "delta": 8
+            }
+          }
+        ]
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [
+        "s_legacy_fox",
+        "s_legacy_cat"
+      ],
+      "lastIds": [
+        "s_legacy_owl"
+      ],
+      "round": 3
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 115000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+        "studentId": "s_legacy_owl",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_b704ab7d-0d0c-4952-b9e0-f470e7c99129",
+        "legacyMedals": 0,
+        "unassignedGrowth": 4,
+        "lifetimeNetGrowth": 264,
+        "cycles": [
+          {
+            "id": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 105,
+            "openedAt": null,
+            "origin": "legacy-import"
+          },
+          {
+            "id": "pc_928c73db-aa5e-470a-ac38-433c17aca8ed",
+            "pet": "cat",
+            "status": "graduated",
+            "netGrowth": 105,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          },
+          {
+            "id": "pc_b704ab7d-0d0c-4952-b9e0-f470e7c99129",
+            "pet": "dragon",
+            "status": "active",
+            "netGrowth": 50,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_87a14d9f-2324-4ccc-80e5-032c84e0fbe9",
+            "cycleId": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                10,
+                15,
+                20,
+                25,
+                30
+              ]
+            },
+            "growthSnapshot": 105,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "虚构兼容甲",
+            "groupName": "纯合成第一组",
+            "sourceActionId": "ga_82a79e33-4887-49fe-9bc5-3919bb7ccf2e"
+          },
+          {
+            "id": "gr_35862b3b-5b89-4364-9684-4a80f1929adb",
+            "cycleId": "pc_928c73db-aa5e-470a-ac38-433c17aca8ed",
+            "graduatedAt": 14000000,
+            "petSnapshot": "cat",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                10,
+                15,
+                20,
+                25,
+                30
+              ]
+            },
+            "growthSnapshot": 105,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "虚构兼容甲",
+            "groupName": "纯合成第一组",
+            "sourceActionId": "ga_7d66e163-acd3-48e7-a0c8-e1bccf43a081"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_6fd71bdf-0830-4b22-a659-0dab1cab89ce",
+            "type": "graduation",
+            "graduationId": "gr_87a14d9f-2324-4ccc-80e5-032c84e0fbe9",
+            "amount": 1,
+            "timestamp": 14000000
+          },
+          {
+            "id": "pb_2c73271a-34a4-407f-8e83-9560b3f1495d",
+            "type": "graduation",
+            "graduationId": "gr_35862b3b-5b89-4364-9684-4a80f1929adb",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_c2b9db29-b348-443b-a719-7ccb36a35fc5",
+        "studentId": "s_legacy_fox",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_49a6c845-5cbe-4627-a431-add7b35f1364",
+        "legacyMedals": 3,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 27,
+        "cycles": [
+          {
+            "id": "pc_49a6c845-5cbe-4627-a431-add7b35f1364",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 27,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_ca2f87a4-5ac8-48d9-b560-65f8ebe0fca1",
+        "studentId": "s_legacy_bunny",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_2cd5f085-a920-493f-bc7b-8160eae08683",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 200,
+        "cycles": [
+          {
+            "id": "pc_2cd5f085-a920-493f-bc7b-8160eae08683",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 200,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_d1b2950d-aa42-40a2-8596-57a4de11ce87",
+        "studentId": "s_legacy_cat",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_f16ee384-7173-4500-b5d2-c23ec263b4a9",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_f16ee384-7173-4500-b5d2-c23ec263b4a9",
+            "pet": "cat",
+            "status": "dormant",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_cb8eb232-ac32-4b3c-9628-c48d8b0a0889",
+        "timestamp": 14000000,
+        "delta": 75,
+        "reason": "纯合成旧周期成长75",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+            "cycleId": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+            "beforeGrowth": 30,
+            "afterGrowth": 105
+          }
+        ]
+      },
+      {
+        "id": "pg_b137a240-76e8-432b-97ab-9349340bc91f",
+        "timestamp": 14000000,
+        "delta": 97,
+        "reason": "纯合成第二周期成长97",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+            "cycleId": "pc_928c73db-aa5e-470a-ac38-433c17aca8ed",
+            "beforeGrowth": 8,
+            "afterGrowth": 105
+          }
+        ]
+      },
+      {
+        "id": "pg_a851fc19-6e8e-43d7-9baf-133bd3b01e57",
+        "timestamp": 14000000,
+        "delta": 50,
+        "reason": "纯合成第三周期成长50",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_legacy_owl",
+            "name": "虚构兼容甲",
+            "accountId": "pa_21bec1d0-d030-4c1f-9fe3-5352d20e2c88",
+            "cycleId": "pc_b704ab7d-0d0c-4952-b9e0-f470e7c99129",
+            "beforeGrowth": 0,
+            "afterGrowth": 50
+          }
+        ]
+      }
+    ]
+  },
+  "id": "s_legacy_owl",
+  "first": "pc_e89dd6c8-1121-4f59-b74e-6b8fafec2e91",
+  "second": "pc_928c73db-aa5e-470a-ac38-433c17aca8ed",
+  "undoIds": [
+    "l_754389d2-58ca-473a-bb95-eb9a1c82b2b6",
+    "l_legacy_award_owl",
+    "l_4a3959cf-92d5-4003-bac3-af2c3482b1d3",
+    "l_99163a9d-711d-4124-94f7-a453ad6eff36"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "name": "flower-classroom",
+  "version": "1.3.0-rc.19",
+  "private": true,
+  "description": "花伴课堂：40种宠物七段养成、离线积分、点名与悬浮课堂工具",
+  "author": "Flower Classroom",
+  "main": "src/main.cjs",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/app.js && node --check src/pet-art.js && npm test",
+    "preview": "node scripts/preview.cjs",
+    "test:ui": "node scripts/ui-test.cjs",
+    "build:win": "electron-builder --win zip --x64",
+    "test:pets": "node scripts/pet-test-runner.cjs",
+    "test:catalog": "node scripts/qa-catalog.cjs"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0",
+    "unzipper": "0.12.5"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "resedit": "3.1.0"
+  },
+  "build": {
+    "appId": "org.flowerclassroom.desktop",
+    "productName": "花伴课堂",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "zip"
+      ],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "artifactName": "FlowerClassroom-${version}-${arch}.${ext}",
+      "signExecutable": false,
+      "electronLanguages": [
+        "zh-CN",
+        "zh-TW",
+        "en-US"
+      ]
+    },
+    "afterPack": "scripts/windows-resources.cjs",
+    "extraFiles": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE-FlowerClassroom.txt"
+      }
+    ]
+  },
+  "overrides": {
+    "uuid": "11.1.1"
+  }
+}

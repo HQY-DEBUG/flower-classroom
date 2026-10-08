@@ -1,0 +1,11 @@
+from pathlib import Path
+import argparse,subprocess,os,json,hashlib,datetime,tempfile
+from rc18_evidence import Capture,regular_outputs,run_directory,harness_hashes
+r=Path(__file__).resolve().parent.parent;p=argparse.ArgumentParser();p.add_argument('--suite',required=True);p.add_argument('--mode',choices=['source','packaged'],required=True);p.add_argument('--script',required=True);p.add_argument('--evidence-file',action='append',default=[],help='Declare each output before launch; required for nonstandard suites');a=p.parse_args();o=r/'artifacts/rc18/retests';o.mkdir(exist_ok=True);f=json.loads((r/'artifacts/rc18/frozen-source.json').read_text());archive=r/'dist-rc18-final/win-unpacked/resources/app.asar';sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest();before={n:sha(r/n) for n in f['files']};assert before==f['files'];ash=sha(archive);entry=r/'src/main.cjs' if a.mode=='source' else archive/'src/main.cjs'
+raw=a.evidence_file or regular_outputs(a.mode,a.suite)
+runroot=run_directory('retest-evidence');capture=Capture(runroot/(a.suite+'-'+a.mode),a.suite,a.mode,['node',a.script],raw,a.suite=='unit');log=capture.log;script_before=sha(r/a.script);harness_before=harness_hashes(['node',a.script])
+env={**os.environ,'FLOWER_FREEZE_DIR':'artifacts/rc18'}
+if a.mode=='packaged':env['FLOWER_PACKAGE_MAIN']=str(entry)
+else:env.pop('FLOWER_PACKAGE_MAIN',None)
+with log.open('w') as stream:result=subprocess.run(['node',a.script],cwd=r,env=env,stdout=stream,stderr=subprocess.STDOUT,timeout=600)
+after={n:sha(r/n) for n in f['files']};row=capture.finish(result.returncode,extra={'harnessAtStart':harness_before,'harnessAtFinish':harness_hashes(['node',a.script]),'entry':str(entry),'script':a.script,'scriptSha256':script_before,'scriptUnchanged':script_before==sha(r/a.script),'frozenAt':f['frozenAt'],'sourceManifestSha256':sha(r/'artifacts/rc18/frozen-source.json'),'sourceAtStart':before,'sourceAtFinish':after,'sourceUnchanged':before==after,'asarSha256':ash if a.mode=='packaged' else None,'asarUnchanged':sha(archive)==ash});(o/(a.suite+'-'+a.mode+'.json')).write_text(json.dumps(row,indent=2)+'\n');(runroot/'binding.json').write_text(json.dumps(row,indent=2)+'\n');print(json.dumps({k:row[k] for k in ['suite','mode','exitCode','startedAt','completedAt']}));assert row['exitCode']==0 and before==after and sha(archive)==ash
