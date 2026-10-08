@@ -2,7 +2,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const C=require('../src/core.cjs'),W=require('../src/classroom-wheels.js'),P=require('../src/pet-progress.js');
 const clone=structuredClone,run=(s,a)=>C.applyAction(s,a,1_000_000);
-const make=()=>{let s=C.createInitialState();s.students=s.students.slice(0,2);s=run(s,{type:'pet.stage-rules',thresholds:[1,1,1,1,1,1]});return s;};
+const archived=name=>C.validateState(require('./rc18-regression-fixtures.cjs').historical(name));
+const make=()=>archived('enabled');
 const removal=(s,id=s.students[0].id)=>({type:'student.remove',id,expectedRemoval:clone({student:s.students.find(v=>v.id===id),petAccount:s.petAccounts?.find(v=>v.studentId===id)||null})});
 const redemption=s=>({type:'wheel.redeem',id:s.students[0].id,prizeId:W.list(s)[0].id,expectedPrize:W.list(s)[0],expectedScore:s.students[0].score,expectedStudent:W.studentIdentity(s.students[0]),allowDebt:true,redemptionId:'synthetic_rc13_redemption'});
 const reject=(latest,action,pattern)=>{const before=clone(latest);assert.throws(()=>run(latest,action),pattern);assert.deepEqual(latest,before);};
@@ -13,20 +14,20 @@ test('Student removal binds the entire reviewed target profile and score atomica
  for(const expectedRemoval of [null,{},[],{student:s.students[0]}])reject(s,{...a,expectedRemoval},/档案或宠物/);
 });
 
-test('Student removal rejects new growth, graduation honors and same-species replacement cycles',()=>{
+test('Student removal rejects restored historical growth, graduation honors and replacement cycles',()=>{
  const initial=make(),id=initial.students[0].id,a=removal(initial);
- const grown=run(initial,{type:'pet.growth',ids:[id],delta:6});reject(grown,a,/档案或宠物/);
- const beforeGraduation=removal(grown),graduated=run(grown,{type:'pet.graduate',id});reject(graduated,beforeGraduation,/档案或宠物/);
+ const grown=archived('grown');reject(grown,a,/档案或宠物/);
+ const beforeGraduation=removal(grown),graduated=archived('graduated');reject(graduated,beforeGraduation,/档案或宠物/);
  assert.equal(P.profile(graduated,id).medalTotal,1);
- const readopted=run(graduated,{type:'pet.adopt',id,pet:initial.students[0].pet});reject(readopted,a,/档案或宠物/);
+ const readopted=archived('readopted');reject(readopted,a,/档案或宠物/);
  const redeemed=run(graduated,{type:'pet.badge.redeem',id,amount:1,reason:'合成兑换',expectedRevision:graduated.revision,panelId:C.panelId(graduated),requestId:'synthetic_rc13_badge'});
  reject(redeemed,removal(graduated),/档案或宠物/);
 });
 
 test('Student removal allows unrelated student, score, pet, settings and timer changes',()=>{
  let s=make();const a=removal(s),other=s.students[1].id;
- for(const change of [{type:'student.update',id:other,name:'合成其他同学'},{type:'score',ids:[other],delta:5},{type:'pet.growth',ids:[other],delta:6},{type:'pet.graduate',id:other},{type:'settings',className:'合成班级改名'},{type:'timer.set',seconds:60}])s=run(s,change);
- const saved=run(s,a);assert.equal(saved.students.length,1);assert.deepEqual(saved.students[0],s.students[1]);assert.deepEqual(saved.logs,s.logs);assert.deepEqual(saved.petAccounts,s.petAccounts);
+ for(const change of [{type:'student.update',id:other,name:'合成其他同学'},{type:'score',ids:[other],delta:5},{type:'student.update',id:other,pet:'fox'},{type:'settings',className:'合成班级改名'},{type:'timer.set',seconds:60}])s=run(s,change);
+ const saved=run(s,a);assert.equal(saved.students.length,s.students.length-1);assert.deepEqual(saved.students[0],s.students[1]);assert.deepEqual(saved.logs,s.logs);assert.deepEqual(saved.petAccounts,s.petAccounts);
  assert.throws(()=>run(saved,a),/找不到/);assert.equal(saved.revision,s.revision+1);
 });
 
@@ -40,9 +41,9 @@ test('Wheel redemption rejects changed identity independently of score and prese
  for(const expectedStudent of [null,{},[],{id}])reject(s,{...a,expectedStudent},/兑换学生档案/);
 });
 
-test('Wheel redemption allows other students and target pet growth while charging reviewed price exactly once',()=>{
+test('Wheel redemption allows unrelated students and target species edits while charging reviewed price once',()=>{
  let s=make();const a=redemption(s),other=s.students[1].id;
- for(const change of [{type:'student.update',id:other,name:'合成别的同学'},{type:'score',ids:[other],delta:5},{type:'pet.growth',ids:[a.id],delta:6},{type:'pet.graduate',id:a.id},{type:'settings',className:'合成班级改名'}])s=run(s,change);
+ for(const change of [{type:'student.update',id:other,name:'合成别的同学'},{type:'score',ids:[other],delta:5},{type:'student.update',id:a.id,pet:'fox'},{type:'settings',className:'合成班级改名'}])s=run(s,change);
  const saved=run(s,a);assert.equal(saved.students[0].score,s.students[0].score-a.expectedPrize.cost);assert.deepEqual(saved.petAccounts,s.petAccounts);assert.deepEqual(saved.students[1],s.students[1]);assert.equal(saved.logs.filter(v=>v.kind==='redemption').length,1);reject(saved,a,/已经处理/);
 });
 

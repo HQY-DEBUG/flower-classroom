@@ -3,9 +3,10 @@
   const node = typeof module === 'object' && module.exports;
   const api = factory(node ? require('./classroom-wheels.js') : root.ClassroomWheels,
     node ? require('./toolbox-extra.js') : root.ToolboxExtra,
-    node ? require('./organization-tools.js') : root.OrganizationTools);
+    node ? require('./organization-tools.js') : root.OrganizationTools,
+    node ? require('./pet-score-progression.js') : root.PetScoreProgression);
   if (node) module.exports = api; else root.ConfigurationModel = api;
-})(globalThis, function (Wheels, Toolbox, Organization) {
+})(globalThis, function (Wheels, Toolbox, Organization, PetScores) {
   'use strict';
   const APP_DEFAULTS = Object.freeze({initialZoom: 1, windowWidth: 1280, windowHeight: 840, startMinimized: false});
   const TOOL_DEFAULTS = Object.freeze({timerDurationSeconds: 300, drawScope: 'students', drawMode: 'cycle', drawCount: 1,
@@ -18,7 +19,7 @@
     'timer.sound', 'timer.set', 'tools.defaults', 'draw.select', 'draw', 'pet.draw', 'pet.visibility',
     'wheel.prizes', 'wheel.challenges', 'toolbox.link.add', 'toolbox.link.update', 'toolbox.link.remove', 'toolbox.link.move',
     'toolbox.homework.subjects', 'rules.save', 'rules.share', 'pet.rules', 'pet.stage-rules', 'pet.growth-policy',
-    'panel.create', 'panel.remove', 'points.clear']);
+    'panel.create', 'panel.remove', 'points.clear', 'petProgression.update']);
   const fail = message => { throw Error(message); };
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function record(value, label) {
@@ -41,6 +42,26 @@
     return value.trim();
   }
   function id(value, label) { if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(value)) fail(label + '无效'); return value; }
+  // A blank ID is a new item only when no existing identity is missing from
+  // the same collection. Otherwise it may be a renamed row whose ID was
+  // accidentally erased; never guess from its name, position, or contents.
+  function assignNewIds(items, previous, {label, prefix, createId}) {
+    const used = new Set(), blanks = [];
+    for (const item of items) {
+      if (item.id === '') { blanks.push(item); continue; }
+      id(item.id, label + '编号');
+      if (used.has(item.id)) fail(label + '编号重复，请删除复制行中的隐藏编号后重新预览');
+      used.add(item.id);
+    }
+    if (blanks.length && previous.some(item => !used.has(item.id)))
+      fail(label + '编号无效：已有条目的隐藏编号缺失，同时存在空编号行，无法确定是新增还是原条目。请撤销编号改动；新增请在保留原有条目的情况下另起一行。删除和新增可分两次预览应用');
+    for (const item of blanks) {
+      let generated;
+      do { generated = prefix + createId(); } while (used.has(generated));
+      item.id = id(generated, label + '编号'); used.add(generated);
+    }
+    return items;
+  }
   function appConfig(value = APP_DEFAULTS) {
     keys(value, APP_KEYS, '启动显示设置');
     if (typeof value.initialZoom !== 'number' || !Number.isFinite(value.initialZoom) || value.initialZoom < 0.5 || value.initialZoom > 2) fail('初始界面缩放需在0.5–2之间');
@@ -94,18 +115,18 @@
       links: checkedExtra.links, subjects: checkedExtra.homework.subjects};
   }
   function validate(value) {
-    keys(value, ['appConfig', 'panels'], '统一配置');
+    keys(value, ['appConfig', 'petProgression', 'panels'], '统一配置');
     record(value.appConfig, '启动显示设置');
     if (!Array.isArray(value.panels) || !value.panels.length || value.panels.length > 20) fail('面板配置需包含1–20个面板');
     // Panel identity, rather than the currently open panel or worksheet row,
     // determines its position in a configuration signature. Ordered lists
     // inside each panel keep their original order.
-    const result = {appConfig: appConfig(value.appConfig), panels: value.panels.map(validatePanel).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)};
+    const result = {appConfig: appConfig(value.appConfig), petProgression: PetScores.validate(value.petProgression), panels: value.panels.map(validatePanel).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)};
     if (new Set(result.panels.map(panel => panel.id)).size !== result.panels.length) fail('面板配置编号不能重复');
     return result;
   }
   function snapshot(state) {
-    return validate({appConfig: appConfig(state.appConfig), panels: panels(state).map(({id, data}) => {
+    return validate({appConfig: appConfig(state.appConfig), petProgression: PetScores.get(state), panels: panels(state).map(({id, data}) => {
       const settings = data.settings, extra = Toolbox.snapshot(data);
       return {id, name: settings.className, showAvatars: settings.showAvatars ?? true, scoreStep: settings.scoreStep ?? 1,
         studentSort: settings.studentSort ?? 'natural', hideLateForms: settings.hideLateForms ?? false, timerSound: settings.timerSound ?? 'tick',
@@ -137,8 +158,8 @@
       patch.data.settings = patch.settings; patch.data.version = 2;
       if (patch.extra) patch.data.toolboxExtra = patch.extra;
     }
-    state.appConfig = configuration.appConfig; state.version = 2;
+    state.appConfig = configuration.appConfig; state.petProgression = configuration.petProgression; state.version = 2;
     return state;
   }
-  return Object.freeze({APP_DEFAULTS, TOOL_DEFAULTS, actionTypes, appConfig, validateToolDefaults, toolDefaults, setToolDefaults, validate, snapshot, apply});
+  return Object.freeze({APP_DEFAULTS, TOOL_DEFAULTS, actionTypes, appConfig, validateToolDefaults, toolDefaults, setToolDefaults, assignNewIds, validate, snapshot, apply});
 });

@@ -90,7 +90,7 @@ test('Parity draw: mixed per-student awards commit once and preserve reversible 
   const ids=s.draw.lastIds,awards=ids.map((id,i)=>({id,delta:i===4?5:2}));
   const next=run(s,{type:'score.mixed',awards,reason:'随机点名奖励'});
   assert.equal(next.revision,s.revision+1);assert.equal(next.logs.length,2);
-  for(const a of awards){const item=next.students.find(s=>s.id===a.id);assert.equal(item.score,a.delta);assert.equal(item.growth,a.delta);}
+  for(const a of awards){const item=next.students.find(s=>s.id===a.id);assert.equal(item.score,a.delta);assert.equal(item.growth,0);}
   let undone=next;for(const log of next.logs)undone=run(undone,{type:'undo',logId:log.id});
   assert.deepEqual(undone.students,s.students);
   assert.throws(()=>run(s,{type:'score.mixed',awards:[{id:ids[0],delta:2},{id:ids[1],delta:101}]}));
@@ -128,9 +128,9 @@ test('Parity leader and adoption markers preserve legacy absent fields and exist
   let s=createInitialState();assert.equal(s.students[0].leader,undefined);assert.equal(s.students[0].adopted,undefined);
   const id=s.students[0].id;s=run(s,{type:'score',ids:[id],delta:25});
   let next=run(s,{type:'student.update',id,leader:true,adopted:false});
-  assert.equal(next.students[0].growth,25);assert.equal(next.students[0].score,25);assert.equal(next.students[0].adopted,false);
+  assert.equal(next.students[0].growth,0);assert.equal(next.students[0].score,25);assert.equal(next.students[0].adopted,false);
   next=run(next,{type:'student.update',id,leader:false,adopted:true,pet:'penguin'});
-  assert.equal(next.students[0].growth,25);assert.equal(next.students[0].leader,false);assert.equal(next.students[0].pet,'penguin');
+  assert.equal(next.students[0].growth,0);assert.equal(next.students[0].leader,false);assert.equal(next.students[0].pet,'penguin');
   assert.deepEqual(validateState(clone(next)),next);
   assert.throws(()=>run(s,{type:'student.update',id,adopted:'false'}));
   assert.throws(()=>run(s,{type:'student.update',id,leader:1}));
@@ -149,7 +149,7 @@ test('Parity clear commands operate on the current panel with their explicit, di
   s=run(s,{type:'panel.create',mode:'blank',name:'保留板'});
   const other=s;s=run(s,{type:'panel.switch',id:'panel_default'});
   const cleared=run(s,{type:'points.clear'});
-  assert.equal(cleared.students[0].score,0);assert.equal(cleared.students[0].growth,22);assert.equal(cleared.students[0].photo,PNG);
+  assert.equal(cleared.students[0].score,0);assert.equal(cleared.students[0].growth,0);assert.equal(cleared.students[0].photo,PNG);
   assert.equal(cleared.groupBases[0].score,0);assert.equal(cleared.logs.length,0);assert.equal(cleared.groupLogs.length,0);
   assert.deepEqual(cleared.panels,s.panels);
   const empty=run(s,{type:'panel.clear'});assert.equal(empty.students.length,0);assert.equal(empty.settings.className,s.settings.className);assert.deepEqual(empty.panels,s.panels);

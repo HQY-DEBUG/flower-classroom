@@ -271,10 +271,10 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
         await check('Native backup/restore round-trip all new species, synthetic photo, focus, scores, history and protected version=2', async () => {
           await restore(catalogFixture()); await action({ type: 'score', ids: (await state()).students.map(s => s.id), delta: 2, reason: '纯合成备份积分' }); await clearFeedback();
           const before = await state(); savePath = path.join(out, 'synthetic-forty-backup.json'); assert.equal(await file({ command: 'backup' }), true); assert.deepEqual(JSON.parse(fs.readFileSync(savePath)), before);
-          await action({ type: 'student.update', id: before.students.at(-1).id, pet: 'owl' }); await action({ type: 'pet.rules', step: 100 });
+          await action({ type: 'student.update', id: before.students.at(-1).id, pet: 'owl' }); await action({type:'petProgression.update',petProgression:{...before.petProgression,repeatCost:100}});
           openPath = savePath; const incoming = await file({ command: 'restore-preview' }); assert.deepEqual(validateState(incoming), before); await applyRestorePreview(incoming);
           assert.deepEqual(noRevision(await state()), noRevision(before)); assert.equal((await state()).version, 2); assert.equal(await content('#pet-feedback'), '');
-          const restored=await state();await action({type:'pet.rules',step:99});assert.deepEqual((await state()).students,restored.students);assert.deepEqual((await state()).logs,restored.logs); openPath = null; savePath = null;
+          const restored=await state();await action({type:'petProgression.update',petProgression:{...restored.petProgression,repeatCost:99}});assert.deepEqual((await state()).students,restored.students);assert.deepEqual((await state()).logs,restored.logs); openPath = null; savePath = null;
         });
         await check('Unknown species rejects in IPC add/update/backup restore without altering live data, disk or recovery files', async () => {
           const before = await state(), bytes = disk(), backups = (await file({ command: 'folder-info' })).backup;
@@ -298,23 +298,23 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
           await restore(catalogFixture()); await go(); const before = await state(); await click('[data-do="select-all"]'); assert.equal(await js(main, 'document.querySelectorAll(".pet-select.checked").length'), EXPECTED.length);
           await click('.pet-batch-bar [data-do="pet-reward"]'); await js(main, `(()=>{const b=document.querySelector('#modal [data-do="pet-reason"][data-index="0"]');b.click();b.click();return true;})()`);
           await until(async () => (await state()).revision === before.revision + 1); await sleep(100); const after = await state(); assert.equal(after.logs.length, 1); assert.equal(after.logs[0].changes.length, EXPECTED.length);
-          for (const s of after.students) { assert.equal(s.score, 5); assert.equal(s.growth, 5); assert.equal(petLevel(s, 5).level, 2); }
-          assert.equal(await js(main, 'document.querySelector("#pet-feedback h2").textContent'), '每位伙伴的成长都已同步');assert.equal(await js(main, 'document.querySelectorAll("#pet-feedback [data-feedback-direction=up] [data-feedback-student]").length'),40);assert.deepEqual(await js(main, 'state.students.map(s=>{const p=PetProgress.profile(state,s);return [p.pet,p.level,p.growth,p.isEgg];})'), EXPECTED.map(pet=>[pet,2,5,false]));assert.equal(await js(main, 'document.querySelectorAll(".pet-student-card .pet-scene svg[data-pet]").length'), EXPECTED.length); await sleep(500); await shot('07-all-species-upgrade');
+          for (const s of after.students) { assert.equal(s.score, 5); assert.equal(s.growth, 4); assert.equal(petLevel(s,after.petProgression).level, 1); }
+          assert.equal(await js(main, 'document.querySelector("#pet-feedback h2").textContent'), '每位伙伴的成长都已同步');assert.equal(await js(main, 'document.querySelectorAll("#pet-feedback [data-feedback-direction=hatch] [data-feedback-student]").length'),40);assert.deepEqual(await js(main, 'state.students.map(s=>{const p=PetProgress.profile(state,s);return [p.pet,p.level,p.growth,p.isEgg];})'), EXPECTED.map(pet=>[pet,1,5,false]));assert.equal(await js(main, 'document.querySelectorAll(".pet-student-card .pet-scene svg[data-pet]").length'), EXPECTED.length); await sleep(500); await shot('07-all-species-upgrade');
         });
         await check('UI undo of the batch restores all forty pets and their levels with explicit rollback feedback', async () => {
-          const before = await state(), log = before.logs.at(-1); await clearFeedback(); await detail(before.students[0].id); await click(`[data-do="undo"][data-id="${log.id}"]`); await until(async () => (await state()).logs.at(-1).undone);
-          const after = await state(); assert.ok(after.students.every(s => s.growth === 4 && s.score === 4 && petLevel(s, 5).level === 1)); assert.deepEqual(after.students.map(s => s.pet), EXPECTED); assert.match(await content('#toast') + await content('#pet-feedback'), /撤销|回退|恢复/);
+          const before = await state(), log = before.logs.at(-1); await clearFeedback(); await click('[data-page="logs"]'); await click(`[data-do="undo"][data-id="${log.id}"]`); await until(async () => (await state()).logs.at(-1).undone);
+          const after = await state(); assert.ok(after.students.every(s => s.growth === 4 && s.score === 4 && petLevel(s,after.petProgression).level === 0)); assert.deepEqual(after.students.map(s => s.pet), EXPECTED); assert.match(await content('#toast') + await content('#pet-feedback'), /撤销|回退|恢复/);
         });
         await check('Four real windows render all forty species and concurrent actions converge without lost updates', async () => {
           await restore(catalogFixture()); panel = await open('panel'); pets = await open('pets'); pet = await open('pet'); pets.setSize(1280, 840); const before = await state();
           const windows = [main, panel, pet, pets]; await Promise.all(EXPECTED.map((_, i) => action({ type: 'score', ids: [before.students[i].id], delta: 1, reason: '纯合成多物种并发' }, windows[i % 4])));
-          const after = await state(); assert.equal(after.revision, before.revision + EXPECTED.length); assert.equal(after.logs.length, EXPECTED.length); assert.ok(after.students.every(s => s.growth === 5));
+          const after = await state(); assert.equal(after.revision, before.revision + EXPECTED.length); assert.equal(after.logs.length, EXPECTED.length); assert.ok(after.students.every(s => s.score === 5 && s.growth === 4));
           for (const w of windows) assert.deepEqual(await state(w), after); assert.equal(await js(pets, 'document.querySelectorAll("[data-do=pet-detail]").length'), EXPECTED.length); assert.equal(await js(pet, 'document.querySelectorAll(".pet-student-card").length'), EXPECTED.length); await clearFeedback(pets); await shot('08-all-species-classroom', pets);
         });
-        await check('An open unsaved chooser keeps its selection while another window awards growth; save retains concurrent points', async () => {
+        await check('An open unsaved chooser keeps its selection while another window changes current score; save retains concurrent points', async () => {
           const target = (await state()).students[0]; await edit(target.id); await fill('#student-form [name=name]', '纯合成并发编辑'); await fill('#pet-choice-search', 'dragon'); await click('.pet-choice[data-pet="dragon"]');
           await action({ type: 'score', ids: [target.id], delta: 2, reason: '纯合成编辑期间加分' }, panel); assert.equal(await checkedPet(), 'dragon'); assert.equal(await js(main, 'document.querySelector("#student-form [name=name]").value'), '纯合成并发编辑');
-          await submit(); await until(async () => (await state()).students[0].pet === 'dragon'); const after = (await state()).students[0]; assert.equal(after.score, target.score + 2); assert.equal(after.growth, target.growth + 2); assert.equal(after.name, '纯合成并发编辑'); assert.equal(after.photo, target.photo);
+          await submit(); await until(async () => (await state()).students[0].pet === 'dragon'); const after = (await state()).students[0]; assert.equal(after.score, target.score + 2); assert.equal(after.growth, target.growth); assert.equal(after.name, '纯合成并发编辑'); assert.equal(after.photo, target.photo);
         });
         await check('The catalog stays read-only while other windows change points and its close never rolls back newer data', async () => {
           await go(); await click('[data-do="pet-catalog"]'); await fill('#pet-catalog-search', 'unicorn'); const before = await state(); await action({ type: 'score', ids: [before.students[0].id], delta: 1, reason: '纯合成图鉴期间加分' }, pet);
@@ -322,7 +322,7 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
         });
         await check('A 300-student class distributes all forty species, batch upgrades and undo without slowdowns or overflow', async () => {
           const start = Date.now(); await restore(catalogFixture(300)); await go(); assert.equal(await js(main, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300); assert.equal(await js(pets, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300);
-          const before = await state(); await action({ type: 'score', ids: before.students.map(s => s.id), delta: 1, reason: '纯合成300人全物种升级' }, panel); const after = await state(); assert.equal(after.logs.at(-1).changes.length, 300); assert.ok(after.students.every(s => s.growth === 5)); assert.equal(new Set(after.students.map(s => s.pet)).size, EXPECTED.length);
+          const before = await state(); await action({ type: 'score', ids: before.students.map(s => s.id), delta: 1, reason: '纯合成300人全物种升级' }, panel); const after = await state(); assert.equal(after.logs.at(-1).changes.length, 300); assert.ok(after.students.every(s => s.score === 5 && s.growth === 4)); assert.equal(new Set(after.students.map(s => s.pet)).size, EXPECTED.length);
           await clearFeedback(); await shot('09-300-mixed-species'); await action({ type: 'undo', logId: after.logs.at(-1).id }, panel); assert.deepEqual((await state()).students, before.students); assert.equal(await js(main, 'document.documentElement.scrollWidth<=innerWidth'), true);
           assert.ok(Date.now() - start < 15_000, '300 mixed-species award/render/undo exceeds 15 seconds'); return Date.now() - start + ' ms including screenshot';
         });

@@ -13,9 +13,9 @@ const frozen = value => { Object.freeze(value); for (const v of Object.values(va
 const act = (s, action) => applyAction(s, action, NOW);
 const first = s => s.students[0];
 const award = (s, delta, ids = [first(s).id]) => act(s, { type: 'score', ids, delta, reason: '纯合成宠物兼容测试' });
-const legacyProjection = value => { const copy = clone(value); delete copy.settings.petStep; delete copy.settings.petFocusId; return copy; };
+const legacyProjection = value => { const copy = clone(value); delete copy.settings.petStep; delete copy.settings.petFocusId; delete copy.petProgression; copy.version=1; return copy; };
 
-test('Pet compatibility: handwritten v1.0 save retains every original field and receives only safe pet defaults', () => {
+test('Pet compatibility: handwritten v1.0 data survives the additive global progression upgrade', () => {
   const input = frozen(legacyState()), bytes = JSON.stringify(input);
   const migrated = validateState(input);
   assert.deepEqual(legacyProjection(migrated), input);
@@ -35,52 +35,38 @@ test('Pet compatibility: migrating and serializing an old save is deterministic 
   assert.notEqual(validateState(once).settings, once.settings);
 });
 
-test('Pet compatibility: default class keeps the original twenty-point progression', () => {
-  const s = createInitialState();
-  assert.equal(s.version, 1);
-  assert.equal(s.settings.petStep, 20);
-  assert.equal(s.settings.petFocusId, '');
-  assert.deepEqual(petLevel({ growth: 25 }), { level: 2, current: 5, needed: 20 });
+test('Pet compatibility: old step metadata is retained while current score uses the global progression', () => {
+  const s = createInitialState(); assert.equal(s.version,2); assert.equal(s.settings.petStep,20); assert.equal(s.settings.petFocusId,'');
+  assert.deepEqual(s.petProgression,{version:1,costs:[5,10,15,20,20,20,20],repeatCost:20});
+  assert.deepEqual(petLevel({score:25,growth:200}),{level:2,current:10,needed:15});
 });
 
-test('Pet progression: all seven stage boundaries are exact with step five and twenty', () => {
-  for (const step of [5, 20]) {
-    for (let level = 1; level <= 7; level++) {
-      const boundary = (level - 1) * step;
-      assert.deepEqual(petLevel({ growth: boundary }, step), { level, current: 0, needed: step });
-      assert.deepEqual(petLevel({ growth: boundary + step - 1 }, step), { level, current: step - 1, needed: step });
-      if (boundary) assert.equal(petLevel({ growth: boundary - 1 }, step).level, level - 1);
-    }
-    assert.equal(petLevel({ growth: step * 7 }, step).level, 8, 'levels remain unbounded after the seventh visual form');
+test('Pet progression: cumulative costs and repeated later costs have exact boundaries', () => {
+  for (const costs of [[5,10,15,20,20,20,20],[5,5,5,5,5,5,5]]) {
+    const progression={version:1,costs,repeatCost:20}; let boundary=0;
+    costs.forEach((cost,i)=>{boundary+=cost;assert.equal(petLevel({score:boundary-1},progression).level,i);assert.deepEqual(petLevel({score:boundary},progression),{level:i+1,current:0,needed:costs[i+1]||20});});
+    assert.equal(petLevel({score:boundary+20},progression).level,8);
   }
 });
 
-test('Pet progression: minimum/maximum step and maximum saved growth remain finite and exact', () => {
-  assert.deepEqual(petLevel({ growth: 6 }, 1), { level: 7, current: 0, needed: 1 });
-  assert.deepEqual(petLevel({ growth: 699 }, 100), { level: 7, current: 99, needed: 100 });
-  assert.deepEqual(petLevel({ growth: 1_000_000_000 }, 5), { level: 200_000_001, current: 0, needed: 5 });
+test('Pet progression: minimum costs and maximum signed score remain finite and exact', () => {
+  const p={version:1,costs:[1,1,1,1,1,1,1],repeatCost:1};
+  assert.deepEqual(petLevel({score:1_000_000_000,growth:0},p),{level:1_000_000_000,current:0,needed:1});
+  assert.deepEqual(petLevel({score:-1_000_000_000,growth:999},p),{level:0,current:0,needed:1});
 });
 
-test('Pet progression: invalid growth and step inputs cannot produce misleading levels', () => {
-  for (const growth of [-1, 0.5, NaN, Infinity, '20', 1_000_000_001]) assert.throws(() => petLevel({ growth }, 5));
-  for (const step of [0, -1, 101, 2.5, NaN, Infinity, '5', null]) assert.throws(() => petLevel({ growth: 20 }, step));
+test('Pet progression: invalid scores and retired numeric step arguments reject', () => {
+  for (const score of [0.5,NaN,Infinity,'20',1_000_000_001,-1_000_000_001,undefined]) assert.throws(()=>petLevel({score}));
+  for (const step of [0,-1,5,20,101,2.5,NaN,Infinity,'5',null]) assert.throws(()=>petLevel({score:20},step));
 });
 
-test('Pet rules: changing thresholds preserves student scores, growth, history, photos and selections', () => {
-  let s = validateState(legacyState());
-  s = act(s, { type: 'pet.focus', id: first(s).id });
-  for (const step of [5, 1, 100, 20]) {
-    const before = clone(s);
-    s = act(s, { type: 'pet.rules', step });
-    assert.equal(s.settings.petStep, step);
-    assert.equal(s.settings.petFocusId, first(s).id);
-    assert.equal(s.revision, before.revision + 1);
-    assert.deepEqual(s.students, before.students);
-    assert.deepEqual(s.logs, before.logs);
-    assert.deepEqual(s.draw, before.draw);
-    assert.deepEqual(s.timer, before.timer);
-    assert.equal(s.settings.className, before.settings.className);
+test('Pet rules: global progression editing preserves every historical field and selection', () => {
+  let s=act(validateState(legacyState()),{type:'pet.focus',id:'s_legacy_owl'});
+  for (const repeatCost of [5,1,100,20]) {
+    const before=clone(s);s=act(s,{type:'petProgression.update',petProgression:{...s.petProgression,repeatCost}});
+    assert.equal(s.revision,before.revision+1);for(const key of ['students','settings','logs','draw','timer'])assert.deepEqual(s[key],before[key]);
   }
+  const bytes=JSON.stringify(s);assert.throws(()=>act(s,{type:'pet.rules',step:5}),/停用|统一/);assert.equal(JSON.stringify(s),bytes);
 });
 
 test('Pet rules: invalid threshold actions fail atomically', () => {
@@ -116,7 +102,7 @@ test('Pet focus: removing another student preserves focus and removing the focus
 });
 
 test('Pet import: appending retains focus and rules; replacing clears obsolete focus while preserving rules', () => {
-  let s = act(validateState(legacyState()), { type: 'pet.rules', step: 5 });
+  let s = validateState({...legacyState(),settings:{...legacyState().settings,petStep:5}});
   const focused = first(s).id; s = act(s, { type: 'pet.focus', id: focused });
   const appended = importRows([{ name: '纯合成新增伙伴', group: '纯合成组' }], s, 'append');
   assert.equal(appended.settings.petFocusId, focused); assert.equal(appended.settings.petStep, 5);
@@ -127,43 +113,31 @@ test('Pet import: appending retains focus and rules; replacing clears obsolete f
   assert.deepEqual(replaced.logs, []);
 });
 
-test('Pet scoring: positive and negative awards retain the v1.0 arithmetic under custom rules', () => {
-  let s = act(createInitialState(), { type: 'pet.rules', step: 5 });
-  s = award(s, 7); assert.equal(first(s).score, 7); assert.equal(first(s).growth, 7);
-  assert.deepEqual(petLevel(first(s), s.settings.petStep), { level: 2, current: 2, needed: 5 });
-  s = award(s, -10); assert.equal(first(s).score, -3); assert.equal(first(s).growth, 7);
-  assert.equal(s.logs.at(-1).changes[0].beforeGrowth, s.logs.at(-1).changes[0].afterGrowth);
+test('Pet scoring: positive and negative awards change current levels and freeze saved legacy growth', () => {
+  let s=createInitialState();s=award(s,7);assert.equal(first(s).score,7);assert.equal(first(s).growth,0);
+  assert.deepEqual(petLevel(first(s)),{level:1,current:2,needed:10});
+  s=award(s,-10);assert.equal(first(s).score,-3);assert.equal(first(s).growth,0);assert.equal(petLevel(first(s)).level,0);
+  assert.ok(s.logs.every(l=>l.growthDelta===0 && l.changes.every(c=>c.beforeGrowth===c.afterGrowth)));
 });
 
-test('Pet scoring: crossing a boundary and undoing it returns exactly to the previous level', () => {
-  const s = validateState(legacyState()), plus = award(s, 1);
-  assert.equal(petLevel(first(s)).level, 1); assert.equal(petLevel(first(plus)).level, 2);
-  const undone = act(plus, { type: 'undo', logId: plus.logs.at(-1).id });
-  assert.deepEqual(undone.students, s.students);
-  assert.equal(petLevel(first(undone)).level, 1);
-  assert.equal(undone.logs.at(-1).undone, true);
+test('Pet scoring: crossing a score boundary and undoing returns to the exact previous level', () => {
+  const s=validateState(legacyState());s.students[0].score=29;const plus=award(s,1);
+  assert.equal(petLevel(first(s)).level,2);assert.equal(petLevel(first(plus)).level,3);
+  const undone=act(plus,{type:'undo',logId:plus.logs.at(-1).id});assert.deepEqual(undone.students,s.students);assert.equal(petLevel(first(undone)).level,2);assert.equal(undone.logs.at(-1).undone,true);
 });
 
-test('Pet scoring: one large award can span stages without capping saved growth', () => {
-  let s = act(createInitialState(), { type: 'pet.rules', step: 5 });
-  s = award(s, 100);
-  assert.equal(first(s).growth, 100); assert.equal(petLevel(first(s), 5).level, 21);
-  assert.equal(s.logs.length, 1); assert.equal(s.logs[0].changes[0].afterGrowth, 100);
-  s = act(s, { type: 'undo', logId: s.logs[0].id });
-  assert.equal(first(s).growth, 0); assert.equal(petLevel(first(s), 5).level, 1);
+test('Pet scoring: a large score award spans stages while archived growth stays unchanged', () => {
+  let s=createInitialState();s=award(s,100);assert.equal(first(s).growth,0);assert.equal(petLevel(first(s)).level,6);
+  assert.equal(s.logs.length,1);assert.equal(s.logs[0].changes[0].afterGrowth,0);assert.equal(s.logs[0].growthDelta,0);
+  s=act(s,{type:'undo',logId:s.logs[0].id});assert.equal(first(s).score,0);assert.equal(petLevel(first(s)).level,0);
 });
 
-test('Pet undo: non-sequential mixed award reversal retains later growth and custom rules', () => {
-  let s = act(createInitialState(), { type: 'pet.rules', step: 5 });
-  s = award(s, 25); const a = s.logs.at(-1).id;
-  s = award(s, 7); const b = s.logs.at(-1).id;
-  s = award(s, -3); const c = s.logs.at(-1).id;
-  s = act(s, { type: 'undo', logId: a });
-  assert.equal(first(s).score, 4); assert.equal(first(s).growth, 7); assert.equal(petLevel(first(s), 5).level, 2);
-  s = act(s, { type: 'undo', logId: c }); assert.equal(first(s).score, 7); assert.equal(first(s).growth, 7);
-  s = act(s, { type: 'undo', logId: b }); assert.equal(first(s).score, 0); assert.equal(first(s).growth, 0);
-  assert.equal(s.settings.petStep, 5);
-  assert.throws(() => act(s, { type: 'undo', logId: a }), /撤销/);
+test('Pet undo: non-sequential score reversal preserves later scores and all historical growth', () => {
+  let s=createInitialState();s=award(s,25);const a=s.logs.at(-1).id;s=award(s,7);const b=s.logs.at(-1).id;s=award(s,-3);const c=s.logs.at(-1).id;
+  s=act(s,{type:'undo',logId:a});assert.equal(first(s).score,4);assert.equal(first(s).growth,0);assert.equal(petLevel(first(s)).level,0);
+  s=act(s,{type:'undo',logId:c});assert.equal(first(s).score,7);assert.equal(petLevel(first(s)).level,1);
+  s=act(s,{type:'undo',logId:b});assert.equal(first(s).score,0);assert.equal(first(s).growth,0);
+  assert.throws(()=>act(s,{type:'undo',logId:a}),/撤销/);
 });
 
 test('Pet legacy undo: undoing a historic negative award never adds or removes growth', () => {
@@ -179,13 +153,13 @@ test('Pet batch undo: all selected pets advance once and reverse together withou
   assert.equal(after.logs.length, before.logs.length + 1);
   assert.equal(after.logs.at(-1).changes.length, 2);
   assert.deepEqual(after.students.slice(2), before.students.slice(2));
-  assert.equal(after.students[0].growth, 24); assert.equal(after.students[1].growth, 32);
+  assert.equal(after.students[0].growth, 19); assert.equal(after.students[1].growth, 27);
   const undone = act(after, { type: 'undo', logId: after.logs.at(-1).id });
   assert.deepEqual(undone.students, before.students);
 });
 
 test('Pet profile: switching every supported pet retains identity, score, growth, local image and rules', () => {
-  let s = act(validateState(legacyState()), { type: 'pet.rules', step: 5 });
+  let s = validateState({...legacyState(),settings:{...legacyState().settings,petStep:5}});
   const before = clone(first(s));
   for (const pet of ['fox', 'bunny', 'cat', 'owl']) {
     s = act(s, { type: 'student.update', id: before.id, pet });
@@ -197,7 +171,7 @@ test('Pet profile: switching every supported pet retains identity, score, growth
 });
 
 test('Pet backup: new rules, focused companion, old photos, scores and audit records round-trip together', () => {
-  let s = act(validateState(legacyState()), { type: 'pet.rules', step: 5 });
+  let s = validateState({...legacyState(),settings:{...legacyState().settings,petStep:5}});
   s = act(s, { type: 'pet.focus', id: s.students[1].id });
   s = award(s, 2);
   assert.deepEqual(validateState(JSON.parse(JSON.stringify(s))), s);
@@ -209,7 +183,7 @@ test('Pet persistence: first new write preserves byte-identical legacy JSON as t
     const bytes = legacyJSON(); fs.writeFileSync(file, bytes);
     const loaded = validateState(JSON.parse(fs.readFileSync(file, 'utf8')));
     assert.equal(fs.readFileSync(file, 'utf8'), bytes);
-    const next = act(loaded, { type: 'pet.rules', step: 5 }); saveAtomic(file, next);
+    const next = award(loaded, 1); saveAtomic(file, next);
     assert.equal(fs.readFileSync(file + '.previous', 'utf8'), bytes);
     assert.deepEqual(validateState(JSON.parse(fs.readFileSync(file, 'utf8'))), next);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -223,11 +197,11 @@ test('Pet validation: corrupt new rules reject without weakening the historic lo
 
 test('Pet scaling: maximum supported roster preserves every independent companion through a batch award', () => {
   let s = importRows(Array.from({ length: 300 }, (_, i) => ({ name: `纯合成宠物${i}`, group: `合成组${i % 10}` })), createInitialState(), 'replace');
-  s = act(s, { type: 'pet.rules', step: 5 });
+  s = act(s, { type:'petProgression.update',petProgression:s.petProgression });
   s = act(s, { type: 'pet.focus', id: s.students[299].id });
   s = award(s, 5, s.students.map(v => v.id));
   assert.equal(s.students.length, 300); assert.equal(new Set(s.students.map(v => v.id)).size, 300);
-  assert.ok(s.students.every(v => v.growth === 5 && petLevel(v, s.settings.petStep).level === 2));
+  assert.ok(s.students.every(v => v.growth === 0 && petLevel(v, s.petProgression).level === 1));
   assert.equal(s.logs.at(-1).changes.length, 300); assert.equal(s.settings.petFocusId, s.students[299].id);
 });
 

@@ -31,24 +31,26 @@ test('validation returns an independent, projected state suitable for JSON persi
   assert.notEqual(restored.timer, s.timer);
 });
 
-test('positive points increase score and growth; negative points only reduce score', () => {
+test('positive and negative points change current-score levels while preserving historical growth', () => {
   const initial = freezeDeep(createInitialState());
   const snapshot = JSON.stringify(initial);
   const plus = score(initial, 25);
-  assert.equal(first(plus).score, 25); assert.equal(first(plus).growth, 25);
-  assert.deepEqual(petLevel(first(plus)), { level: 2, current: 5, needed: 20 });
+  assert.equal(first(plus).score, 25); assert.equal(first(plus).growth, 0);
+  assert.deepEqual(petLevel(first(plus)), { level: 2, current: 10, needed: 15 });
   const minus = score(plus, -30);
-  assert.equal(first(minus).score, -5); assert.equal(first(minus).growth, 25);
+  assert.equal(first(minus).score, -5); assert.equal(first(minus).growth, 0);
   assert.equal(JSON.stringify(initial), snapshot);
   assert.equal(plus.revision, initial.revision + 1);
 });
 
-test('pet level boundaries are exact at every twenty growth', () => {
-  assert.deepEqual(petLevel({ growth: 0 }), { level: 1, current: 0, needed: 20 });
-  assert.deepEqual(petLevel({ growth: 19 }), { level: 1, current: 19, needed: 20 });
-  assert.deepEqual(petLevel({ growth: 20 }), { level: 2, current: 0, needed: 20 });
-  assert.deepEqual(petLevel({ growth: 40 }), { level: 3, current: 0, needed: 20 });
-  assert.throws(() => petLevel({ growth: -1 }));
+test('pet levels use score at the seven cumulative thresholds, regardless of old growth', () => {
+  const thresholds = [5,15,30,50,70,90,110], costs = [5,10,15,20,20,20,20];
+  for (const score of [-30,-1,0,4]) assert.equal(petLevel({score,growth:999}).level, 0);
+  thresholds.forEach((score, i) => {
+    assert.equal(petLevel({score:score-1,growth:0}).level, i);
+    assert.deepEqual(petLevel({score,growth:999}), {level:i+1,current:0,needed:costs[i+1] || 20});
+  });
+  assert.equal(petLevel({score:130,growth:0}).level,8);
 });
 
 test('batch points make one complete log with snapshots and no duplicate changes', () => {
@@ -59,7 +61,7 @@ test('batch points make one complete log with snapshots and no duplicate changes
   assert.equal(result.logs[0].delta, 4);
   assert.equal(result.logs[0].undone, false);
   assert.equal(result.logs[0].changes.length, 3);
-  for (const c of result.logs[0].changes) assert.deepEqual({ ...c, id: '', name: '' }, { id: '', name: '', beforeScore: 0, afterScore: 4, beforeGrowth: 0, afterGrowth: 4 });
+  for (const c of result.logs[0].changes) assert.deepEqual({ ...c, id: '', name: '' }, { id: '', name: '', beforeScore: 0, afterScore: 4, beforeGrowth: 0, afterGrowth: 0 });
   assert.equal(result.students.reduce((n, v) => n + v.score, 0), 12);
   assert.equal(s.logs.length, 0);
 });
@@ -82,13 +84,13 @@ test('undo reverses full batch and preserves an audit record', () => {
   assert.throws(() => applyAction(updated, { type: 'undo', logId: 'missing' }, NOW));
 });
 
-test('out-of-order undo subtracts only that transaction and retains later score/growth changes', () => {
+test('out-of-order undo subtracts only its score transaction and preserves archived growth', () => {
   let s = score(createInitialState(), 10), firstLog = s.logs[0].id;
   s = score(s, 7); s = score(s, -3);
   s = applyAction(s, { type: 'undo', logId: firstLog }, NOW);
-  assert.equal(first(s).score, 4); assert.equal(first(s).growth, 7);
+  assert.equal(first(s).score, 4); assert.equal(first(s).growth, 0);
   s = applyAction(s, { type: 'undo', logId: s.logs[2].id }, NOW);
-  assert.equal(first(s).score, 7); assert.equal(first(s).growth, 7);
+  assert.equal(first(s).score, 7); assert.equal(first(s).growth, 0);
   s = applyAction(s, { type: 'undo', logId: s.logs[1].id }, NOW);
   assert.equal(first(s).score, 0); assert.equal(first(s).growth, 0);
 });
@@ -107,7 +109,7 @@ test('batch undo with a removed student fails without partial changes', () => {
 test('repeated serialized operations retain every update, modeling centralized multiwindow dispatch', () => {
   let s = createInitialState();
   for (let i = 0; i < 50; i++) s = score(s, 1);
-  assert.equal(first(s).score, 50); assert.equal(first(s).growth, 50);
+  assert.equal(first(s).score, 50); assert.equal(first(s).growth, 0);
   assert.equal(s.logs.length, 50); assert.equal(new Set(s.logs.map(v => v.id)).size, 50);
   assert.equal(s.revision, 50);
 });
@@ -119,7 +121,7 @@ test('student add/update/remove support flat fields, stable IDs and independent 
   assert.equal(added.name, '新同学'); assert.equal(added.group, '未分组'); assert.equal(added.photo, PNG);
   s = score(s, 3, [added.id]);
   s = applyAction(s, { type: 'student.update', id: added.id, name: first(s).name, group: '新组', pet: 'fox' }, NOW);
-  assert.equal(s.students[1].id, added.id); assert.equal(s.students[1].score, 3); assert.equal(s.students[1].growth, 3); assert.equal(s.students[1].photo, PNG);
+  assert.equal(s.students[1].id, added.id); assert.equal(s.students[1].score, 3); assert.equal(s.students[1].growth, 0); assert.equal(s.students[1].photo, PNG);
   s = applyAction(s, { type: 'student.remove', id: added.id }, NOW);
   assert.equal(s.students.length, 1); assert.equal(s.logs.length, 1);
   assert.throws(() => applyAction(s, { type: 'student.remove', id: 'unknown' }, NOW));

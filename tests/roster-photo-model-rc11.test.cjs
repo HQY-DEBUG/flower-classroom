@@ -16,7 +16,7 @@ test('RC11 roster photo snapshots: omitted and blank optional photos keep two-co
 });
 
 test('RC11 roster photo snapshots: append preserves existing avatars/history and replace saves validated snapshots in new egg accounts', () => {
-  const original = Core.applyAction(legacyState(), { type: 'pet.stage-rules', thresholds: [5, 5, 5, 5, 5, 5] }, 10000000);
+  const original = Core.validateState(require('./rc18-regression-fixtures.cjs').historical('legacyEnabled'));
   const rows = [{ name: '纯合成头像同学', group: '头像组', photo: SYNTHETIC_PNG, '头像名称': 'synthetic.png' }];
   const appended = Core.importRows(rows, original, 'append');
   assert.deepEqual(appended.students.slice(0, -1), original.students);

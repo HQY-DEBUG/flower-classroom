@@ -9,10 +9,11 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const act = (state, action) => Core.applyAction(state, action, 18_000_000);
 const save = (state, rules) => act(state, {type: 'rules.save', rules, expectedRules: Rules.list(state), expectedKey: Rules.key(state), sharedRevision: state.sharedScoreRules?.revision});
 const share = state => act(state, {type: 'rules.share', confirmed: true, expectedKey: Rules.previewShared(state).expectedKey});
-const values = state => { const next = clone(state); delete next.settings.scoreRules; delete next.sharedScoreRules; delete next.panels; delete next.version; delete next.revision; return next; };
+const values = state => { const next = clone(state); delete next.settings.scoreRules; delete next.sharedScoreRules; delete next.panels; delete next.petProgression; delete next.version; delete next.revision; return next; };
 function legacyPanels(collections) {
   const panels = collections.map((rules, i) => {
     const data = Core.createInitialState(); data.students = []; data.settings.className = `合成旧面板${i}`;
+    if (i > 0) delete data.petProgression;
     if (rules !== undefined) data.settings.scoreRules = clone(rules);
     if (rules?.some(rule => Object.hasOwn(rule, 'growthDelta'))) data.version = 2;
     return {id: `panel_${i}`, data};
@@ -98,16 +99,17 @@ test('RC18 shared rules: create blank/roster/full, switch, remove and clear keep
   let state = Core.createInitialState();
   state = save(state, [rule('persistent_card', 3, 2)]);
   const id = state.students[0].id;
-  state = act(state, {type: 'score', ids: [id], delta: 3, reason: '合成卡片persistent_card', growthDelta: 2, expectedRule: Rules.list(state)[0]});
+  state = act(state, {type: 'score', ids: [id], delta: 3, reason: '合成卡片persistent_card', expectedRule: Rules.list(state)[0]});
   const history = clone(state.logs), originalId = Core.panelId(state), migration = clone(state.sharedScoreRules.migration);
   for (const mode of ['blank', 'copy', 'full']) {
     let next = act(state, {type: 'panel.create', mode, name: `合成${mode}`});
     assert.deepEqual(next.sharedScoreRules, state.sharedScoreRules);
+    assert.deepEqual(next.petProgression,state.petProgression);
     assert.equal(Rules.list(next)[0].id, 'persistent_card');
     assert.equal(next.panels.others[0].data.sharedScoreRules, undefined);
     assert.deepEqual(next.panels.others[0].data.logs, history);
     assert.deepEqual(values(next.panels.others[0].data), values(state));
-    if (mode === 'full') { assert.notEqual(next.logs[0].id, history[0].id); assert.equal(next.logs[0].delta, 3); assert.equal(next.logs[0].growthDelta, 2); }
+    if (mode === 'full') { assert.notEqual(next.logs[0].id, history[0].id); assert.equal(next.logs[0].delta, 3); assert.equal(next.logs[0].growthDelta, 0); }
     else assert.deepEqual(next.logs, []);
     next = save(next, [{...Rules.list(next)[0], label: '合成全局修改', delta: 8, growthDelta: 0}]);
     next = act(next, {type: 'panel.switch', id: originalId});

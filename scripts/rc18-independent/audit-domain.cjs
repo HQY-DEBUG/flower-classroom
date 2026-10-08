@@ -1,16 +1,17 @@
 'use strict';
 // Independent synthetic-domain audit. The target can be source or an extracted ASAR.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const root=path.resolve(__dirname,'../..'),runtime=path.resolve(process.env.RC18_AUDIT_RUNTIME||root),out=path.resolve(process.env.RC18_AUDIT_OUT||path.join(root,'artifacts/rc18-independent/source-domain'));
+const root=path.resolve(__dirname,'../..'),runtime=path.resolve(process.env.RC18_AUDIT_RUNTIME||root),out=path.resolve(process.env.RC18_AUDIT_OUT||path.join(root,'artifacts/rc19/inherited/source-domain'));
 fs.mkdirSync(out,{recursive:true});
 const Core=require(path.join(runtime,'src/core.cjs')),Rules=require(path.join(runtime,'src/score-rules.js')),Progress=require(path.join(runtime,'src/pet-progress.js'));
 const clone=v=>structuredClone(v),sha=v=>crypto.createHash('sha256').update(v).digest('hex');
+const Scores=require(path.join(runtime,'src/pet-score-progression.js')),historical=require('../../tests/rc18-regression-fixtures.cjs').historical;
 const act=(s,a)=>Core.applyAction(s,a,1700000000000),pid=Core.panelId,results=[];
 const save=(s,rules,extra={})=>act(s,{type:'rules.save',rules,expectedRules:Rules.list(s),expectedKey:Rules.key(s),panelId:pid(s),...extra});
 const share=s=>act(s,{type:'rules.share',confirmed:true,expectedKey:Rules.previewShared(s).expectedKey,panelId:pid(s)});
 const edit=(s,patch)=>save(s,Rules.list(s).map((r,i)=>i?r:{...r,...patch}));
 function fixture(n=2,count=2,{same=false}={}){
- const entries=Array.from({length:n},(_,p)=>{const s=Core.createInitialState();s.settings.className=`合成审计${p+1}班`;s.students=s.students.slice(0,2).map((v,i)=>({...v,id:`student_${p}_${i}`,name:`合成学生${p}_${i}`}));s.settings.scoreRules=Array.from({length:count},(_,i)=>({id:`rule_${i}`,label:`${same?'相同':p}原因${i}`,delta:i%2?-1:2}));return {id:`panel_${String(p).padStart(2,'0')}`,data:s};});
+ const entries=Array.from({length:n},(_,p)=>{const s=Core.createInitialState();if(p>0)delete s.petProgression;s.settings.className=`合成审计${p+1}班`;s.students=s.students.slice(0,2).map((v,i)=>({...v,id:`student_${p}_${i}`,name:`合成学生${p}_${i}`}));s.settings.scoreRules=Array.from({length:count},(_,i)=>({id:`rule_${i}`,label:`${same?'相同':p}原因${i}`,delta:i%2?-1:2}));return {id:`panel_${String(p).padStart(2,'0')}`,data:s};});
  const [first,...others]=entries;return Core.validateState({...first.data,panels:{activeId:first.id,others}});
 }
 function allPanels(s){return[{id:pid(s),data:s},...(s.panels?.others||[])];}
@@ -70,7 +71,7 @@ await check('D08','stale shared editor rejects same-value ABA revision while unr
 await check('D09','late score snapshots reject changed shared rules and preserve earlier recorded arithmetic',()=>{
  let s=share(fixture());const rule=Rules.list(s)[0],request={type:'score',ids:[s.students[0].id],delta:rule.delta,reason:rule.label,expectedRule:rule,panelId:pid(s)};
  const scored=act(s,request),record=clone(scored.logs.at(-1));s=edit(scored,{label:'新共享原因',delta:9,growthDelta:0});rejected(s,request,/规则|卡片/);assert.deepEqual(s.logs.at(-1),record);
- const undone=act(s,{type:'undo',logId:record.id});assert.deepEqual(undone.students,scored.students.map((v,i)=>i?v:{...v,score:v.score-rule.delta,growth:v.growth-Math.max(0,rule.delta)}));
+ const undone=act(s,{type:'undo',logId:record.id});assert.deepEqual(undone.students,scored.students.map((v,i)=>i?v:{...v,score:v.score-rule.delta,growth:v.growth}));
 });
 await check('D10','member append and replacement preserve root shared configuration and inactive panels',()=>{
  for(const mode of ['append','replace']){const s=share(fixture()),snapshot=clone(s.sharedScoreRules),inactive=clone(s.panels.others);const next=Core.importRows([{name:'合成导入同学',group:'合成组'}],s,mode);assert.deepEqual(next.sharedScoreRules,snapshot);assert.deepEqual(next.panels.others,inactive);mirrored(next);}
@@ -84,13 +85,13 @@ await check('D12','migration archive and mapping remain verifiable after removal
  const bad=clone(s);bad.sharedScoreRules.migration.mappings[0].sharedRuleId='corrupt_mapping';assert.throws(()=>Core.validateState(bad),/映射/);
 });
 await check('D13','changed thresholds have exact boundaries and do not rewrite score or growth history',()=>{
- let s=share(fixture(1));s=act(s,{type:'pet.stage-rules',thresholds:[2,3,4,5,6,7]});s=act(s,{type:'pet.growth',ids:[s.students[0].id],delta:27,reason:'合成边界成长'});const before=clone(s),log=s.petLogs.at(-1);const costs=[3,4,5,6,7,8];s=act(s,{type:'pet.stage-rules',thresholds:costs});assert.deepEqual(s.students,before.students);assert.deepEqual(s.petLogs,before.petLogs);assert.deepEqual(s.petAccounts,before.petAccounts);assert.deepEqual(s.logs,before.logs);
- let boundary=0;for(let level=1;level<=7;level++){assert.equal(Progress.progress(boundary,costs).level,level);if(boundary)assert.equal(Progress.progress(boundary-1,costs).level,level-1);if(level<7)boundary+=costs[level-1];}assert.equal(Progress.progress(34,costs).overflow,1);
- s=act(s,{type:'pet.undo',logId:log.id});assert.equal(Progress.profile(s,s.students[0]).growth,0);mirrored(s);
+ let s=share(Core.validateState(historical('grown')));s=act(s,{type:'score',ids:[s.students[0].id],delta:27,reason:'合成边界积分'});const before=clone(s),log=s.logs.at(-1);const costs=[3,4,5,6,7,8,9];s=act(s,{type:'petProgression.update',petProgression:{version:1,costs,repeatCost:10}});assert.deepEqual(s.students,before.students);assert.deepEqual(s.petLogs,before.petLogs);assert.deepEqual(s.petAccounts,before.petAccounts);assert.deepEqual(s.logs,before.logs);
+ let boundary=0;assert.equal(Scores.progress(0,s.petProgression).level,0);for(let level=1;level<=7;level++){boundary+=costs[level-1];assert.equal(Scores.progress(boundary,s.petProgression).level,level);assert.equal(Scores.progress(boundary-1,s.petProgression).level,level-1);}assert.equal(Scores.progress(boundary+10,s.petProgression).level,8);
+ s=act(s,{type:'undo',logId:log.id});assert.equal(s.students[0].score,log.changes[0].beforeScore);assert.deepEqual(s.petLogs,before.petLogs);assert.deepEqual(s.petAccounts,before.petAccounts);mirrored(s);
 });
 await check('D14','graduation keeps permanent old threshold snapshot after shared rule and threshold edits',()=>{
- let s=share(fixture(1));s=act(s,{type:'pet.stage-rules',thresholds:[1,2,3,4,5,6]});s=act(s,{type:'pet.growth',ids:[s.students[0].id],delta:21});s=act(s,{type:'pet.graduate',id:s.students[0].id});const old=clone(Progress.profile(s,s.students[0]).graduates),medals=Progress.profile(s,s.students[0]).medalTotal;
- s=edit(s,{delta:-3,growthDelta:4});s=act(s,{type:'pet.stage-rules',thresholds:[9,8,7,6,5,4]});assert.deepEqual(Progress.profile(s,s.students[0]).graduates,old);assert.equal(Progress.profile(s,s.students[0]).medalTotal,medals);assert.deepEqual(old[0].ruleSnapshot.thresholds,[1,2,3,4,5,6]);assert.deepEqual(Core.validateState(clone(s)),s);
+ let s=share(Core.validateState(historical('graduated')));assert.ok(s.petAccounts[0].graduations.length);rejected(s,{type:'pet.graduate',id:s.students[0].id},/停用|历史|积分/);const old=clone(Progress.profile(s,s.students[0]).graduates),medals=Progress.profile(s,s.students[0]).medalTotal;
+ s=edit(s,{delta:-3,growthDelta:4});s=act(s,{type:'petProgression.update',petProgression:{version:1,costs:[9,8,7,6,5,4,3],repeatCost:20}});assert.deepEqual(Progress.profile(s,s.students[0]).graduates,old);assert.equal(Progress.profile(s,s.students[0]).medalTotal,medals);assert.deepEqual(old[0].ruleSnapshot.thresholds,historical('graduated').petAccounts[0].graduations[0].ruleSnapshot.thresholds);assert.deepEqual(Core.validateState(clone(s)),s);
 });
 await check('D15','full JSON restore round trip retains shared revision, migrations and 2,000 card mirrors',()=>{
  const s=JSON.parse(fs.readFileSync(path.join(out,'max-union.json')));const restored=Core.validateState(clone(s));assert.deepEqual(restored,s);mirrored(restored);assert.equal(restored.sharedScoreRules.migration.panels.length,20);

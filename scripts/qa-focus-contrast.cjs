@@ -15,7 +15,7 @@ if(!process.versions.electron){
 }else{
  const {app,BrowserWindow}=require('electron'),Core=require('../src/core.cjs');app.disableHardwareAcceleration();
  const data=process.env.FLOWER_DATA_DIR,checks=[],errors=[],inputs=[];let main;
- let fixture=Core.createInitialState();fixture.settings.className='焦点与对比度 · 合成验收';fixture.students=fixture.students.slice(0,3);fixture.students.forEach((s,i)=>{s.name='合成焦点同学'+(i+1);s.score=7+i;s.growth=7+i;});fixture.students[0].photo=require('../tests/pet-fixtures.cjs').SYNTHETIC_PNG;fixture=Core.applyAction(fixture,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});
+ let fixture=Core.validateState(require('../tests/rc18-regression-fixtures.cjs').historical('enabled'));fixture.settings.className='焦点与对比度 · 合成验收';fixture.students=fixture.students.slice(0,3);fixture.students.forEach((s,i)=>{s.name='合成焦点同学'+(i+1);s.score=7+i;s.growth=7+i;});fixture.students[0].photo=require('../tests/pet-fixtures.cjs').SYNTHETIC_PNG;fixture.petAccounts=fixture.petAccounts.filter(a=>fixture.students.some(student=>student.id===a.studentId));
  const studentId=fixture.students[0].id;fs.writeFileSync(path.join(data,'classroom-v2.json'),JSON.stringify(fixture));
  app.on('web-contents-created',(_e,contents)=>contents.on('console-message',event=>{if(event.level==='error')errors.push(event.message);}));
  const mainEntry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'));require('./package-boundary.cjs')(mainEntry,path.join(out,stem+'-dependency-boundary.json'));require(mainEntry);

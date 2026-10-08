@@ -1,0 +1,382 @@
+{
+  "base": {
+    "version": 2,
+    "revision": 1,
+    "settings": {
+      "className": "合成对抗审查班",
+      "petStep": 20,
+      "petFocusId": "",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_7ac14990-cb6b-4810-90af-2e6575da4eae",
+        "name": "合成审查学生1",
+        "group": "合成组1",
+        "score": 0,
+        "growth": 0,
+        "pet": "owl",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_a60419ff-4cc2-4390-b309-836df554fe28",
+        "name": "合成审查学生2",
+        "group": "合成组2",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7548ee5a-d8a9-4e7f-ab34-c123b8286fa8",
+        "name": "合成审查学生3",
+        "group": "合成组1",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_735d5363-71d1-489a-8e77-70b6954be8f4",
+        "name": "合成审查学生4",
+        "group": "合成组2",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_f6322aed-3981-4190-abef-fdecdac68fa5",
+        "studentId": "s_7ac14990-cb6b-4810-90af-2e6575da4eae",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_18400aed-ff1c-4691-bc01-2a313107253f",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_18400aed-ff1c-4691-bc01-2a313107253f",
+            "pet": "owl",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_43da5760-00e1-4f34-ad9f-9ad05992f936",
+        "studentId": "s_a60419ff-4cc2-4390-b309-836df554fe28",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_36a32132-a40a-4313-9083-0be720d510e8",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_36a32132-a40a-4313-9083-0be720d510e8",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_554d1230-19cb-44c4-8c6d-b541e8dccf55",
+        "studentId": "s_7548ee5a-d8a9-4e7f-ab34-c123b8286fa8",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_17c25ba9-e51c-4fb7-b7f6-68c3472435a8",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_17c25ba9-e51c-4fb7-b7f6-68c3472435a8",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_4fd8ec03-f970-455b-954b-cddd21098107",
+        "studentId": "s_735d5363-71d1-489a-8e77-70b6954be8f4",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8bd42a6e-30e2-4f31-90af-be5907e041f7",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8bd42a6e-30e2-4f31-90af-be5907e041f7",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": []
+  },
+  "graduated": {
+    "version": 2,
+    "revision": 3,
+    "settings": {
+      "className": "合成对抗审查班",
+      "petStep": 20,
+      "petFocusId": "",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_7ac14990-cb6b-4810-90af-2e6575da4eae",
+        "name": "合成审查学生1",
+        "group": "合成组1",
+        "score": 0,
+        "growth": 0,
+        "pet": "owl",
+        "photo": "",
+        "adopted": false,
+        "startFromEgg": true
+      },
+      {
+        "id": "s_a60419ff-4cc2-4390-b309-836df554fe28",
+        "name": "合成审查学生2",
+        "group": "合成组2",
+        "score": 0,
+        "growth": 0,
+        "pet": "fox",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_7548ee5a-d8a9-4e7f-ab34-c123b8286fa8",
+        "name": "合成审查学生3",
+        "group": "合成组1",
+        "score": 0,
+        "growth": 0,
+        "pet": "bunny",
+        "photo": "",
+        "startFromEgg": true
+      },
+      {
+        "id": "s_735d5363-71d1-489a-8e77-70b6954be8f4",
+        "name": "合成审查学生4",
+        "group": "合成组2",
+        "score": 0,
+        "growth": 0,
+        "pet": "cat",
+        "photo": "",
+        "startFromEgg": true
+      }
+    ],
+    "logs": [],
+    "draw": {
+      "mode": "cycle",
+      "bag": [],
+      "lastIds": [],
+      "round": 0
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 300000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_f6322aed-3981-4190-abef-fdecdac68fa5",
+        "studentId": "s_7ac14990-cb6b-4810-90af-2e6575da4eae",
+        "mode": "legacy-linked",
+        "activeCycleId": null,
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 30,
+        "cycles": [
+          {
+            "id": "pc_18400aed-ff1c-4691-bc01-2a313107253f",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_57042400-0c13-40ad-a1cd-fe618deb8d29",
+            "cycleId": "pc_18400aed-ff1c-4691-bc01-2a313107253f",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成审查学生1",
+            "groupName": "合成组1",
+            "sourceActionId": "ga_c15342a6-b7f8-44e9-8a8d-9872af21e1b7"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_3e1ece29-4e78-4aac-a778-477b708cae5b",
+            "type": "graduation",
+            "graduationId": "gr_57042400-0c13-40ad-a1cd-fe618deb8d29",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_43da5760-00e1-4f34-ad9f-9ad05992f936",
+        "studentId": "s_a60419ff-4cc2-4390-b309-836df554fe28",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_36a32132-a40a-4313-9083-0be720d510e8",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_36a32132-a40a-4313-9083-0be720d510e8",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_554d1230-19cb-44c4-8c6d-b541e8dccf55",
+        "studentId": "s_7548ee5a-d8a9-4e7f-ab34-c123b8286fa8",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_17c25ba9-e51c-4fb7-b7f6-68c3472435a8",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_17c25ba9-e51c-4fb7-b7f6-68c3472435a8",
+            "pet": "bunny",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      },
+      {
+        "id": "pa_4fd8ec03-f970-455b-954b-cddd21098107",
+        "studentId": "s_735d5363-71d1-489a-8e77-70b6954be8f4",
+        "mode": "legacy-linked",
+        "activeCycleId": "pc_8bd42a6e-30e2-4f31-90af-be5907e041f7",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 0,
+        "cycles": [
+          {
+            "id": "pc_8bd42a6e-30e2-4f31-90af-be5907e041f7",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": null,
+            "origin": "legacy-import",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_5e03adf6-8a1e-41db-a459-e21f63f3c080",
+        "timestamp": 14000000,
+        "delta": 30,
+        "reason": "宠物成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_7ac14990-cb6b-4810-90af-2e6575da4eae",
+            "name": "合成审查学生1",
+            "accountId": "pa_f6322aed-3981-4190-abef-fdecdac68fa5",
+            "cycleId": "pc_18400aed-ff1c-4691-bc01-2a313107253f",
+            "beforeGrowth": 0,
+            "afterGrowth": 30
+          }
+        ]
+      }
+    ]
+  }
+}

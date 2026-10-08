@@ -19,7 +19,7 @@ function classroom({custom = false, multiple = false, blank = true} = {}) {
   state.panels = {activeId: `panel_${randomUUID()}`, others: []};
   if (custom) state.settings.scoreRules = [{id: 'old_rule', label: '老师保留的规则', delta: -7, growthDelta: 0}];
   if (multiple) {
-    const other = Core.createInitialState();
+    const other = Core.createInitialState(); delete other.petProgression;
     other.settings.className = '另一课堂';
     other.settings.scoreRules = [{id: 'other_rule', label: '另一个面板的规则', delta: 9}];
     state.panels.others.push({id: `panel_${randomUUID()}`, data: other});
@@ -52,7 +52,7 @@ test('distribution template is reproducible across clocks and time zones with an
   await book.xlsx.load(bytes);
   const sheet = book.getWorksheet('计分卡片');
   assert.equal(sheet.actualRowCount, Rules.defaults.length + 1);
-  assert.equal(book.getWorksheet('宠物进阶').getCell('A2').value, INITIAL_PANEL_ID);
+  assert.equal(book.getWorksheet('面板设置').getCell('A2').value, INITIAL_PANEL_ID);
   assert.equal(sheet.getCell('A2').value, Rules.defaults[0].id);
   assert.equal(sheet.getCell('D2').value, null);
   const markers = [];
@@ -190,7 +190,7 @@ test('panel rename on restart keeps file and ownership, then explicit save updat
   const token = await restarted.prepareExport(renamed);
   restarted.commitExport(token, {currentState: renamed, saveState: saved});
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(file);
-  assert.equal(book.getWorksheet('宠物进阶').getCell('B2').value, '改名后的班级');
+  assert.equal(book.getWorksheet('面板设置').getCell('B2').value, '改名后的班级');
 });
 
 test('failed first JSON save restores the exact template or absence and allows retry', async t => {
@@ -260,7 +260,7 @@ test('failed edited-template refresh rolls back external bytes and preserves its
 
 test('marked initial table cannot mix real IDs, invalid edits, or lose optimistic conflict guards', async t => {
   const {service, file, initial} = await setup(t), state = classroom();
-  await edit(file, (_sheet, book) => {const stages=book.getWorksheet('宠物进阶'); stages.addRow([state.panels.activeId, state.settings.className, '旧版每级成长',20,40,60,80,100,120]);});
+  await edit(file, (_sheet, book) => {const settings=book.getWorksheet('面板设置'); settings.addRow([state.panels.activeId, state.settings.className,'true',1,'natural','false','合成另一面板选项']);});
   await assert.rejects(service.prepareRefresh(state), /重复/);
   fs.writeFileSync(file, initial);
   await edit(file, sheet => sheet.getCell('C2').value = {formula: '1+1', result: 2});

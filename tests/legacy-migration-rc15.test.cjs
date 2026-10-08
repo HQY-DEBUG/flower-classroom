@@ -39,12 +39,7 @@ test('explicit migration construction is inert and preview reads source without 
 });
 
 test('explicit migration preserves complete multipanel v2 state, photos, growth, redemption records and lock through restart', async t => {
-  const f = fixture(t); let state = applyAction(legacyState(), { type: 'pet.stage-rules', thresholds: [5, 5, 5, 5, 5, 5] }, 4000000);
-  state = applyAction(state, { type: 'pet.growth', ids: [state.students[0].id], delta: 35, reason: 'synthetic migration growth' }, 4000001);
-  state = applyAction(state, { type: 'pet.graduate', id: state.students[0].id }, 4000002);
-  state = applyAction(state, { type: 'pet.badge.redeem', id: state.students[0].id, amount: 1, reason: '合成迁移兑换记录', expectedRevision: state.revision, requestId: 'synthetic_migration_redemption' }, 4000003);
-  state.panels = { activeId: 'panel_synthetic_main', others: [{ id: 'panel_synthetic_other', data: validateState(legacyState()) }] };
-  state = validateState(state);
+  const f = fixture(t); const state = validateState(require('./rc18-regression-fixtures.cjs').historical('migration'));
   save(path.join(f.source, 'classroom-v2.json'), state); save(path.join(f.source, 'classroom-v2.enabled'), 'format 2');
   save(path.join(f.source, 'before-restore-1.json'), state);
   const lock = createClassroomLock(f.source); assert.equal(lock.setup('1357', '1357').ok, true);

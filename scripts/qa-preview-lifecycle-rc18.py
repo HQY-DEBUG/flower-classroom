@@ -1,10 +1,11 @@
-import hashlib,json,os,re,socket,subprocess,tempfile,threading,time,urllib.request,urllib.error
+import hashlib,json,os,re,socket,subprocess,tempfile,threading,time,urllib.request,urllib.error,datetime,signal
 from pathlib import Path
 root=Path(__file__).resolve().parent.parent
 out=Path(os.environ.get('FLOWER_PREVIEW_OUT',root/'artifacts/rc18/ui-review/preview'))
 out.mkdir(parents=True,exist_ok=True)
 with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
 data=Path(tempfile.mkdtemp(prefix='flower-preview-ui-rc10-'))/'classroom.json'
+server_started=datetime.datetime.now(datetime.timezone.utc).isoformat();server_script=root/'scripts/preview.cjs';server_before=hashlib.sha256(server_script.read_bytes()).hexdigest()
 log=open(out/'server.log','w');proc=subprocess.Popen(['node','scripts/preview.cjs'],cwd=root,env={**os.environ,'PORT':str(port),'FLOWER_PREVIEW_DATA':str(data)},stdout=log,stderr=subprocess.STDOUT)
 checks=[]
 def request(p,body=None):
@@ -33,7 +34,9 @@ try:
  checks.append({'name':'Stream, response and disk agree after synthetic restore','status':'passed'})
 except Exception as e:checks.append({'name':'Preview harness','status':'failed','error':repr(e)})
 finally:
- proc.terminate();proc.wait(timeout=5);log.close()
+ proc.terminate();server_exit=proc.wait(timeout=5);log.close()
+ server_after=hashlib.sha256(server_script.read_bytes()).hexdigest()
+ (out/'server-execution.json').write_text(json.dumps({'phase':'source-preview-server-cleanup','command':['node','scripts/preview.cjs'],'serverScript':str(server_script),'startedAt':server_started,'completedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'exitCode':server_exit,'expectedExitCode':-signal.SIGTERM,'signal':'SIGTERM' if server_exit==-signal.SIGTERM else None,'expectedSignal':'SIGTERM','passed':server_exit==-signal.SIGTERM and server_before==server_after,'sourceSha256Before':server_before,'sourceSha256After':server_after,'intentionalShutdownAfterAssertions':True,'syntheticOnly':True},indent=2))
  result={'syntheticOnly':True,'windowsExecuted':False,'surface':'localhost source preview only; not production ASAR','scriptSha256':hashlib.sha256((root/'scripts/preview.cjs').read_bytes()).hexdigest(),'checks':checks}
  (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
  print(json.dumps({'passed':sum(c['status']=='passed' for c in checks),'failed':[c for c in checks if c['status']=='failed']},ensure_ascii=False))

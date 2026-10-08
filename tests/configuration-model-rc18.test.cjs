@@ -19,13 +19,13 @@ function rejectsUnchanged(state, config, pattern) {
 }
 function extraAction(state, action) { return act(state, {...Toolbox.expectation(state), ...action}); }
 
-test('RC18 config: legacy projection is inert, supplies effective defaults, and excludes classroom data and progression', () => {
+test('RC18 config: legacy projection is inert, supplies effective defaults, and excludes classroom records and includes one global progression', () => {
   const state = Core.createInitialState(), before = clone(state), snapshot = Config.snapshot(state);
   assert.deepEqual(state, before); assert.deepEqual(Core.validateState(state), before);
   assert.equal(state.appConfig, undefined); assert.equal(state.settings.toolDefaults, undefined);
   assert.deepEqual(snapshot.appConfig, Config.APP_DEFAULTS);
   assert.deepEqual(snapshot.panels[0].toolDefaults, Config.TOOL_DEFAULTS);
-  assert.deepEqual(Object.keys(snapshot), ['appConfig', 'panels']);
+  assert.deepEqual(Object.keys(snapshot), ['appConfig', 'petProgression', 'panels']);
   assert.deepEqual(Object.keys(snapshot.panels[0]), ['id', 'name', 'showAvatars', 'scoreStep', 'studentSort', 'hideLateForms', 'timerSound', 'toolDefaults', 'wheelPrizes', 'challengeOptions', 'links', 'subjects']);
   assert.equal(snapshot.panels[0].showAvatars, true); assert.equal(snapshot.panels[0].hideLateForms, false);
   assert.deepEqual(snapshot.panels[0].links, []); assert.deepEqual(snapshot.panels[0].subjects, ['语文', '数学', '英语']);
@@ -36,7 +36,6 @@ test('RC18 config: legacy projection is inert, supplies effective defaults, and 
 test('RC18 config: previous saved timer and draw selections migrate, count and challenge defaults never infer from results', () => {
   let state = act(Core.createInitialState(), {type: 'timer.set', seconds: 407});
   state = act(state, {type: 'draw', scope: 'groups', mode: 'repeat', count: 3});
-  state = act(state, {type: 'pet.stage-rules', thresholds: [5, 10, 15, 20, 25, 30]});
   state = act(state, {type: 'pet.draw', scope: 'groups', mode: 'repeat', count: 2});
   delete state.settings.toolDefaults;
   const before = clone(state), defaults = Config.toolDefaults(state);
@@ -118,7 +117,7 @@ test('RC18 config: complete schema rejects unknown state/ledger keys, missing fi
     c => {c.panels[0].links = [{id: 'x', title: 'x', url: 'https://example.com', password: 'fake'}];}];
   for (const edit of badConfigs) { const config = clone(valid); edit(config); rejectsUnchanged(state, config); }
   const config = configured(); config.version = 1; assert.throws(() => Core.validateState(config), /新版存档/);
-  const old = Core.createInitialState(); old.settings.toolDefaults = {...Config.TOOL_DEFAULTS}; assert.throws(() => Core.validateState(old), /新版存档/);
+  const old = Core.createInitialState(); old.version = 1; old.settings.toolDefaults = {...Config.TOOL_DEFAULTS}; assert.throws(() => Core.validateState(old), /新版存档/);
   for (const extra of [{}, {initialZoom: 1}, {...Config.APP_DEFAULTS, windowWidth: '1280'}, {...Config.APP_DEFAULTS, extra: true}]) {
     const bad = configured(); bad.appConfig = extra; assert.throws(() => Core.validateState(bad));
   }
@@ -126,10 +125,8 @@ test('RC18 config: complete schema rejects unknown state/ledger keys, missing fi
 
 test('RC18 config: external refresh preserves running timer, draw pools/results/identity, every record and existing shared catalog', () => {
   let state = act(Core.createInitialState(), {type: 'rules.save', rules: Rules.list()});
-  state = act(state, {type: 'pet.stage-rules', thresholds: [5, 10, 15, 20, 25, 30]});
-  state = act(state, {type: 'pet.growth-policy', growthFloor: 'clamp'});
   state = act(state, {type: 'score', ids: [state.students[0].id], delta: 3});
-  state = act(state, {type: 'pet.growth', ids: [state.students[1].id], delta: 2});
+  state = act(state, {type: 'score', ids: [state.students[1].id], delta: 2});
   state = act(state, {type: 'draw', scope: 'groups', mode: 'cycle', count: 2});
   state = act(state, {type: 'pet.draw', scope: 'students', mode: 'cycle', count: 3});
   state = act(state, {type: 'timer.set', seconds: 480}); state = act(state, {type: 'timer.start'});
@@ -180,7 +177,6 @@ test('RC18 config: tool actions persist chosen defaults while standalone default
   state = act(state, {type: 'draw.select', scope: 'groups', mode: 'repeat'});
   assert.equal(Config.toolDefaults(state).drawScope, 'groups'); assert.equal(Config.toolDefaults(state).drawMode, 'repeat');
   state = act(state, {type: 'draw', scope: 'students', mode: 'cycle', count: 4}); assert.equal(Config.toolDefaults(state).drawCount, 4);
-  state = act(state, {type: 'pet.stage-rules', thresholds: [5, 5, 5, 5, 5, 5]});
   state = act(state, {type: 'pet.draw', scope: 'groups', mode: 'repeat', count: 2}); assert.equal(Config.toolDefaults(state).petDrawCount, 2);
   state = act(state, {type: 'timer.start'});
   const before = clone(state), expected = Config.toolDefaults(state);
@@ -214,7 +210,7 @@ test('RC18 config: root startup configuration survives panel lifecycle, roster i
 
 test('RC18 config: browser and Node project identical configuration and expose enumerable adapter action coverage', () => {
   const root = {URL};
-  for (const module of ['pet-progress.js', 'organization-tools.js', 'classroom-wheels.js', 'toolbox-extra.js', 'configuration-model.js']) vm.runInNewContext(fs.readFileSync(require.resolve('../src/' + module), 'utf8'), root);
+  for (const module of ['pet-score-progression.js', 'pet-progress.js', 'organization-tools.js', 'classroom-wheels.js', 'toolbox-extra.js', 'configuration-model.js']) vm.runInNewContext(fs.readFileSync(require.resolve('../src/' + module), 'utf8'), root);
   const stateJson = JSON.stringify(Core.createInitialState());
   const browserSnapshot = vm.runInNewContext('ConfigurationModel.snapshot(JSON.parse(' + JSON.stringify(stateJson) + '))', root);
   assert.deepEqual(clone(browserSnapshot), Config.snapshot(JSON.parse(stateJson)));

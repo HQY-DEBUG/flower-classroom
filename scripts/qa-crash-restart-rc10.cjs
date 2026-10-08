@@ -21,7 +21,7 @@ if(!process.versions.electron){
  const C=require(path.join(src,'core.cjs')),file=path.join(data,'classroom-v2.json'),fixture=path.join(data,'synthetic-fixture.json'),checks=[];
  let initial;
  if(phase==='terminate'){
-  initial=C.createInitialState();initial.students=initial.students.slice(0,3).map((s,i)=>({...s,name:'合成重启同学'+(i+1)}));initial.settings.className='合成重启原班';initial=C.applyAction(initial,{type:'score',ids:[initial.students[0].id],delta:7});initial=C.applyAction(initial,{type:'panel.create',mode:'full',name:'合成重启副班'});initial=C.applyAction(initial,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});initial.version=2;
+  initial=C.createInitialState();initial.students=initial.students.slice(0,3).map((s,i)=>({...s,name:'合成重启同学'+(i+1)}));initial.settings.className='合成重启原班';initial=C.applyAction(initial,{type:'score',ids:[initial.students[0].id],delta:7});initial=C.applyAction(initial,{type:'panel.create',mode:'full',name:'合成重启副班'});initial.version=2;
   fs.writeFileSync(file,JSON.stringify(initial));fs.writeFileSync(fixture,JSON.stringify(initial));
  }else initial=JSON.parse(fs.readFileSync(fixture));
  // Initialization happens before the injection is armed. Keep the raw fixture
@@ -46,7 +46,7 @@ if(!process.versions.electron){
    armed=true;await act({type:'score',panelId:C.panelId(initial),ids:[initial.students[0].id],delta:3,reason:'合成崩溃边界'});throw Error('Termination injection did not run');
   }
   const committed=['after-rename','before-notify'].includes(boundary),loaded=await get();
-  await check('Restart reads one complete old or committed classroom at '+boundary,()=>{assert.equal(loaded.revision,initial.revision+(committed?1:0));assert.equal(loaded.students[0].score,initial.students[0].score+(committed?3:0));assert.equal(loaded.students[0].growth,initial.students[0].growth+(committed?3:0));assert.equal(loaded.logs.length,initial.logs.length+(committed?1:0));assert.deepEqual(C.validateState(loaded),loaded);assert.deepEqual(JSON.parse(fs.readFileSync(file)),loaded);});
+  await check('Restart reads one complete old or committed classroom at '+boundary,()=>{assert.equal(loaded.revision,initial.revision+(committed?1:0));assert.equal(loaded.students[0].score,initial.students[0].score+(committed?3:0));assert.equal(loaded.students[0].growth,initial.students[0].growth);assert.equal(loaded.logs.length,initial.logs.length+(committed?1:0));assert.deepEqual(C.validateState(loaded),loaded);assert.deepEqual(JSON.parse(fs.readFileSync(file)),loaded);});
   await check('Other panels, existing logs, names and pet accounts remain intact',()=>{assert.deepEqual(loaded.panels,initial.panels);assert.deepEqual(loaded.students.slice(1),initial.students.slice(1));assert.deepEqual(loaded.logs.slice(0,initial.logs.length),initial.logs);if(!committed)assert.deepEqual(loaded,initial);});
   await check('Fresh process never resends an old operation; one new explicit score applies once',async()=>{await wait(200);assert.deepEqual(await get(),loaded);await act({type:'score',panelId:C.panelId(loaded),ids:[loaded.students[0].id],delta:1,reason:'合成重启后明确新操作'});const next=await get();assert.equal(next.students[0].score,loaded.students[0].score+1);assert.equal(next.logs.length,loaded.logs.length+1);assert.deepEqual(JSON.parse(fs.readFileSync(file)),next);});
   snapshot();app.exit(checks.some(c=>c.status==='failed')?1:0);

@@ -35,13 +35,30 @@
   const form=$('#bulk-group-form');if(!form||!visible())return;
   const count=form.querySelectorAll('[name=student]:checked').length;
   const label=form.querySelector('.gt-selected-count');if(label)label.textContent=`已选择 ${count} / ${draft.students.length} 位学生`;
-  const submit=form.querySelector('[type=submit]');if(submit)submit.disabled=busy||draft.stale||!count||!form.elements.group?.value;
+  let valid=!!form.elements.group?.value,error='';
+  if(draft.createTarget){
+   const input=form.elements.newGroup;
+   try{const name=model.groupName(input.value);if(draft.expectedOrder.includes(name))throw Error('已存在同名小组，请选择已有小组或换一个名称');valid=true;}
+   catch(issue){valid=false;if(input.value)error=issue.message;}
+   input.setAttribute('aria-invalid',String(!!error));
+  }
+  const warning=form.querySelector('.gt-name-error');if(warning){warning.textContent=error;warning.hidden=!error;}
+  const submit=form.querySelector('[type=submit]');if(submit){submit.disabled=busy||draft.stale||!count||!valid;submit.textContent=draft.createTarget?'创建并分配':'保存分组';}
+ }
+ function targetMode(createTarget){
+  const form=$('#bulk-group-form');draft.createTarget=createTarget;
+  const existing=form.querySelector('.gt-existing-target'),fresh=form.querySelector('.gt-new-target'),toggle=form.querySelector('[data-do=gt-new-target]');
+  existing.hidden=createTarget;fresh.hidden=!createTarget;
+  form.elements.group.disabled=createTarget||!draft.expectedOrder.length;form.elements.group.required=!createTarget;
+  form.elements.newGroup.disabled=!createTarget;form.elements.newGroup.required=createTarget;
+  toggle.setAttribute('aria-expanded',String(createTarget));toggle.textContent=createTarget?'选择已有小组':'＋ 新建小组';
+  selectionStatus();(createTarget?form.elements.newGroup:form.elements.group).focus();
  }
  function assign(context){
   const {state,selected}=context;begin(state,'assign');draft.students=state.students.map(s=>({id:s.id,name:s.name,group:s.group,score:s.score,leader:s.leader===true}));
   const chosen=new Set(selected||[]),groups=model.names(state);
-  show(context,`${header()}<h2>批量分配学生</h2><p>选择目标小组并勾选学生，保存后个人积分、成长和组长标记随学生保留</p><form id="bulk-group-form" data-panel-id="${draft.panelId}"><label>目标小组<select name="group" required ${!groups.length?'disabled':''}>${groups.length?'<option value="">请选择目标小组</option>':'<option value="">请先创建小组</option>'}${groups.map(group=>`<option value="${esc(group)}">${esc(group)}</option>`).join('')}</select></label><div class="gt-selection-tools"><button type="button" class="button" data-do="gt-select-all" ${!draft.students.length?'disabled':''}>全选</button><button type="button" class="button" data-do="gt-select-none" ${!draft.students.length?'disabled':''}>取消全选</button><span class="gt-selected-count" aria-live="polite"></span></div><div class="gt-student-list">${draft.students.map(student=>`<label class="gt-student-choice"><input type="checkbox" name="student" value="${esc(student.id)}" ${chosen.has(student.id)?'checked':''}><span><strong>${esc(student.name)}${student.leader?'<em>组长</em>':''}</strong><small>${esc(student.group)}</small></span><b>${student.score} 分</b></label>`).join('')||'<p class="gt-empty">暂无学生，可先在学生积分页添加名单</p>'}</div><div class="dialog-actions"><button type="button" class="button" data-do="gt-manage">返回</button><button type="submit" class="button primary" disabled>保存分组</button></div></form></div>`);
-  $('#bulk-group-form').addEventListener('change',selectionStatus);selectionStatus();
+  show(context,`${header()}<h2>批量分配学生</h2><p>选择已有小组或直接新建，再勾选学生。保存后个人积分、成长和组长标记随学生保留</p><form id="bulk-group-form" data-panel-id="${draft.panelId}"><div class="gt-target-tools"><label class="gt-existing-target">目标小组<select name="group" required ${!groups.length?'disabled':''}>${groups.length?'<option value="">请选择目标小组</option>':'<option value="">暂无小组，可直接新建</option>'}${groups.map(group=>`<option value="${esc(group)}">${esc(group)}</option>`).join('')}</select></label><button type="button" class="button" data-do="gt-new-target" aria-expanded="false" aria-controls="gt-new-target">＋ 新建小组</button></div><div class="gt-new-target" id="gt-new-target" hidden><label>新小组名称<input name="newGroup" maxlength="40" autocomplete="off" placeholder="例如：向日葵组" aria-describedby="gt-new-help gt-name-error" disabled></label><p id="gt-new-help" class="gt-target-help">点击“创建并分配”后，新小组和学生分配一起保存；取消不会创建小组</p></div><p id="gt-name-error" class="gt-name-error" role="status" aria-live="polite" hidden></p><div class="gt-selection-tools"><button type="button" class="button" data-do="gt-select-all" ${!draft.students.length?'disabled':''}>全选</button><button type="button" class="button" data-do="gt-select-none" ${!draft.students.length?'disabled':''}>取消全选</button><span class="gt-selected-count" aria-live="polite"></span></div><div class="gt-student-list">${draft.students.map(student=>`<label class="gt-student-choice"><input type="checkbox" name="student" value="${esc(student.id)}" ${chosen.has(student.id)?'checked':''}><span><strong>${esc(student.name)}${student.leader?'<em>组长</em>':''}</strong><small>${esc(student.group)}</small></span><b>${student.score} 分</b></label>`).join('')||'<p class="gt-empty">暂无学生，可先在学生积分页添加名单</p>'}</div><div class="dialog-actions"><button type="button" class="button" data-do="gt-manage">返回</button><button type="submit" class="button primary" disabled>保存分组</button></div></form></div>`);
+  $('#bulk-group-form').addEventListener('change',selectionStatus);$('#bulk-group-form').addEventListener('input',selectionStatus);selectionStatus();
  }
  function sync(state){
   if(!visible()||busy)return;
@@ -76,6 +93,9 @@
     const kind=visible()?draft.kind:'manage';({manage,create,order,assign}[kind]||manage)(context);return true;
    }
    assertDraft(context.state);
+   if(action==='gt-new-target'){
+    assertDraft(context.state,'assign');targetMode(!draft.createTarget);return true;
+   }
    if(action==='gt-select-all'||action==='gt-select-none'){
     assertDraft(context.state,'assign');$('#bulk-group-form').querySelectorAll('[name=student]').forEach(input=>input.checked=action==='gt-select-all');selectionStatus();return true;
    }
@@ -103,8 +123,8 @@
     action={type:'group.order',order:patch.groupOrder,expectedOrder:[...draft.expectedOrder],panelId:draft.panelId};message='小组展示顺序已保存';
    }else{
     assertDraft(context.state,'assign');const ids=data.getAll('student'),expectedAssignments=draft.students.filter(student=>ids.includes(student.id)).map(({id,group})=>({id,group}));
-    const group=model.assertAssignments(context.state,ids,expectedAssignments,data.get('group'));
-    action={type:'students.group',ids,group,expectedAssignments,requireExistingGroup:true,panelId:draft.panelId};message=`已为 ${ids.length} 位学生保存分组`;
+    const group=draft.createTarget?model.createAndAssignPatch(context.state,ids,expectedAssignments,data.get('newGroup')).group:model.assertAssignments(context.state,ids,expectedAssignments,data.get('group'));
+    action={type:draft.createTarget?'students.group.create':'students.group',ids,group,expectedAssignments,requireExistingGroup:true,panelId:draft.panelId};message=draft.createTarget?`已创建「${group}」并分配 ${ids.length} 位学生`:`已为 ${ids.length} 位学生保存分组`;
    }
    const token=draft.token;busy=true;form.dataset.saving='1';controls=[...form.querySelectorAll('button,input,select')].map(control=>[control,control.disabled]);controls.forEach(([control])=>control.disabled=true);
    const ok=await context.act(action,message);

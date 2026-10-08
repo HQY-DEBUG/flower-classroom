@@ -3,6 +3,7 @@ require('./observe.cjs');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const repo=path.resolve(__dirname,'../..'),entry=process.env.FLOWER_PACKAGE_MAIN||path.join(repo,'src/main.cjs'),src=path.dirname(entry),out=path.resolve(process.env.FLOWER_MIGRATION_COMPAT_OUT||path.join(repo,'artifacts/reaudit-rc16/migration/authentic-journals'));
 const baseline=path.join(repo,'artifacts/rc18/ordinary-independent/migration/legacy-inputs-complete-20261007T1006');
+function expectedCurrentState(legacy){assert.equal(Object.hasOwn(legacy,'petProgression'),false);return {...legacy,petProgression:{version:1,costs:[5,10,15,20,20,20,20],repeatCost:20}};}
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),save=(f,x)=>{fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,JSON.stringify(x,null,2));};
 function tree(root){const result={};function walk(dir){for(const name of fs.readdirSync(dir).sort()){const f=path.join(dir,name);if(fs.statSync(f).isDirectory())walk(f);else result[path.relative(root,f)]=hash(fs.readFileSync(f));}}walk(root);return result;}
 const {app}=require('electron');app.disableHardwareAcceleration();app.setPath('userData',path.join(out,'runtime'));require('../package-boundary.cjs')(entry,path.join(out,'dependency-boundary.json'));
@@ -17,7 +18,7 @@ for(const boundary of ['before-receipt','after-receipt'])for(const previousMetho
   const interrupted=tree(prior);save(path.join(path.dirname(first),'before-recovery.json'),interrupted);
   assert.deepEqual(M.createLegacyMigration(opts(prior)).recover(),{recovered:true,committed:boundary==='after-receipt'});
   if(boundary==='before-receipt')assert.deepEqual(tree(prior),JSON.parse(fs.readFileSync(path.join(home,'target-before.json'))));
-  else assert.deepEqual(S.createStore(opts(prior).dataDirectory,{validate:C.validateState,initial:C.createInitialState}).load().state,expected.state);
+  else assert.deepEqual(S.createStore(opts(prior).dataDirectory,{validate:C.validateState,initial:C.createInitialState}).load().state,expectedCurrentState(expected.state));
   assert.deepEqual(M.createLegacyMigration(opts(prior)).recover(),{recovered:false});assert.deepEqual(tree(original),before);assert.deepEqual(tree(first),before);
   checks.push({name,beganAt,finishedAt:new Date().toISOString(),status:'passed',journalVersion:record.version,originalFixtureSha256:hash(Buffer.from(JSON.stringify(before))),originalFixtureUnchanged:true,intermediateCopiesUnchanged:true});console.log('PASS',name);
  }catch(e){checks.push({name,beganAt,finishedAt:new Date().toISOString(),status:'failed',error:String(e.stack||e)});console.log('FAIL',name,e.message);}

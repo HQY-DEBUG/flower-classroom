@@ -7,6 +7,7 @@ const path = require('node:path');
 const {createHash, randomUUID} = require('node:crypto');
 const Rules = require('./score-rules.js');
 const Progress = require('./pet-progress.js');
+const PetScores = require('./pet-score-progression.js');
 const Config = require('./configuration-model.js');
 const ConfigSheets = require('./configuration-workbook-sheets.cjs');
 const RestoreChain = require('./restore-state-chain.cjs');
@@ -20,13 +21,16 @@ const PROGRESSION_SHEET = '宠物进阶';
 const HELP_SHEET = '填写说明';
 const INITIAL_PANEL_ID = '__flower_initial_panel_v1__';
 const INITIAL_MARKER = 'flower-classroom:unbound-score-rules';
-const INITIAL_VERSION = 3;
+const INITIAL_VERSION = 5;
 const LEGACY_INITIAL_SHA256 = 'dc902af8a5ce2be33d6a26e222bd00c28ed370fd98234d2a6592cc29d0eca441';
-const INITIAL_SHA256 = 'dfeb710624e314300998fb763ffc57421e421a04950ac903130c0765a8c2be0a';
+const INITIAL_SHA256 = '66142a4879e7541978d4fa769bf72545a661461738994fb4a71f741ee9a544c9';
+const RC18_INITIAL_SHA256 = 'dfeb710624e314300998fb763ffc57421e421a04950ac903130c0765a8c2be0a';
+const RC19_EIGHT_ROW_INITIAL_SHA256 = 'fcf0348666b4a7ebc990a484773ba1f38ceb2f1dd321611076cfcef71d7fb26b';
 const HEADERS = ['规则ID', '卡片名称', '积分变化', '成长值变化'];
 const LEGACY_HEADERS = ['面板ID', '面板名称', ...HEADERS];
-const PROGRESSION_HEADERS = ['面板ID', '面板名称', '成长模式', 'LV2累计成长', 'LV3累计成长', 'LV4累计成长', 'LV5累计成长', 'LV6累计成长', 'LV7累计成长', '成长下限'];
-const MODES = {'legacy-step': '旧版每级成长', 'ledger-six': '六段成长账本'};
+const LEGACY_PROGRESSION_HEADERS = ['面板ID', '面板名称', '成长模式', 'LV2累计成长', 'LV3累计成长', 'LV4累计成长', 'LV5累计成长', 'LV6累计成长', 'LV7累计成长', '成长下限'];
+const PROGRESSION_HEADERS = ['等级', '升级所需积分', '累计积分门槛（自动）'];
+const MODES = {'legacy-step': '等额逐级成长', 'ledger-six': '分段累计成长'};
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_RECEIPT_BYTES = 2 * MAX_BYTES + 32768;
 const MAX_ROWS = 5000;
@@ -38,7 +42,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const initialState = () => ({version: 2, revision: 0,
   students: [], logs: [], settings: {className: '首次启动时绑定当前课堂', petStep: 20, scoreRules: clone(Rules.defaults)},
   panels: {activeId: INITIAL_PANEL_ID, others: []}});
-const isInitialBytes = bytes => Buffer.isBuffer(bytes) && digest(bytes) === INITIAL_SHA256;
+const isInitialBytes = bytes => Buffer.isBuffer(bytes) && [INITIAL_SHA256,RC18_INITIAL_SHA256,RC19_EIGHT_ROW_INITIAL_SHA256].includes(digest(bytes));
 
 function fixedZipDates(input) {
   const bytes = Buffer.from(input), end = bytes.length - 22;
@@ -62,20 +66,24 @@ function panelEntries(state) {
   if (!list.length || list.length > 20 || new Set(list.map(panel => panel.id)).size !== list.length) throw new Error('计分卡片的面板集合无效');
   return list;
 }
-function progression(data) {
-  const mode = data.settings.petRules ? 'ledger-six' : 'legacy-step';
-  const step = data.settings.petStep ?? 20;
-  if (mode === 'legacy-step' && (!Number.isInteger(step) || step < 1 || step > 100)) throw new Error('旧版每级成长值需为1–100的整数');
-  const costs = mode === 'ledger-six' ? Progress.thresholds(data.settings.petRules.thresholds) : Array(6).fill(step);
-  let total = 0;
-  return {mode, cumulative: costs.map(value => total += value), growthFloor: mode === 'ledger-six' ? data.settings.petRules.growthFloor || 'reject' : 'not-applicable'};
-}
 function configuration(state) {
   return panelEntries(state).map(panel => ({id: panel.id, name: panel.name,
-    rules: Rules.list(state.sharedScoreRules ? state : panel.data), ...progression(panel.data)})).sort((a, b) => a.id.localeCompare(b.id));
+    rules: Rules.list(state.sharedScoreRules ? state : panel.data)})).sort((a, b) => a.id.localeCompare(b.id));
 }
 function legacySignature(state) {
   return digest(JSON.stringify(panelEntries(state).map(panel => ({id: panel.id, name: panel.name, rules: Rules.list(panel.data)})).sort((a, b) => a.id.localeCompare(b.id))));
+}
+// RC18 receipts fingerprinted panel-local historical growth settings. Recreate
+// that exact projection only when checking an existing receipt; these fields
+// never regain authority over RC19's current-score levels.
+function rc18Signature(state) {
+  const config=Config.snapshot(state);delete config.petProgression;
+  const panels=panelEntries(state).map(panel=>{
+    const settings=panel.data.settings,mode=settings.petRules?'ledger-six':'legacy-step';
+    const costs=mode==='ledger-six'?Progress.thresholds(settings.petRules.thresholds):Array(6).fill(settings.petStep??20);let total=0;
+    return {id:panel.id,name:panel.name,rules:Rules.list(state.sharedScoreRules?state:panel.data),mode,cumulative:costs.map(value=>total+=value),growthFloor:mode==='ledger-six'?settings.petRules.growthFloor||'reject':'not-applicable'};
+  }).sort((a,b)=>a.id.localeCompare(b.id));
+  return digest(JSON.stringify({panels,shared:state.sharedScoreRules||null,config,established:state.appConfig!==undefined}));
 }
 function signature(state) {
   return digest(JSON.stringify({panels: configuration(state), shared: state.sharedScoreRules || null, config: Config.snapshot(state), established: state.appConfig !== undefined}));
@@ -106,28 +114,20 @@ function mergeRules(state, panels) {
     if (!next.sharedScoreRules && Rules.previewShared(next).required) Rules.confirmShared(next, Rules.previewShared(next).expectedKey);
     Rules.setShared(next, panels[0].rules);
   }
-  const byId = new Map(panels.map(panel => [panel.id, panel]));
-  for (const panel of panelEntries(next)) {
-    const incoming = byId.get(panel.id), prior = progression(panel.data);
-    if (incoming.mode !== prior.mode) throw new Error(`面板「${panel.name}」成长模式已变化，请重新预览`);
-    let last = 0;
-    const costs = Progress.thresholds(incoming.cumulative.map(value => {const cost = value - last; last = value; return cost;}));
-    if (incoming.mode === 'ledger-six') panel.data.settings.petRules = {...panel.data.settings.petRules, thresholds: costs, growthFloor: incoming.growthFloor};
-    else panel.data.settings.petStep = costs[0];
-  }
   Config.apply(next, panels.configSnapshot || Config.snapshot(state));
   next.revision = state.revision + 1;
   return next;
 }
-function summaryFor(state, panels) {
+function summaryFor(state, panels, nextConfig=panels.configSnapshot||Config.snapshot(state)) {
   const prior = new Map(configuration(state).map(panel => [panel.id, panel]));
   const rules = clone(panels[0].rules);
+  const beforeProgression=PetScores.get(state),petProgression=nextConfig.petProgression;
   const summary = panels.map(panel => ({id: panel.id, name: panel.name, count: rules.length,
     changed: !Rules.same(prior.get(panel.id)?.rules || rules, rules), rules: clone(rules)}));
   return {shared: true, panelCount: panels.length, ruleCount: rules.length, rules, summary,
-    progression: panels.map(panel => ({id: panel.id, name: panel.name, mode: panel.mode, cumulative: clone(panel.cumulative),
-      growthFloor: panel.growthFloor, changed: JSON.stringify([prior.get(panel.id)?.cumulative,prior.get(panel.id)?.growthFloor]) !== JSON.stringify([panel.cumulative,panel.growthFloor])})),
-    configSummary: ConfigSheets.summary(Config.snapshot(state), panels.configSnapshot || Config.snapshot(state)),
+    petProgression:clone(petProgression),
+    progression: [{id:'global',name:'全部面板',mode:'current-score',costs:[...petProgression.costs],repeatCost:petProgression.repeatCost,cumulative:PetScores.cumulative(petProgression),changed:JSON.stringify(beforeProgression)!==JSON.stringify(petProgression)}],
+    configSummary: ConfigSheets.summary(Config.snapshot(state), nextConfig),
     ...(panels.migration ? {migration: clone(panels.migration)} : {}),
     warning: (panels.nameWarnings || []).join('；')};
 }
@@ -147,24 +147,32 @@ function integer(value, label, optional = false) {
   if (!Number.isInteger(number) || Math.abs(number) > 100 || (!optional && number === 0)) throw new Error(`${label}需为−100至100的${optional ? '整数（可填0或留空）' : '非零整数'}`);
   return number;
 }
-function tableRows(sheet, required) {
+function tableRows(sheet, required, optional = [], {derivedColumns={}} = {}) {
   if (sheet.rowCount > MAX_ROWS || sheet.columnCount > 32) throw new Error(`${sheet.name}工作表范围过大，请删除多余行列`);
   const width = Math.max(required.length, sheet.columnCount), headers = [];
   for (let column = 1; column <= width; column++) headers.push(cellScalar(sheet.getRow(1).getCell(column), `${sheet.name}表头`));
   const columns = new Map();
-  for (const header of required) {
+  const allowed = [...required, ...optional];
+  for (const header of allowed) {
     const matches = headers.flatMap((value, index) => value === header ? [index + 1] : []);
+    if (!matches.length && optional.includes(header)) continue;
     if (matches.length !== 1) throw new Error(`「${sheet.name}」第一行必须恰好包含一列「${header}」`);
     columns.set(header, matches[0]);
   }
-  if (headers.some(value => value !== '' && !required.includes(value))) throw new Error(`${sheet.name}含有未知表头，请保留原来的${required.length}列`);
+  if (headers.some(value => value !== '' && !allowed.includes(value))) throw new Error(`${sheet.name}含有未知表头，请保留原来的配置列`);
   const rows = [];
   for (let index = 2; index <= sheet.rowCount; index++) {
     const values = [];
-    for (let column = 1; column <= width; column++) values.push(cellScalar(sheet.getRow(index).getCell(column), `${sheet.name}第${index}行`, {allowHyperlink: sheet.name==='课堂网址'&&headers[column-1]==='网页地址'}));
+    for (let column = 1; column <= width; column++) {
+      const cell=sheet.getRow(index).getCell(column),derived=derivedColumns[headers[column-1]],expected=derived?.(index);
+      if(expected&&cell.value&&typeof cell.value==='object'&&('formula' in cell.value||'sharedFormula' in cell.value)){
+        if(cell.formula!==expected)throw Error(`${sheet.name} ${cell.address} 的自动计算公式已改变，请保留自动计算列，只修改开放填写的升级所需积分`);
+        values.push('');
+      }else values.push(cellScalar(cell, `${sheet.name}第${index}行`, {allowHyperlink: sheet.name==='课堂网址'&&headers[column-1]==='网页地址'}));
+    }
     if (values.every(value => value === '')) continue;
-    if (values.some((value, column) => value !== '' && !required.includes(headers[column]))) throw new Error(`${sheet.name}第${index}行存在表头之外的数据，请修正后刷新`);
-    rows.push({index, get: label => values[columns.get(label) - 1]});
+    if (values.some((value, column) => value !== '' && !allowed.includes(headers[column]))) throw new Error(`${sheet.name}第${index}行存在表头之外的数据，请修正后刷新`);
+    rows.push({index, get: label => columns.has(label) ? values[columns.get(label) - 1] : ''});
   }
   return rows;
 }
@@ -180,42 +188,48 @@ async function buildBytes(state, loadExcel = () => require('exceljs'), {initialT
   if (initialTemplate) workbook.created = workbook.modified = new Date('2024-01-01T00:00:00.000Z');
   const sheet = workbook.addWorksheet(SHEET_NAME, {views: [{state: 'frozen', ySplit: 1}]});
   sheet.columns = HEADERS.map((header, index) => ({header, width: [42, 32, 16, 18][index], style: {numFmt: index < 2 ? '@' : '0'}}));
+  sheet.getColumn(1).hidden = true;
+  sheet.getColumn(4).hidden = true;
   for (const rule of rules) sheet.addRow([rule.id, rule.label, rule.delta, rule.growthDelta ?? null]);
   sheet.autoFilter = {from: 'A1', to: 'D1'}; formatSheet(sheet);
   sheet.eachRow((row, index) => {if (index > 1) for (const column of [2, 3, 4]) {
     row.getCell(column).font = {color: {argb: 'FF1D4ED8'}};
     if (column > 2) row.getCell(column).dataValidation = {type: 'whole', operator: 'between', formulae: [-100, 100], allowBlank: column === 4, showErrorMessage: true, errorTitle: HEADERS[column - 1], error: column === 3 ? '填写−100至100的非零整数' : '填写−100至100的整数，或留空沿用当前成长方式'};
   }});
-  const stages = workbook.addWorksheet(PROGRESSION_SHEET, {views: [{state: 'frozen', ySplit: 1, xSplit: 2}]});
-  stages.columns = PROGRESSION_HEADERS.map((header, index) => ({header, width: [42, 26, 22, 20, 20, 20, 20, 20, 20, 18][index], style: {numFmt: index < 3 ? '@' : '0'}}));
-  for (const panel of panels) stages.addRow([panel.id, panel.name, MODES[panel.mode], ...panel.cumulative, panel.growthFloor === 'not-applicable' ? '不适用' : panel.growthFloor]);
-  stages.autoFilter = {from: 'A1', to: 'J1'}; formatSheet(stages);
-  stages.eachRow((row, index) => {if (index > 1) for (let column = 4; column <= 9; column++) {
-    row.getCell(column).font = {color: {argb: 'FF1D4ED8'}};
-    row.getCell(column).dataValidation = {type: 'whole', operator: 'between', formulae: [1, 1000000000], allowBlank: false, showErrorMessage: true, errorTitle: '累计成长门槛', error: '填写严格递增的累计成长整数，最大1000000000；旧版须为同一每级值的1至6倍'};
+  const stages = workbook.addWorksheet(PROGRESSION_SHEET, {views: [{state: 'frozen', ySplit: 1}]});
+  stages.columns = PROGRESSION_HEADERS.map((header, index) => ({header, width: [24,24,34][index], style: {numFmt: index===0?'@':'0'}}));
+  const petProgression=PetScores.get(state),totals=PetScores.cumulative(petProgression);
+  petProgression.costs.forEach((cost,index)=>stages.addRow([`LV${index+1}`,cost,{formula:`SUM($B$2:B${index+2})`,result:totals[index]}]));
+  for(let level=8;level<=25;level++)stages.addRow([`LV${level}`,level===8?petProgression.repeatCost:{formula:'$B$9',result:petProgression.repeatCost},{formula:`SUM($B$2:B${level+1})`,result:totals[6]+(level-7)*petProgression.repeatCost}]);
+  stages.addRow(['LV26及以后',{formula:'$B$9',result:petProgression.repeatCost},{formula:'SUM($B$2:B26)+$B$9',result:totals[6]+19*petProgression.repeatCost}]);
+  formatSheet(stages);
+  stages.eachRow((row,index)=>{if(index>1){
+    row.getCell(2).font={color:{argb:index<=9?'FF1D4ED8':'FF4B5563'}};row.getCell(2).protection={locked:index>9};
+    if(index<=9)row.getCell(2).dataValidation={type:'whole',operator:'between',formulae:[1,1000000000],allowBlank:false,showErrorMessage:true,errorTitle:'升级所需积分',error:'请输入正整数；LV1–LV7总和不超过1000000000'};
+    row.getCell(3).font={color:{argb:'FF4B5563'}};
   }});
-  stages.eachRow((row,index)=>{if(index>1)row.getCell(10).dataValidation={type:'list',allowBlank:false,formulae:[row.getCell(3).value===MODES['legacy-step']?'"不适用"':'"reject,clamp"'],showErrorMessage:true,error:'旧版保留不适用；六段选择reject或clamp'};});
+  await stages.protect('',{selectLockedCells:true,selectUnlockedCells:true,spinCount:1});
+  workbook.calcProperties.fullCalcOnLoad=true;
   ConfigSheets.addSheets(workbook, state, formatSheet);
   const help = workbook.addWorksheet(HELP_SHEET);
   help.columns = [{header: '项目', width: 24}, {header: '填写方法', width: 110}];
   help.addRows([
     ['编辑后应用', '本文件是统一配置。保存 Excel 后回到花伴课堂，点击「刷新配置」，预览全部工作表并确认后一起应用。窗口与启动设置下次重启生效，其余以预览标注为准。'],
     ['共享计分卡', '全部面板共用计分卡工作表中的这一套卡片，不按面板复制。卡片名称必填1–120字；积分变化为−100至100的非零整数。'],
-    ['成长值变化', '可填−100至100的整数；0表示成长值不变。留空保留既有方式：独立宠物成长按积分同方向变化，旧成长仅随加分增加。'],
-    ['规则ID', '现有卡片保留原规则ID。新增卡片填写不同编号，仅使用英文字母、数字、下划线和短横线。全体共享1–2000张卡片，ID不得重复。'],
-    ['宠物进阶', 'LV2至LV7各列填写达到该等级所需的累计成长值。成长值与可消费积分分开：兑换扣积分不会扣减成长，也不会改变这些门槛。'],
-    ['成长模式', '每个面板保留当前成长模式，不能在表中切换。旧版每级成长：LV2至LV7必须为同一每级值（1–100）的1至6倍。六段成长账本：累计值严格递增，总计不超过10亿。'],
-    ['面板ID与名称', '宠物进阶表按面板ID对应，请保留编号并包含全部现有面板。面板名称仅供识别，下次应用会同步当前班名。'],
-    ['旧表迁移', '旧表缺少宠物进阶页时，刷新预览会保留每个面板当前成长模式及门槛。旧表按面板分开的卡片需明确确认合并，冲突卡片保留独立编号，并备份原表。'],
+    ['宠物等级来源', '所有面板使用同一套进阶规则，按学生当前积分显示宠物等级。低于LV1门槛（包括负分）显示宠物蛋；加分升级，扣分跨过门槛会降级。历史成长值字段保留在隐藏列中，不参与等级计算。'],
+    ['新增条目', '新增计分卡、轮盘奖品和网址时，在空白行填写名称及数值即可。软件会在刷新预览后自动生成编号，确认应用才保存。内部编号已隐藏，请勿清空或复制。全体共享1–2000张计分卡。'],
+    ['宠物进阶', '全体40种宠物共用，逐级显示到LV25（默认累计470分），以后继续升级。只编辑蓝色数值：LV1–LV7各级所需积分，以及LV8的数值（默认20，统一用于以后每一级）。LV9–LV25和LV26以后按LV8自动计算，累计列也自动计算；最后一行显示LV26门槛（默认490分）。'],
+    ['所属面板', '轮盘奖品、趣味挑战、课堂网址、作业科目和工具默认均通过「所属面板」下拉列表选班。名称相同的面板带不同序号，请选择完整选项。新增面板请在软件内创建，再打开配置表。面板设置页可直接改名。'],
+    ['编辑与排序', '修改名称或调整顺序时，请保留整行，包括隐藏列。复制行新增时会提示编号重复，建议另起空白行。若同时删除旧条目并新增空编号行，软件会要求分两次应用，以免把原条目误认为新增。'],
+    ['旧表迁移', '旧表的分面板成长规则不再控制宠物等级。刷新时保留当前全局积分进阶规则并列出迁移说明，确认后生成全局进阶表，原表另存备份。旧表按面板分开的计分卡会预览合并，保留冲突版本和迁移快照。'],
     ['保存失败后重试', '如果替换表格被拒绝，原表与课堂设置会保留。关闭可能占用表格的程序并检查文件权限后，重新预览或再次保存；不会先删除原表。'],
-    ['允许的内容', '只填写文字、数值及true/false，不使用公式、日期或Excel错误值。网址须在课堂网址表填写完整http(s)文本。保留全部工作表与表头；空网址面板保留一行（空）标记。'],
+    ['允许的内容', '只填写文字、数值及true/false，不使用公式、日期或Excel错误值。网址须在课堂网址表填写完整http(s)文本。保留全部工作表与表头；没有网址时名称填（空），地址留空，并选择所属面板。新增网址时删除该面板的（空）行。'],
     ['旧配置迁移', '旧配置.txt、计分卡片.xlsx和旧事务记录仅作为只读迁移来源，原件不删除、不覆盖。统一配置建立后，不会因本文件损坏或丢失而回退旧配置。'],
     ['工具默认', '工具默认只用于未来打开或开始新一轮，不改正在运行的计时、点名结果和已用名单。对象：students为学生、groups为小组。策略：cycle为本轮不重复、repeat为允许重复。'],
     ['工具数值与响铃', '计时默认秒数1–10800；点名及宠物默认数量1–20；挑战默认秒数10–180。响铃可选tick（提示音）、applause（掌声）、laser（电子音）。'],
     ['显示与排序', '显示头像、隐藏后两级、启动最小化填true或false。排序：natural添加顺序、name姓名、scoreDesc积分降序、scoreAsc积分升序、growth成长降序、level等级降序、leader组长优先、custom保留课堂自定顺序。'],
-    ['成长下限', '六段成长账本：reject低于0时拒绝，clamp低于0时截到0；旧版模式必须保留不适用。此设置不修改已有历史或撤销差额。'],
     ['配置范围', '名单、照片、小组成员、自定名单顺序、运行中计时/抽取、积分与宠物历史、密码均为课堂数据，不放入配置表。'],
-    ['历史记录', '修改卡片和门槛不会重写已有积分、成长账目、徽章或毕业快照。等级显示按当前成长门槛计算。']
+    ['历史记录', '修改卡片和门槛不会重写已有积分、成长账目、徽章或毕业快照。等级按当前积分和全局门槛重新显示。']
   ]);
   if (initialTemplate) help.addRows([
     ['首次启动', '这是尚未绑定课堂的初始表格。原样文件按当前课堂生成正式面板编号。提前编辑的文件会保留，需要刷新预览确认；有多个面板时请核对宠物进阶来源。'],
@@ -238,7 +252,7 @@ async function parseBytes(bytes, state, loadExcel = () => require('exceljs'), {a
   if (!sheet) throw new Error('找不到「计分卡片」工作表，请保留原工作表名称');
   for (const other of workbook.worksheets) if (![SHEET_NAME, PROGRESSION_SHEET, HELP_SHEET, ...Object.keys(ConfigSheets.SHEETS)].includes(other.name) && other.actualRowCount > 0) throw new Error(`工作表「${other.name}」含有无法应用的数据，请保留统一配置中的分类工作表`);
   let templateMarker = false, templateBound = false;
-  if (help) {if (help.rowCount > MAX_ROWS) throw new Error('填写说明行数过多'); help.eachRow(row => {if (row.getCell(1).value === INITIAL_MARKER && [1, 2, INITIAL_VERSION].includes(row.getCell(2).value)) templateMarker = true;});}
+  if (help) {if (help.rowCount > MAX_ROWS) throw new Error('填写说明行数过多'); help.eachRow(row => {if (row.getCell(1).value === INITIAL_MARKER && [1, 2, 3, 4, INITIAL_VERSION].includes(row.getCell(2).value)) templateMarker = true;});}
   const panels = configuration(state), byId = new Map(panels.map(panel => [panel.id, panel])), warnings = [];
   function findPanel(id, index) {
     let panel = byId.get(id);
@@ -247,16 +261,17 @@ async function parseBytes(bytes, state, loadExcel = () => require('exceljs'), {a
       if (panels.length !== 1) throw new Error('初始计分卡片尚未绑定，当前存在多个面板，无法确定宠物进阶属于哪个班级；文件已保留，请核对后用当前规则重建表格，原表会另存备份');
       panel = panels[0]; templateBound = true;
     }
-    if (!panel) throw new Error(`第${index}行的面板ID不存在，请使用当前面板的原始编号`);
+    if (!panel) throw new Error(`第${index}行的面板ID不存在，请保留原有隐藏编号；新增面板请在软件内创建`);
     return panel;
   }
   const legacyColumns = sheet.getRow(1).values.includes('面板ID');
+  const resolvePanel = ConfigSheets.createPanelResolver(workbook, panels, {tableRows, findPanel});
   const sourcePanels = panels.map(panel => ({id: panel.id, name: panel.name, rules: []})), sourceById = new Map(sourcePanels.map(panel => [panel.id, panel]));
   const rules = [];
   for (const {index, get} of tableRows(sheet, legacyColumns ? LEGACY_HEADERS : HEADERS)) {
     const rule = {id: get('规则ID'), label: get('卡片名称'), delta: integer(get('积分变化'), `第${index}行积分变化`)};
     const growthDelta = integer(get('成长值变化'), `第${index}行成长值变化`, true); if (growthDelta !== undefined) rule.growthDelta = growthDelta;
-    try {Rules.validateRules([rule]);} catch (error) {throw new Error(`第${index}行：${error.message}`);}
+    try {Rules.validateRules([{...rule,id:rule.id===''?'rule_pending':rule.id}]);} catch (error) {throw new Error(`第${index}行：${error.message}`);}
     if (legacyColumns) {const panel = findPanel(get('面板ID'), index); sourceById.get(panel.id).rules.push(rule); if (get('面板名称') !== panel.name) warnings.push(`面板名称已按当前课堂「${panel.name}」识别`);}
     else rules.push(rule);
   }
@@ -264,34 +279,56 @@ async function parseBytes(bytes, state, loadExcel = () => require('exceljs'), {a
   if (!legacyInput && legacyColumns) throw Error('配置.xlsx的计分卡片必须为全局共享四列格式，请从旧文件迁移预览导入');
   let migration = {legacyColumns, missingProgression: !stages}, shared;
   if (legacyColumns) {
-    for (const panel of sourcePanels) {try {panel.rules = Rules.validateRules(panel.rules);} catch (error) {throw new Error(`面板「${panel.name}」：${error.message}`);}}
+    for (const panel of sourcePanels) {try {Config.assignNewIds(panel.rules,panels.find(item=>item.id===panel.id).rules,{label:'计分卡片',prefix:'rule_',createId:randomUUID});panel.rules = Rules.validateRules(panel.rules);} catch (error) {throw new Error(`面板「${panel.name}」：${error.message}`);}}
     const preview = Rules.previewShared(sourceWithRules(state, sourcePanels)); shared = preview.rules;
     migration = {...migration, panels: sourcePanels, conflicts: preview.conflicts, mappings: preview.mappings};
     warnings.push('这是按面板分开的旧表。确认后将合并为全部面板共用的一套计分卡，保留冲突卡片及迁移快照，并先备份原表');
-  } else shared = Rules.validateSharedRules(rules);
+  } else {Config.assignNewIds(rules,sharedRules(state),{label:'计分卡片',prefix:'rule_',createId:randomUUID});shared = Rules.validateSharedRules(rules);}
   for (const panel of panels) panel.rules = clone(shared);
-  if (stages) {
+  let petProgression=PetScores.get(state),oldProgression=false;
+  if (stages && stages.getRow(1).values.includes('面板ID')) {
+    oldProgression=true;
     const seen = new Set();
-    const stageHeaders = legacyInput && !stages.getRow(1).values.includes('成长下限') ? PROGRESSION_HEADERS.slice(0,9) : PROGRESSION_HEADERS;
-    for (const {index, get} of tableRows(stages, stageHeaders)) {
+    const stageHeaders = LEGACY_PROGRESSION_HEADERS.slice(0,9);
+    for (const {index, get} of tableRows(stages, stageHeaders, ['成长下限'])) {
       const panel = findPanel(get('面板ID'), index); if (seen.has(panel.id)) throw new Error(`宠物进阶第${index}行面板ID重复`); seen.add(panel.id);
       if (get('面板名称') !== panel.name) warnings.push(`面板名称已按当前课堂「${panel.name}」识别，下次保存同步显示名称`);
-      if (get('成长模式') !== MODES[panel.mode]) throw new Error(`面板「${panel.name}」成长模式不能在表格中切换，请保留「${MODES[panel.mode]}」`);
-      const cumulative = PROGRESSION_HEADERS.slice(3,9).map(header => {const raw = get(header), value = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : NaN; if (!Number.isSafeInteger(value) || value < 1 || value > 1000000000) throw new Error(`宠物进阶第${index}行${header}需为1至1000000000的整数`); return value;});
+      if(!['旧版每级成长','六段成长账本',...Object.values(MODES)].includes(get('成长模式')))throw Error(`宠物进阶第${index}行的原成长模式无法识别，请保留原表后核对`);
+      if(!['','不适用','reject','clamp'].includes(get('成长下限')))throw Error('原成长下限值无法识别，请保留原表后核对');
+      const cumulative = LEGACY_PROGRESSION_HEADERS.slice(3,9).map(header => {const raw = get(header), value = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : NaN; if (!Number.isSafeInteger(value) || value < 1 || value > 1000000000) throw new Error(`宠物进阶第${index}行${header}需为1至1000000000的整数`); return value;});
       let last = 0; const costs = cumulative.map(value => {const cost = value - last; last = value; return cost;});
       try {Progress.thresholds(costs);} catch {throw new Error(`宠物进阶第${index}行LV2至LV7累计成长必须严格递增，合计不超过1000000000`);}
-      if (panel.mode === 'legacy-step' && (costs[0] > 100 || costs.some(value => value !== costs[0]))) throw new Error(`面板「${panel.name}」使用旧版每级成长，LV2至LV7须为同一每级值（1–100）的1至6倍`);
-      panel.cumulative = cumulative;
-      if (stageHeaders.includes('成长下限')) {const floor=get('成长下限');if(panel.mode==='legacy-step'&&floor!=='不适用')throw Error('旧版成长下限须保留「不适用」，不会隐式启用账本');if(panel.mode==='ledger-six'&&!['reject','clamp'].includes(floor))throw Error('成长下限只能为reject或clamp');panel.growthFloor=panel.mode==='legacy-step'?'not-applicable':floor;}
     }
     if (seen.size !== panels.length) throw new Error('宠物进阶工作表须恰好包含每个现有面板，不得遗漏');
-  } else warnings.push('旧表缺少「宠物进阶」工作表。确认后保留各面板当前成长模式和门槛，补齐工作表；不会启用或重置成长账本');
-  const extra = ConfigSheets.parseSheets(workbook, state, {tableRows, findPanel, legacyInput, initialPanelId: INITIAL_PANEL_ID, initialPanelName: initialState().settings.className});
+    migration.globalProgression=true;
+    warnings.push('宠物等级已统一按当前积分和全局门槛计算。旧表的分面板成长规则仅随原文件保留，确认后改为一套全局进阶表；不会重写已有积分、成长历史或毕业快照');
+  } else if(stages){
+    const levelIndex=stages.getRow(1).values.indexOf('等级'),compact=levelIndex>0&&stages.getRow(9).getCell(levelIndex).value==='LV8及以后';
+    const levels=compact?[...Array.from({length:7},(_,index)=>`LV${index+1}`),'LV8及以后']:[...Array.from({length:25},(_,index)=>`LV${index+1}`),'LV26及以后'];
+    const costIndex=stages.getRow(1).values.indexOf(PROGRESSION_HEADERS[1]);
+    if(costIndex<1)throw Error(`「宠物进阶」第一行必须包含「${PROGRESSION_HEADERS[1]}」`);
+    const costColumn=stages.getColumn(costIndex).letter;
+    const formula=index=>compact&&index===9?`SUM($${costColumn}$2:${costColumn}8)+${costColumn}9`:index===27?`SUM($${costColumn}$2:${costColumn}26)+$${costColumn}$9`:`SUM($${costColumn}$2:${costColumn}${index})`;
+    const rows=tableRows(stages,PROGRESSION_HEADERS,[],{derivedColumns:{[PROGRESSION_HEADERS[1]]:index=>!compact&&index>=10?`$${costColumn}$9`:null,[PROGRESSION_HEADERS[2]]:formula}}),costs=[];
+    if(rows.length!==levels.length)throw Error(compact?'开发期进阶表须保留完整八行':'宠物进阶须完整保留LV1至LV25以及LV26以后这26行');
+    for(let index=0;index<rows.length;index++){
+      const row=rows[index],raw=row.get(PROGRESSION_HEADERS[1]),cost=typeof raw==='number'?raw:typeof raw==='string'&&/^\d+$/.test(raw.trim())?Number(raw.trim()):NaN;
+      if(row.index!==index+2||row.get('等级')!==levels[index])throw Error('宠物进阶等级行不能增删、重复或调换，只需修改升级所需积分');
+      if(index<8){if(!Number.isSafeInteger(cost)||cost<1||cost>1000000000)throw Error(`宠物进阶${levels[index]}升级所需积分需为1至1000000000的整数`);costs.push(cost);}
+      else if(raw!==''&&cost!==costs[7])throw Error('LV9及以后每级所需积分由LV8自动计算，请只修改LV8的蓝色数值');
+    }
+    petProgression=PetScores.validate({version:1,costs:costs.slice(0,7),repeatCost:costs[7]});
+    const base=PetScores.cumulative(petProgression),derived=[...base,...Array.from({length:levels.length-7},(_,index)=>base[6]+(index+1)*petProgression.repeatCost)];
+    rows.forEach((row,index)=>{const value=row.get(PROGRESSION_HEADERS[2]);if(value!==''&&value!==derived[index])throw Error('累计积分门槛为自动计算列，请保留公式，只修改升级所需积分');});
+  }else warnings.push('旧表缺少「宠物进阶」工作表。确认后补齐全局积分进阶表；不会启用或重置成长账本');
+  const extra = ConfigSheets.parseSheets(workbook, state, {tableRows, findPanel:resolvePanel, legacyInput, initialPanelId: INITIAL_PANEL_ID, initialPanelName: initialState().settings.className});
+  extra.snapshot.petProgression=petProgression;
+  Config.validate(extra.snapshot);
   Object.defineProperty(panels, 'configSnapshot', {value: extra.snapshot, writable: true});
   if (extra.missing.length) {migration.missingSheets=extra.missing;warnings.push('旧表未包含的其他分类设置保留当前已保存值');}
   Object.defineProperty(panels, 'nameWarnings', {value: [...new Set(warnings)]});
   Object.defineProperty(panels, 'initialTemplate', {value: templateBound});
-  if (legacyInput || legacyColumns || !stages) Object.defineProperty(panels, 'migration', {value: migration});
+  if (legacyInput || legacyColumns || !stages || oldProgression) Object.defineProperty(panels, 'migration', {value: migration});
   return panels;
 }
 
@@ -405,12 +442,32 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     const bytes = readOptional(receiptPath, MAX_RECEIPT_BYTES);
     if (!bytes) return {recovered: false};
     const receipt = decodeReceipt(bytes), receiptHash = digest(bytes), current = receipt.configurationVersion === 2 ? signature(state) : legacySignature(state), actual = hashNow();
+    let priorSignature=null,priorStateHashes=[],legacyStateProof=null;
+    if(receipt.configurationVersion===2&&![receipt.beforeRules,receipt.afterRules].includes(current)){
+      // Core adds the global default while reading an RC18 save. Accept the
+      // historical fingerprint only if an unchanged old durable JSON proves
+      // this was that normalization, not a later global-rule/state edit.
+      const whole=RestoreChain.stateHash(state),defaultRules=JSON.stringify(PetScores.get(state))===JSON.stringify(PetScores.DEFAULT_PROGRESSION);
+      let raw=null;
+      if(defaultRules)for(const name of ['classroom-v2.json','classroom-v2.json.previous','classroom.json','classroom.json.previous']){
+        const target=path.join(dataDirectory,name),input=readOptional(target,100*1024*1024);if(input===null)continue;
+        // The first durable primary/available fallback is authoritative. Never
+        // search an older .previous file to make a stale in-memory state fit
+        // after the current JSON acquired a new global rule or another edit.
+        let candidate;try{candidate=JSON.parse(input.toString('utf8'));if(RestoreChain.stateHash(candidate)!==whole&&RestoreChain.stateHash(require('./core.cjs').validateState(candidate))!==whole)break;}catch{break;}
+        if(!Object.hasOwn(candidate,'petProgression')){raw=candidate;legacyStateProof={target,hash:digest(input)};}
+        break;
+      }
+      if(raw){const projected=clone(state);delete projected.petProgression;priorSignature=rc18Signature(projected);priorStateHashes=[RestoreChain.stateHash(projected),RestoreChain.stateHash(raw)];}
+    }
     const oldReceipt = priorReceiptBytes(receipt);
+    const assertLegacyState=()=>{if(legacyStateProof){const raw=readOptional(legacyStateProof.target,100*1024*1024);if(raw===null||digest(raw)!==legacyStateProof.hash)throw Error('旧课堂文件已在事务核对后变化，原配置与收据已保留，请重新核对');}};
     if(receipt.restoreChain)restoreRecoveryPending=true;
     const wholeState=receipt.restoreChain?RestoreChain.stateHash(state):null;
-    const afterMatches=receipt.restoreChain?wholeState===receipt.afterStateHash:current===receipt.afterRules;
-    const beforeMatches=receipt.restoreChain?(wholeState===receipt.beforeStateHash||wholeState===receipt.beforeStateUpgradedHash||(receipt.restoreUnverifiedBefore&&RestoreChain.primaryBefore(receipt.restoreChain,dataDirectory,fileSystem))):current===receipt.beforeRules;
+    const afterMatches=receipt.restoreChain?wholeState===receipt.afterStateHash||priorStateHashes.includes(receipt.afterStateHash):[current,priorSignature].includes(receipt.afterRules);
+    const beforeMatches=receipt.restoreChain?(wholeState===receipt.beforeStateHash||wholeState===receipt.beforeStateUpgradedHash||priorStateHashes.includes(receipt.beforeStateHash)||priorStateHashes.includes(receipt.beforeStateUpgradedHash)||(receipt.restoreUnverifiedBefore&&RestoreChain.primaryBefore(receipt.restoreChain,dataDirectory,fileSystem))):[current,priorSignature].includes(receipt.beforeRules);
     if (afterMatches && actual === receipt.afterHash) {
+      assertLegacyState();
       clearReceipt(receiptHash); observedHash = actual; return {recovered: true, committed: true};
     }
     // Before the first JSON save, a restart may create different random panel
@@ -420,10 +477,11 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     // A confirmed rebuild can supersede an ambiguous old receipt, but only
     // after preserving it. A failed rebuild restores that exact old evidence.
     assertReceiptHash(receiptHash);
+    assertLegacyState();
     if(receipt.restoreChain)RestoreChain.restore(receipt.restoreChain,dataDirectory,backupDirectory,fileSystem);
     if (actual === receipt.afterHash && actual !== receipt.beforeHash) {
-      if (receipt.prior === null) { assertHash(actual); assertReceiptHash(receiptHash); fileSystem.unlinkSync(file); }
-      else atomicWrite(file, receipt.prior, () => {assertHash(actual); assertReceiptHash(receiptHash);});
+      if (receipt.prior === null) { assertHash(actual); assertReceiptHash(receiptHash); if(!receipt.restoreChain)assertLegacyState(); fileSystem.unlinkSync(file); }
+      else atomicWrite(file, receipt.prior, () => {assertHash(actual); assertReceiptHash(receiptHash);if(!receipt.restoreChain)assertLegacyState();});
     }
     if (oldReceipt !== null) {
       atomicWrite(receiptPath, oldReceipt, () => {assertHash(receipt.beforeHash); assertReceiptHash(receiptHash);});
@@ -466,7 +524,7 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     if(state.appConfig!==undefined){
       if(prior===null)return {path:file,state,created:false,bound:false,needsReview:true,warning:'配置.xlsx已丢失，课堂继续使用最后有效配置；请在统一配置中预览重建。不会回退旧配置.txt或计分卡片.xlsx'};
       const hash=digest(prior);let review='';
-      try {const parsed=await parseBytes(prior,state,loadExcel);beforeCommit();assertHash(hash);if(!sameConfiguration(state,parsed))review='配置.xlsx含有尚未应用的外部修改，继续使用最后有效配置；请刷新整本预览确认';else observedHash=hash;}
+      try {const parsed=await parseBytes(prior,state,loadExcel);beforeCommit();assertHash(hash);if(!sameConfiguration(state,parsed)||parsed.migration)review='配置.xlsx含有尚未应用的外部修改或需要迁移的原格式，继续使用最后有效配置；请刷新整本预览确认';else observedHash=hash;}
       catch(error){review='配置.xlsx暂时无法核对，继续使用最后有效配置；请在统一配置中修复或预览重建。'+error.message;}
       return {path:file,hash,state,created:false,bound:false,validated:!review,needsReview:!!review,warning:review||warning};
     }
@@ -519,7 +577,7 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     const bytes = await buildBytes(nextState, loadExcel);
     assertHash(beforeHash);
     if (signature(currentState) !== beforeRules || signature(nextState) !== afterRules) throw new Error('计分卡片规则已变化，请重新保存');
-    return remember({kind: 'save', beforeRules, afterRules, beforeHash, prior, bytes, afterHash: digest(bytes), ...(migrationBackup ? {backupPath: path.join(backupDirectory, `配置-迁移前-${new Date(now()).toISOString().replace(/[-:.TZ]/g, '')}-${randomUUID()}.xlsx`)} : {})}, {kind: 'save', ...summaryFor(currentState, configuration(nextState))});
+    return remember({kind: 'save', beforeRules, afterRules, beforeHash, prior, bytes, afterHash: digest(bytes), ...(migrationBackup ? {backupPath: path.join(backupDirectory, `配置-迁移前-${new Date(now()).toISOString().replace(/[-:.TZ]/g, '')}-${randomUUID()}.xlsx`)} : {})}, {kind: 'save', ...summaryFor(currentState, configuration(nextState),Config.snapshot(nextState))});
   }
   async function prepareRestore(currentState, incomingState, {recoveryRebuild = false} = {}) {
     // A normal restore may replace only the current applied configuration. An
@@ -546,7 +604,7 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     const receiptBackupPath=priorReceipt===null?null:path.join(backupDirectory,`配置-事务备份-${stamp}-${randomUUID()}.json`);
     assertHash(beforeHash);assertReceiptHash(receiptHash);
     if(signature(currentState)!==beforeRules||currentState.revision!==beforeRevision)throw Error('课堂资料已在恢复预览期间变化，请重新选择备份');
-    const summary=summaryFor(currentState,configuration(next));summary.configSummary=ConfigSheets.summary(Config.snapshot(currentState),Config.snapshot(next),{includeNewPanels:true});
+    const summary=summaryFor(currentState,configuration(next),Config.snapshot(next));summary.configSummary=ConfigSheets.summary(Config.snapshot(currentState),Config.snapshot(next),{includeNewPanels:true});
     summary.warning='确认后同时恢复全部课堂数据和整本配置.xlsx；恢复前文件会先保留备份。';
     if(keptStartup)summary.warning+='此旧备份不含启动显示参数，将沿用当前启动参数。';
     if(sharePreview.required){summary.migration={legacyColumns:true,panels:sharePreview.panels,conflicts:sharePreview.conflicts,mappings:sharePreview.mappings};summary.warning+='备份中各面板的旧卡片不同，本次将合并为全局共享卡片，保留全部冲突版本、原规则快照和对应关系。';}
@@ -643,7 +701,7 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     const stamp = new Date(now()).toISOString().replace(/[-:.TZ]/g, '');
     const backupPath = prior === null ? null : path.join(backupDirectory, `配置-备份-${stamp}-${randomUUID()}.xlsx`);
     const receiptBackupPath = priorReceipt === null ? null : path.join(backupDirectory, `配置-事务备份-${stamp}-${randomUUID()}.json`);
-    const summary = summaryFor(currentState, configuration(next));
+    const summary = summaryFor(currentState, configuration(next),Config.snapshot(next));
     if(sharePreview.required){summary.migration={legacyColumns:true,panels:sharePreview.panels,conflicts:sharePreview.conflicts,mappings:sharePreview.mappings};summary.warning='当前旧面板的卡片不同。确认重建将同时合并为一套共享卡片，保留每套原规则及冲突版本。';}
     if (priorReceipt !== null) summary.warning = (summary.warning||'')+'发现尚未清理或无法核对的事务记录。确认后将以当前已验证的课堂 JSON 规则重建表格，不采用旧事务中的规则；原表格（如存在）和事务记录均会先另存备份。';
     return remember({kind: 'export', rebuild: true, beforeRules, afterRules: signature(next), beforeHash, prior, bytes, afterHash: digest(bytes), backupPath, priorReceipt, receiptHash, receiptBackupPath},
@@ -682,7 +740,7 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
     if(signature(currentState)!==beforeRules)throw Error('面板或配置已变化，请重新刷新');
     const summary=summaryFor(currentState,panels);
     if(legacyMode){summary.migration={...summary.migration,legacyFiles:true};summary.legacySources=sources.filter(source=>source.bytes!==null).map(({path,name,hash})=>({path,name,hash}));summary.warning=legacyWarning+summary.warning;}
-    if(panels.initialTemplate)summary.warning=`确认后将此初始表格绑定到当前课堂，并另存原表备份。${summary.warning}`;
+    if(panels.initialTemplate)summary.warning=`确认后将此初始表格绑定到当前课堂「${panels[0].name}」，并另存原表备份。${summary.warning}`;
     return remember({kind:'refresh',beforeRules,hash,panels,bindingData},{kind:'refresh',...summary,...(bindingData.backupPath?{backupPath:bindingData.backupPath}:{}),...(panels.initialTemplate?{initialBinding:true}:{})});
   }
   function commitRefresh(token, {currentState, saveState, beforeCommit = () => {}}) {
@@ -705,4 +763,4 @@ function createScoreRuleWorkbook({resourceDirectory, backupDirectory = resourceD
 }
 
 module.exports = {createScoreRuleWorkbook, configuration, signature, mergeRules, buildBytes, buildInitialBytes, isInitialBytes, parseBytes,
-  FILE_NAME, LEGACY_FILE_NAME, LEGACY_CONFIG_NAME, SHEET_NAME, PROGRESSION_SHEET, HEADERS, LEGACY_HEADERS, PROGRESSION_HEADERS, MODES, MAX_BYTES, INITIAL_PANEL_ID, INITIAL_MARKER, INITIAL_VERSION, INITIAL_SHA256};
+  FILE_NAME, LEGACY_FILE_NAME, LEGACY_CONFIG_NAME, SHEET_NAME, PROGRESSION_SHEET, HEADERS, LEGACY_HEADERS, PROGRESSION_HEADERS, LEGACY_PROGRESSION_HEADERS, MODES, MAX_BYTES, INITIAL_PANEL_ID, INITIAL_MARKER, INITIAL_VERSION, INITIAL_SHA256, RC18_INITIAL_SHA256};

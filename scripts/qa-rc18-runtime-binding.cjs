@@ -6,7 +6,7 @@ const ordered=value=>Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.
 const mapHash=value=>sha(JSON.stringify(ordered(value)));
 function archiveFor(entry){const match=entry.match(/^(.*?\.asar)(?:[\\/]|$)/);return match?match[1]:null;}
 function archiveHash(archive){if(!archive)return null;const disk=process.versions.electron?require('original-fs'):fs;return sha(disk.readFileSync(archive));}
-function freeze(root){const filename=path.join(root,'artifacts/rc18/frozen-source.json');return {filename,sha256:sha(fs.readFileSync(filename)),data:JSON.parse(fs.readFileSync(filename,'utf8'))};}
+function freeze(root){const filename=process.env.FLOWER_QA_FREEZE_FILE?path.resolve(root,process.env.FLOWER_QA_FREEZE_FILE):path.resolve(root,process.env.FLOWER_FREEZE_DIR||'artifacts/rc18','frozen-source.json');return {filename,sha256:sha(fs.readFileSync(filename)),data:JSON.parse(fs.readFileSync(filename,'utf8'))};}
 function readHashes(base,names){return ordered(Object.fromEntries(names.map(name=>[name,sha(fs.readFileSync(path.join(base,name)))])));}
 function sourceSnapshot(root,frozen){const names=[...new Set([...Object.keys(frozen.files),...Object.keys(frozen.assetFiles),...Object.keys(frozen.packageFiles)])];const hashes=readHashes(root,names),expected={...frozen.files,...frozen.assetFiles,...frozen.packageFiles};return {sha256:mapHash(hashes),runtimeSha256:mapHash(readHashes(root,Object.keys(frozen.files))),fileCount:names.length,hashes,mismatches:names.filter(name=>hashes[name]!==expected[name])};}
 function beginRun(root,out,entry,harness,{allowUnfrozen=false}={}){

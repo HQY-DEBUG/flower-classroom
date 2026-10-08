@@ -14,6 +14,7 @@ const CLASSIC = ['owl', 'fox', 'bunny', 'cat', 'penguin', 'panda', 'bear', 'dog'
 const ADVENTURE = ['robot','rover','mechcrab','mechbeetle','mechdragonfly','rex','raptor','triceratops','stegosaurus','ankylosaurus','pteranodon','mammoth','rhino','gorilla','wolf','boar','eagle','shark','orca','phoenix'];
 const EXPECTED = [...CLASSIC,...ADVENTURE];
 const clone = x => JSON.parse(JSON.stringify(x));
+const upgraded = input => ({...clone(input), version:2, petProgression:require('../src/pet-score-progression.js').get()});
 const act = (s, a) => applyAction(s, a, 2_000_000);
 const freeze = x => { Object.freeze(x); for (const v of Object.values(x)) if (v && typeof v === 'object') freeze(v); return x; };
 const v11 = () => ({ ...legacyState(), settings: { className: '纯合成1.1兼容班', petStep: 5, petFocusId: 's_legacy_bunny' } });
@@ -99,9 +100,9 @@ test('Catalog artwork: all forms are offline, script-free, ID-free and injection
   assert.doesNotMatch(injected.replace(/class="[^"]*"/g, ''), /\sonerror=/);
 });
 
-test('Catalog validation: all forty IDs survive JSON serialization with version=1', () => {
+test('Catalog validation: all forty IDs survive the additive root progression upgrade', () => {
   const input = freeze(fixture()); const actual = validateState(input);
-  assert.deepEqual(actual, input); assert.equal(actual.version, 1);
+  assert.deepEqual(actual, upgraded(input)); assert.equal(actual.version, 2);
   assert.deepEqual(validateState(clone(actual)), actual);
 });
 
@@ -130,29 +131,29 @@ test('Catalog persistence: all forty selections survive an atomic save and fresh
     delete require.cache[require.resolve('../src/core.cjs')];
     const freshCore = require('../src/core.cjs');
     const reopened = freshCore.validateState(JSON.parse(fs.readFileSync(file, 'utf8')));
-    assert.deepEqual(reopened, original); assert.deepEqual(reopened.students.map(x => x.pet), EXPECTED);
+    assert.deepEqual(reopened, upgraded(original)); assert.deepEqual(reopened.students.map(x => x.pet), EXPECTED);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('Catalog compatibility: pre-adventure twenty-species backup keeps every original ID, field and full growth', () => {
   const old = fixture(CLASSIC.length); old.students.forEach((student, index) => { student.pet = CLASSIC[index]; });
   const original = freeze(clone(old)), restored = validateState(clone(original));
-  assert.deepEqual(restored, original); assert.deepEqual(restored.students.map(student => student.pet), CLASSIC);
+  assert.deepEqual(restored, upgraded(original)); assert.deepEqual(restored.students.map(student => student.pet), CLASSIC);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flower-classic-backup-'));
-  try { const file = path.join(dir, 'classic20.json'); saveAtomic(file, restored); assert.deepEqual(validateState(JSON.parse(fs.readFileSync(file))), original); }
+  try { const file = path.join(dir, 'classic20.json'); saveAtomic(file, restored); assert.deepEqual(validateState(JSON.parse(fs.readFileSync(file))), upgraded(original)); }
   finally { fs.rmSync(dir, {recursive:true,force:true}); }
 });
 
-test('Catalog compatibility: handwritten v1.0 migrates with identical legacy fields and a twenty-point default', () => {
+test('Catalog compatibility: handwritten v1.0 keeps legacy fields and stored step metadata during upgrade', () => {
   const input = freeze(legacyState()), migrated = validateState(input), projection = clone(migrated);
-  delete projection.settings.petStep; delete projection.settings.petFocusId;
+  delete projection.settings.petStep; delete projection.settings.petFocusId; delete projection.petProgression; projection.version=input.version;
   assert.deepEqual(projection, input); assert.equal(migrated.settings.petStep, 20);
   assert.equal(migrated.students[2].growth, 200); assert.equal(migrated.students[2].pet, 'bunny');
 });
 
 test('Catalog compatibility: handwritten v1.1 custom rules, focused pet and old audit records are unchanged', () => {
-  const input = freeze(v11()); assert.deepEqual(validateState(input), input);
-  assert.deepEqual(validateState(clone(validateState(input))), input);
+  const input = freeze(v11()); assert.deepEqual(validateState(input), upgraded(input));
+  assert.deepEqual(validateState(clone(validateState(input))), upgraded(input));
 });
 
 test('Catalog compatibility: first v1.2 save retains byte-identical v1.0 or v1.1 recovery files', () => {
@@ -167,9 +168,9 @@ test('Catalog compatibility: first v1.2 save retains byte-identical v1.0 or v1.1
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('Catalog backup: new species, local photo, focus, rules and audit history round-trip without schema change', () => {
+test('Catalog backup: all species, photos, focus, rules and audit history round-trip with global progression', () => {
   let s = validateState(fixture()); s = act(s, { type: 'score', ids: s.students.map(s => s.id), delta: 2, reason: '纯合成备份测试' });
-  const restored = validateState(clone(s)); assert.deepEqual(restored, s); assert.equal(restored.version, 1);
+  const restored = validateState(clone(s)); assert.deepEqual(restored, s); assert.equal(restored.version, 2);
   assert.equal(new Set(restored.students.map(s => s.pet)).size, EXPECTED.length);
 });
 
@@ -198,11 +199,11 @@ test('Catalog scoring: forty species cross the threshold together and undo resto
   const input = fixture(); input.students.forEach(s => { s.score = 4; s.growth = 4; });
   const original = validateState(input), awarded = act(original, { type: 'score', ids: original.students.map(s => s.id), delta: 1, reason: '纯合成全物种升级' });
   assert.equal(awarded.logs.length, 1); assert.equal(awarded.logs[0].changes.length, EXPECTED.length);
-  for (const [i, s] of awarded.students.entries()) { assert.equal(s.pet, EXPECTED[i]); assert.equal(s.growth, 5); assert.equal(petLevel(s, 5).level, 2); }
+  for (const [i, s] of awarded.students.entries()) { assert.equal(s.pet, EXPECTED[i]); assert.equal(s.growth, 4); assert.equal(petLevel(s).level, 1); }
   assert.deepEqual(act(awarded, { type: 'undo', logId: awarded.logs[0].id }).students, original.students);
 });
 
-test('Catalog scoring: negative points never remove growth and changing the pet never resets earned levels', () => {
+test('Catalog scoring: deductions preserve archived growth and species edits preserve current-score levels', () => {
   let s = validateState(fixture()); const before = clone(s.students);
   s = act(s, { type: 'score', ids: s.students.map(s => s.id), delta: -2, reason: '纯合成扣分' });
   s.students.forEach((student, i) => { assert.equal(student.growth, before[i].growth); assert.equal(student.score, before[i].score - 2); });
@@ -226,10 +227,11 @@ test('Catalog import: replace and append assign only supported catalog IDs while
   assert.ok(replaced.students.every(s => EXPECTED.includes(s.pet))); assert.equal(replaced.students.length, 300);
 });
 
-test('Catalog rules: thresholds 1/5/20/100 preserve historic scores and full growth for all forty species', () => {
-  const original = validateState(fixture());
-  for (const step of [1, 5, 20, 100]) {
-    const changed = act(original, { type: 'pet.rules', step }); assert.deepEqual(changed.students, original.students);
-    for (const s of changed.students) assert.equal(petLevel(s, step).level, Math.floor(s.growth / step) + 1);
-  }
+test('Catalog rules: retired step edits reject atomically for all forty species', () => {
+  const original = validateState(fixture()), bytes = JSON.stringify(original);
+  for (const step of [1,5,20,100]) assert.throws(() => act(original,{type:'pet.rules',step}), /停用|统一/);
+  assert.equal(JSON.stringify(original),bytes);
+  const changed=act(original,{type:'petProgression.update',petProgression:{version:1,costs:[1,1,1,1,1,1,1],repeatCost:1}});
+  assert.deepEqual(changed.students,original.students); assert.deepEqual(changed.logs,original.logs);
+  for (const s of changed.students) assert.equal(petLevel(s,changed.petProgression).level,Math.max(0,s.score));
 });

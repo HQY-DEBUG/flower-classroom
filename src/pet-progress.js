@@ -1,9 +1,9 @@
 (function (root, factory) {
   'use strict';
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./pet-score-progression.js') : root.PetScoreProgression);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PetProgress = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (ScoreProgression) {
   'use strict';
   const MAX_VALUE = 1_000_000_000;
   const DEFAULT_THRESHOLDS = Object.freeze([5, 10, 15, 20, 25, 30]);
@@ -34,35 +34,23 @@
     const spent = (account?.badgeTransactions || []).reduce((n, v) => n + (v.type === 'redeem' ? v.amount : -v.amount), 0);
     return { total, spent, available: total - spent };
   }
-  // The egg is a presentation before the existing seven stages, not an extra
-  // growth cost. Returning a marked cycle to zero (deduction, undo or reset)
-  // returns it to its egg. Unmarked legacy cycles retain their original form.
-  function eggState(adopted, startFromEgg, growth) {
-    return { startFromEgg: startFromEgg === true, isEgg: !adopted || (startFromEgg === true && growth === 0) };
-  }
   function profile(state, studentOrId) {
     const student = typeof studentOrId === 'string' ? state.students.find(v => v.id === studentOrId) : studentOrId;
     if (!student || !state.students.some(v => v.id === student.id)) throw new Error('找不到这位学生');
     const account = state.petAccounts?.find(v => v.studentId === student.id);
     const legacyMedals = account ? account.legacyMedals : (student.medals || 0);
     const balance = badgeBalance(account, legacyMedals), medalTotal = balance.total;
-    const shared = { legacyMedals, medalTotal, medalTotalIncludesLegacy: legacyMedals > 0, medalAvailable: account ? balance.available : null, medalSpent: balance.spent, medalBalanceKnown: !!account,
+    const balanceKnown = !!account && account.badgeBalanceVerified !== false;
+    const shared = { legacyMedals, medalTotal, medalTotalIncludesLegacy: legacyMedals > 0, medalAvailable: balanceKnown ? balance.available : null, medalSpent: balance.spent, medalBalanceKnown: balanceKnown,
       graduates: account?.graduations || [], lifetimeNetGrowth: account?.lifetimeNetGrowth ?? student.growth,
       unassignedGrowth: account?.unassignedGrowth || 0, activeCycleId: account?.activeCycleId || null,
       hideLateForms: state.settings.hideLateForms === true };
-    if (!state.settings.petRules || !account) {
-      const step = integer(state.settings.petStep ?? 20, 1, 100, '每级成长值');
-      const growth = integer(student.growth, 0, MAX_VALUE, '成长值'), level = Math.floor(growth / step) + 1;
-      const adopted = student.adopted !== false;
-      return { ...shared, enabled: false, mode: 'legacy-linked', level, current: growth % step, needed: step,
-        maxed: false, shape: Math.min(7, level), growth, overflow: 0, adopted, pet: student.pet,
-        ...eggState(adopted, student.startFromEgg, growth) };
-    }
-    const cycle = account.cycles.find(v => v.id === account.activeCycleId);
-    const growth = cycle?.netGrowth || 0, adopted = !!cycle && cycle.status === 'active' && student.adopted !== false;
-    return { ...shared, ...progress(growth, state.settings.petRules.thresholds), enabled: true,
-      mode: account.mode, adopted, pet: cycle?.pet || student.pet,
-      ...eggState(adopted, cycle?.startFromEgg, growth) };
+    const cycle = account?.cycles.find(v => v.id === account.activeCycleId);
+    const adopted = student.adopted !== false && (!account || cycle?.status === 'active');
+    const current = ScoreProgression.progress(student.score, ScoreProgression.get(state));
+    return { ...shared, ...current, enabled: true, mode: 'score', scoreBased: true,
+      adopted, pet: cycle?.pet || student.pet, startFromEgg: true,
+      isEgg: !adopted || current.isEgg, historicalGrowth: cycle?.netGrowth ?? student.growth };
   }
   function batchPreview(state, options = {}) {
     if (!['growth', 'adopt', 'switch', 'graduate'].includes(options.operation)) throw new Error('批量宠物操作无效');
@@ -72,20 +60,16 @@
       const student = state.students.find(v => v.id === id);
       if (!student) return { id, name: '已移除学生', eligible: false, reason: '学生已移除' };
       const p = profile(state, student); let reason = '';
-      if (!p.enabled) reason = '请先启用六段成长规则';
+      if (options.operation === 'growth' || options.operation === 'graduate') reason = ScoreProgression.HISTORICAL_ACTION_MESSAGE;
       else if (options.operation === 'adopt' && p.adopted) reason = '已有正在成长的伙伴';
       else if (options.operation !== 'adopt' && !p.adopted) reason = '尚未领养伙伴';
-      else if (options.operation === 'graduate' && !p.maxed) reason = '尚未达到 LV.7';
       else if (options.operation === 'switch' && options.pet === p.pet) reason = '已经是该伙伴';
-      else if (options.operation === 'growth' && p.growth + options.delta < 0 && growthFloor(state) === 'reject') reason = '扣减后低于 0，当前规则拒绝';
-      else if (options.operation === 'growth' && p.growth + options.delta > MAX_VALUE) reason = '成长值将超过上限';
-      const afterGrowth = options.operation === 'growth' ? Math.max(0, p.growth + options.delta) : p.growth;
-      const afterAdopted = options.operation === 'adopt' ? true : options.operation === 'graduate' ? false : p.adopted;
-      const afterStartFromEgg = options.operation === 'adopt' && !p.activeCycleId ? true : p.startFromEgg;
+      const afterGrowth = p.growth;
+      const afterAdopted = options.operation === 'adopt' ? true : p.adopted;
       return { id, name: student.name, group: student.group, eligible: !reason, reason, pet: p.pet, cycleId: p.activeCycleId,
-        growth: p.growth, level: p.level, isEgg: p.isEgg, afterIsEgg: eggState(afterAdopted, afterStartFromEgg, afterGrowth).isEgg,
+        growth: p.growth, level: p.level, score: student.score, isEgg: p.isEgg, afterIsEgg: !afterAdopted || p.level === 0,
         afterGrowth, actualDelta: afterGrowth - p.growth,
-        afterLevel: p.enabled ? progress(afterGrowth, state.settings.petRules.thresholds).level : p.level };
+        afterLevel: p.level };
     });
     return { operation: options.operation, expectedRevision: state.revision, rows, eligibleIds: rows.filter(v => v.eligible).map(v => v.id), excluded: rows.filter(v => !v.eligible) };
   }
@@ -94,12 +78,12 @@
     const p = profile(state, student), account = state.petAccounts?.find(v => v.studentId === studentId);
     return { title: '成长荣誉卡', className: state.settings.className, studentId: student.id, studentName: student.name, groupName: student.group,
       pet: p.pet, shape: p.shape, adopted: p.adopted, isEgg: p.isEgg, startFromEgg: p.startFromEgg,
-      level: p.level, growth: p.growth, totalHonors: p.medalTotal, availableBadges: p.medalAvailable,
+      level: p.level, growth: p.growth, score: student.score, historicalGrowth: p.historicalGrowth, totalHonors: p.medalTotal, availableBadges: p.medalAvailable,
       netSpent: p.medalSpent, legacyMedals: p.legacyMedals, graduationCount: p.graduates.length,
       graduations: p.graduates.map(g => ({ id: g.id, pet: g.petSnapshot, graduatedAt: g.graduatedAt, growth: g.growthSnapshot,
         studentName: g.studentName, groupName: g.groupName, level: g.levelSnapshot, thresholds: [...g.ruleSnapshot.thresholds] })),
       transactions: (account?.badgeTransactions || []).map(t => ({ ...t })),
-      ruleNote: '花伴课堂规则：总荣誉永久保留，可用徽章＝总荣誉－本账本净兑换。旧奖章作为启用时荣誉基数，不虚构此前兑换或毕业记录。' };
+      ruleNote: '当前等级按学生当前积分和全局进阶规则计算，扣分或兑换可降级；历史成长、毕业快照与总荣誉保留，可用徽章＝总荣誉－本账本净兑换。' };
   }
   // Only the selected dimension determines ties. The reference has not established a compound sort.
   function studentRankings(state, options = {}) {

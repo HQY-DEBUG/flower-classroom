@@ -2,6 +2,7 @@
 
 const { randomUUID, randomInt } = require('node:crypto');
 const Progress = require('./pet-progress.js');
+const ScoreProgression = require('./pet-score-progression.js');
 const PETS = Object.keys(require('./pet-art.js').names);
 const MAX_VALUE = 1_000_000_000, MAX_RECORDS = 20_000, MAX_CHANGES = 100_000;
 const MAX_TIME = Number.MAX_SAFE_INTEGER - 180 * 60 * 1000;
@@ -55,6 +56,10 @@ function validateExtensions(raw, result) {
       legacyMedals: int(a.legacyMedals, 0, MAX_VALUE, '旧奖章数'), unassignedGrowth: int(a.unassignedGrowth, 0, MAX_VALUE, '未分配成长值'),
       lifetimeNetGrowth: int(a.lifetimeNetGrowth, 0, MAX_VALUE, '宠物生涯净成长') };
     if (!['legacy-linked', 'independent'].includes(account.mode)) fail('宠物成长模式无效');
+    if (has(a, 'badgeBalanceVerified')) {
+      if (typeof a.badgeBalanceVerified !== 'boolean') fail('徽章余额核定标记无效');
+      account.badgeBalanceVerified = a.badgeBalanceVerified;
+    }
     account.cycles = list(a.cycles, '宠物周期').map(value => {
       const c = record(value, '宠物周期'); if (++cycleCount > MAX_RECORDS) fail('宠物周期数量超过上限');
       if (!['active', 'dormant', 'graduated'].includes(c.status) || !['legacy-import', 'explicit-adoption'].includes(c.origin)) fail('宠物周期状态或来源无效');
@@ -293,12 +298,22 @@ function clearCurrentGrowth(s, now) {
   if (changes.length) s.petLogs.push({ id: `pg_${randomUUID()}`, timestamp: now, kind: 'reset', delta: 0, reason: '清零当前宠物成长', undone: false, changes });
 }
 function apply(s, a, now) {
-  if (a.type === 'pet.stage-rules') { enable(s, a.thresholds, now); return; }
+  if (['pet.stage-rules', 'pet.growth', 'pet.growth.mixed', 'pet.undo', 'pet.graduate', 'pet.growth-policy'].includes(a.type) || (a.type === 'pet.batch' && ['growth', 'graduate'].includes(a.operation))) fail(ScoreProgression.HISTORICAL_ACTION_MESSAGE);
   if (a.type === 'pet.visibility') {
     if (typeof a.hideLateForms !== 'boolean') fail('后期形态显示设置无效');
     s.settings.hideLateForms = a.hideLateForms; s.version = 2; return;
   }
-  ensureEnabled(s);
+  // Existing ledgers retain their original rules and historical provenance.
+  // A first adoption/draw/badge action initializes only that history container;
+  // the global current-score progression remains the sole display authority.
+  const hadLedger = exists(s);
+  if (!hadLedger && has(a, 'expectedCycleId') && a.expectedCycleId !== null) fail('宠物已在另一窗口更换或毕业，请重新打开');
+  if (!hadLedger) {
+    enable(s, Progress.DEFAULT_THRESHOLDS, now, true);
+    // Automatic bookkeeping must not turn an unverified historical honor
+    // count into a verified redeemable balance.
+    for (const account of s.petAccounts) account.badgeBalanceVerified = false;
+  }
   if (a.type === 'pet.growth-policy') {
     if (!['reject', 'clamp'].includes(a.growthFloor)) fail('成长下限规则无效');
     if (has(a, 'expectedRevision') && a.expectedRevision !== s.revision) fail('课堂数据已变化，请重新打开规则');
@@ -321,6 +336,7 @@ function apply(s, a, now) {
     const requestId = assertRequest(s, a), student = s.students.find(v => v.id === a.id);
     if (!student) fail('找不到这位学生');
     const account = accountFor(s, student.id), transactions = account.badgeTransactions || [], balance = Progress.badgeBalance(account);
+    if (account.badgeBalanceVerified === false) fail('当前档案没有可验证的兑换余额，暂不开放兑换；已有荣誉与记录完整保留');
     if (transactions.length >= MAX_RECORDS) fail('徽章兑换记录数量已达上限');
     let transaction;
     if (a.type === 'pet.badge.redeem') {
@@ -377,7 +393,7 @@ function apply(s, a, now) {
     log.undone = true; return;
   }
   const student = s.students.find(v => v.id === a.id); if (!student) fail('找不到这位学生');
-  if (has(a, 'expectedCycleId') && accountFor(s, student.id).activeCycleId !== (a.expectedCycleId === null ? null : id(a.expectedCycleId, '宠物周期编号'))) fail('宠物已在另一窗口更换或毕业，请重新打开');
+  if (hadLedger && has(a, 'expectedCycleId') && accountFor(s, student.id).activeCycleId !== (a.expectedCycleId === null ? null : id(a.expectedCycleId, '宠物周期编号'))) fail('宠物已在另一窗口更换或毕业，请重新打开');
   if (a.type === 'pet.adopt') { adopt(s, student, a.pet, now); resetDraw(s); return; }
   if (a.type === 'pet.graduate') {
     const account = accountFor(s, student.id), cycle = cycleFor(account, account.activeCycleId);

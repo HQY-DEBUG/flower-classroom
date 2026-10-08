@@ -24,3 +24,5 @@
 .pet-menu-rules p{font-size:12px;line-height:1.8;overflow-wrap:anywhere;color:#796286}
 .pet-more-button{min-height:44px;touch-action:manipulation}
 @media(max-width:480px){.pet-secondary-menu{grid-template-columns:1fr}.pet-secondary-menu .button{min-height:76px}.pet-menu-rules{padding:12px}}
+
+.pet-level-reference{margin:18px 0}.pet-level-reference summary{cursor:pointer;padding:12px 0;min-height:44px}.pet-level-reference .rule-import-table{min-width:0;table-layout:fixed}.pet-level-reference .rule-import-table th,.pet-level-reference .rule-import-table td{overflow-wrap:anywhere}.pet-level-reference .rule-import-table th:first-child{width:23%}

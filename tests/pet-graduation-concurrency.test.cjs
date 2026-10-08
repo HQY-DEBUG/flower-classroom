@@ -1,43 +1,40 @@
 'use strict';
+// RC19 user explicitly defers new graduation operations and keeps all earned history.
 const test=require('node:test'),assert=require('node:assert/strict');
-const Core=require('../src/core.cjs'),Progress=require('../src/pet-progress.js');
-const act=(s,a)=>Core.applyAction(s,a,3000000),clone=v=>JSON.parse(JSON.stringify(v));
-function ready(){let s=Core.createInitialState();s=act(s,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});return act(s,{type:'pet.growth',ids:[s.students[0].id],delta:30});}
-function confirmation(s){const student=s.students[0],p=Progress.profile(s,student);return {type:'pet.graduate',id:student.id,panelId:Core.panelId(s),expectedCycleId:p.activeCycleId,expectedGraduation:{pet:p.pet,growth:p.growth,thresholds:[...s.settings.petRules.thresholds],studentName:student.name,groupName:student.group}};}
-function unchangedReject(s,a,pattern=/毕业资料.*重新打开/){const before=clone(s);assert.throws(()=>act(s,a),pattern);assert.deepEqual(s,before);}
+const Core=require('../src/core.cjs'),Pet=require('../src/pet-progress.js'),Scores=require('../src/pet-score-progression.js');
+const act=(s,a)=>Core.applyAction(s,a,3000000),clone=v=>structuredClone(v);
+function ready(){const s=Core.validateState(require('./fixtures/pet-score-history-rc19.json'));for(const student of s.students)student.score=110;return Core.validateState(s);}
+function confirmation(s){const student=s.students.find(x=>Pet.profile(s,x).adopted),p=Pet.profile(s,student);return {type:'pet.graduate',id:student.id,panelId:Core.panelId(s),expectedCycleId:p.activeCycleId,expectedGraduation:{pet:p.pet,growth:p.growth,thresholds:s.settings.petRules?.thresholds,studentName:student.name,groupName:student.group}};}
+function unchangedReject(s,a){const before=clone(s);assert.throws(()=>act(s,a),/暂不设置|统一.*积分|停用/);assert.deepEqual(s,before);}
+function honors(s){return {accounts:clone(s.petAccounts),petLogs:clone(s.petLogs),studentHistorical:s.students.map(x=>({id:x.id,growth:x.growth,medals:x.medals}))};}
 
-test('graduation confirmation rejects same-cycle species, growth, rule, name and group changes atomically',()=>{
- for(const change of ['pet','growth','thresholds','name','group']){
-  const initial=ready(),request=confirmation(initial),id=initial.students[0].id;
-  const edit=change==='pet'?{type:'pet.switch',id,pet:'fox',panelId:Core.panelId(initial),expectedPet:initial.students[0].pet,expectedCycleId:request.expectedCycleId}:
-    change==='growth'?{type:'pet.growth',ids:[id],delta:7}:
-    change==='thresholds'?{type:'pet.stage-rules',thresholds:[1,1,1,1,1,1]}:{type:'student.update',id,[change]:'合成另窗修改'};
-  unchangedReject(act(initial,edit),request);
+test('deferred graduation rejects current and stale species, score, global-rule, name and group confirmations without mutation',()=>{
+ for(const change of ['pet','score','rules','name','group']){
+  const initial=ready(),request=confirmation(initial),id=request.id,student=initial.students.find(x=>x.id===id);
+  const edit=change==='pet'?{type:'pet.switch',id,pet:student.pet==='fox'?'owl':'fox',panelId:Core.panelId(initial),expectedPet:student.pet,expectedCycleId:request.expectedCycleId}:
+   change==='score'?{type:'score',ids:[id],delta:7}:
+   change==='rules'?{type:'petProgression.update',petProgression:{version:1,costs:[6,10,15,20,20,20,20],repeatCost:20},expectedProgressionKey:Scores.key(initial)}:{type:'student.update',id,[change]:'合成另窗修改'};
+  unchangedReject(initial,request);unchangedReject(act(initial,edit),request);
  }
 });
-
-test('graduation snapshot allows unrelated score and other-student growth without losing those changes',()=>{
- const initial=ready(),request=confirmation(initial),id=initial.students[0].id;
- let latest=act(initial,{type:'score',ids:[id],delta:-1});latest=act(latest,{type:'pet.growth',ids:[latest.students[1].id],delta:2});
- const result=act(latest,request),p=Progress.profile(result,id);
- assert.equal(result.students[0].score,-1);assert.equal(Progress.profile(result,result.students[1]).growth,2);
- assert.equal(p.graduates.length,1);assert.equal(p.graduates[0].petSnapshot,request.expectedGraduation.pet);
- assert.equal(p.graduates[0].growthSnapshot,30);assert.deepEqual(p.graduates[0].ruleSnapshot.thresholds,[5,5,5,5,5,5]);assert.equal(p.medalTotal,1);
- unchangedReject(result,request,/另一窗口/);
+test('deferred graduation never rewards two windows or repeated direct requests and keeps unrelated later scores',()=>{
+ const initial=ready(),request=confirmation(initial),beforeHonors=honors(initial);
+ let latest=act(initial,{type:'score',ids:[request.id],delta:-1});latest=act(latest,{type:'score',ids:[latest.students.at(-1).id],delta:2});
+ const scores=latest.students.map(x=>[x.id,x.score]);for(let i=0;i<4;i++)unchangedReject(latest,request);
+ assert.deepEqual(latest.students.map(x=>[x.id,x.score]),scores);assert.deepEqual(honors(latest),beforeHonors);
 });
-
-test('same-species readoption with identical growth still rejects old cycle confirmation',()=>{
- const initial=ready(),request=confirmation(initial),id=initial.students[0].id;
- let latest=act(initial,request);latest=act(latest,{type:'pet.adopt',id,pet:initial.students[0].pet});latest=act(latest,{type:'pet.growth',ids:[id],delta:30});
- unchangedReject(latest,request,/另一窗口/);
+test('deferred graduation rejects batch and pre-readoption requests while stored graduation and badge balances survive',()=>{
+ const initial=ready(),request=confirmation(initial),student=initial.students.find(x=>x.id===request.id),before=honors(initial);
+ let latest=act(initial,{type:'student.update',id:student.id,adopted:false});latest=act(latest,{type:'pet.adopt',id:student.id,pet:student.pet});
+ unchangedReject(latest,request);unchangedReject(latest,{type:'pet.batch',operation:'graduate',ids:[student.id],requestId:'deferred_batch',expectedRevision:latest.revision,panelId:Core.panelId(latest)});
+ assert.deepEqual(honors(latest),before);assert.equal(latest.students.find(x=>x.id===student.id).score,110);
 });
-
-test('malformed or incomplete optional graduation snapshot is rejected atomically',()=>{
+test('deferred graduation rejects malformed snapshots atomically rather than partially granting an honor',()=>{
  const s=ready(),request=confirmation(s);
- for(const invalid of [null,{},[],{...request.expectedGraduation,thresholds:[]},{...request.expectedGraduation,thresholds:new Array(6)},{...request.expectedGraduation,thresholds:[5,5,5,5,5,'5']},{...request.expectedGraduation,growth:'30'}])
-  unchangedReject(s,{...request,expectedGraduation:invalid},/快照|毕业资料/);
+ for(const invalid of [null,{},[],{...request.expectedGraduation,thresholds:[]},{...request.expectedGraduation,growth:'110'}])unchangedReject(s,{...request,expectedGraduation:invalid});
 });
-
-test('legacy core graduation callers without a snapshot remain compatible',()=>{
- const s=ready(),result=act(s,{type:'pet.graduate',id:s.students[0].id});assert.equal(Progress.profile(result,result.students[0]).graduates.length,1);
+test('deferred graduation rejects legacy callers without snapshot and preserves full nonempty history across JSON reload',()=>{
+ const s=ready(),before=honors(s);assert.ok(s.petAccounts.some(a=>a.graduations.length));
+ unchangedReject(s,{type:'pet.graduate',id:s.students[0].id});const loaded=Core.validateState(JSON.parse(JSON.stringify(s)));assert.deepEqual(honors(loaded),before);
+ for(const student of loaded.students)assert.equal(Pet.profile(loaded,student).level,7);
 });

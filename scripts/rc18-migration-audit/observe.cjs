@@ -1,9 +1,9 @@
 'use strict';
 // Read-only execution binding for current RC18 ordinary migration fixtures.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),Module=require('node:module'),cp=require('node:child_process');
-const repo=path.resolve(__dirname,'../..'),entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||''),source=path.join(repo,'src/main.cjs'),asar=path.join(repo,'dist-rc18-final/win-unpacked/resources/app.asar'),packaged=path.join(asar,'src/main.cjs'),out=process.env.FLOWER_MIGRATION_EVIDENCE;
+const repo=path.resolve(__dirname,'../..'),entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||''),source=path.join(repo,'src/main.cjs'),asar=path.resolve(process.env.FLOWER_QA_ASAR||path.join(repo,'dist-rc18-final/win-unpacked/resources/app.asar')),packaged=path.join(asar,'src/main.cjs'),out=process.env.FLOWER_MIGRATION_EVIDENCE;
 if(!out||![source,packaged].includes(entry))throw Error('RC18 migration audit requires an explicit current source/ASAR and evidence directory');
-const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex'),frozenFile=path.join(repo,'artifacts/rc18/frozen-source.json'),frozen=JSON.parse(fs.readFileSync(frozenFile)),frozenHash=sha(fs.readFileSync(frozenFile)),expectedFreeze='659159e9abad256c01900dfde6ea58c0754cb88396bbb8e18dc0bdd8798e6694',expectedAsar='a85789dd38dd2ddea662a1c5bb186d9e68ae537419c75200d73d116710c2026a';
+const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex'),frozenFile=path.resolve(process.env.FLOWER_QA_FREEZE_FILE||path.join(repo,'artifacts/rc18/frozen-source.json')),frozen=JSON.parse(fs.readFileSync(frozenFile)),frozenHash=sha(fs.readFileSync(frozenFile)),expectedFreeze=process.env.FLOWER_QA_FREEZE_SHA256||'659159e9abad256c01900dfde6ea58c0754cb88396bbb8e18dc0bdd8798e6694',expectedAsar=process.env.FLOWER_QA_ASAR_SHA256||'a85789dd38dd2ddea662a1c5bb186d9e68ae537419c75200d73d116710c2026a';
 if(frozenHash!==expectedFreeze)throw Error('Unexpected frozen RC18 manifest');
 const readDisk=process.versions.electron?require('original-fs'):fs,hashSource=()=>Object.fromEntries(Object.keys(frozen.files).map(name=>[name,sha(fs.readFileSync(path.join(repo,name)))])),hashAsar=()=>sha(readDisk.readFileSync(asar));
 const id=process.pid+'-'+crypto.randomUUID(),file=path.join(out,'process-'+id+'.json'),startedAt=new Date().toISOString(),sourceAtStart=hashSource(),asarAtStart=hashAsar(),src=path.dirname(entry),runtimeLoads=[],dependencies=[],violations=[],children=[],windows=[],preloads=new Map(),harnessAtStart={};let ended=false;
@@ -12,7 +12,7 @@ fs.mkdirSync(out,{recursive:true});
 function rememberHarness(filename){if(filename.startsWith(repo+path.sep)&&!filename.includes(path.sep+'node_modules'+path.sep)&&/\.(cjs|js|py|json)$/.test(filename)&&!filename.startsWith(path.join(repo,'src')+path.sep)&&!filename.includes(path.sep+'artifacts'+path.sep)&&!harnessAtStart[filename])harnessAtStart[filename]=sha(fs.readFileSync(filename));}
 rememberHarness(__filename);if(process.argv[1])rememberHarness(path.resolve(process.argv[1]));
 const resolve=Module._resolveFilename;Module._resolveFilename=function(request,parent,...rest){const resolved=resolve.call(this,request,parent,...rest);if(path.isAbsolute(resolved)){
- if(/\/flower-rc1[567][^/]*\/.*\/(?:src|scripts)\//.test(resolved)){violations.push({kind:'old-runtime',resolved});throw Error('Historical RC15/16/17 code execution is forbidden');}
+ if(/\/flower-rc1[567][^/]*\/FlowerClassroom-source\/(?:src|scripts)\//.test(resolved)){violations.push({kind:'old-runtime',resolved});throw Error('Historical RC15/16/17 code execution is forbidden');}
  rememberHarness(resolved);
  if(resolved.startsWith(src+path.sep)&&!runtimeLoads.includes(resolved))runtimeLoads.push(resolved);
  if(parent?.filename?.startsWith(src+path.sep)){dependencies.push({parent:parent.filename,request,resolved});if(entry===packaged&&!resolved.startsWith(asar+path.sep)){violations.push({kind:'dependency-escape',resolved});throw Error('PACKAGED_DEPENDENCY_ESCAPE '+resolved);}}

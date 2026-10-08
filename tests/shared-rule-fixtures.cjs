@@ -5,6 +5,7 @@ const Rules = require('../src/score-rules.js');
 function mirroredLegacyPanel(source) {
   const expected = JSON.parse(JSON.stringify(source));
   expected.version = 2;
+  delete expected.petProgression; // RC19 progression lives only on the root, never inside archived panels.
   expected.settings.scoreRules = Rules.list(source);
   return expected;
 }

@@ -3,13 +3,14 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const Core=require('../src/core.cjs'),Progress=require('../src/pet-progress.js');
 const run=(s,a)=>Core.applyAction(s,a,1_000_000),clone=s=>JSON.parse(JSON.stringify(s));
 const photo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRj8AAAAASUVORK5CYII=';
-const enabled=()=>run(Core.createInitialState(),{type:'pet.stage-rules',thresholds:[1,1,1,1,1,1]});
+const archived=name=>Core.validateState(require('./rc18-regression-fixtures.cjs').historical(name));
+const enabled=()=>archived('enabled');
 const context=(s,id=s.students[0].id)=>{const p=Progress.profile(s,id),v=s.students.find(v=>v.id===id);return {enabled:p.enabled,cycleId:p.activeCycleId,pet:v.pet,adopted:v.adopted!==false};};
 
 test('Student editor field patch preserves independently saved photo, group, pet, score and growth',()=>{
  const initial=enabled(),id=initial.students[0].id;
  let latest=run(initial,{type:'student.update',id,photo,group:'另窗小组',pet:'fox'});
- latest=run(latest,{type:'score',ids:[id],delta:5});latest=run(latest,{type:'pet.growth',ids:[id],delta:3});
+ latest=run(latest,{type:'score',ids:[id],delta:5});
  const saved=run(latest,{type:'student.update',id,name:'修改姓名',expectedStudent:{name:initial.students[0].name}});
  assert.deepEqual({...saved.students[0],name:latest.students[0].name},latest.students[0]);
  assert.deepEqual(saved.petAccounts,latest.petAccounts);assert.deepEqual(saved.logs,latest.logs);assert.deepEqual(saved.petLogs,latest.petLogs);
@@ -39,21 +40,21 @@ test('Student editor snapshot requires exactly the fields in its patch',()=>{
  assert.throws(()=>run(s,{type:'student.update',id,pet:'cat',expectedPetContext:{}}),/快照/);
 });
 
-test('Student editor pet context rejects graduation and same-species replacement cycles',()=>{
+test('Student editor pet context rejects restored historical graduation and replacement cycles',()=>{
  const initial=enabled(),id=initial.students[0].id,snapshot=context(initial),action={type:'student.update',id,pet:'cat',expectedStudent:{pet:initial.students[0].pet},expectedPetContext:snapshot};
- let latest=run(initial,{type:'pet.growth',ids:[id],delta:6});latest=run(latest,{type:'pet.graduate',id});
+ let latest=archived('graduated');
  assert.throws(()=>run(latest,action),/成长周期/);
- latest=run(latest,{type:'pet.adopt',id,pet:initial.students[0].pet});const before=clone(latest);
+ latest=archived('readopted');const before=clone(latest);
  assert.equal(latest.students[0].pet,initial.students[0].pet);assert.notEqual(context(latest).cycleId,snapshot.cycleId);
  assert.throws(()=>run(latest,action),/成长周期/);assert.deepEqual(latest,before);
  const nameSaved=run(latest,{type:'student.update',id,name:'周期变化后改姓名',expectedStudent:{name:initial.students[0].name}});
  assert.deepEqual(nameSaved.petAccounts,latest.petAccounts);
 });
 
-test('Student editor pet context permits unrelated growth and score but rejects mode changes',()=>{
+test('Student editor pet context permits unrelated scores but rejects a changed adoption cycle',()=>{
  const initial=Core.createInitialState(),id=initial.students[0].id,snapshot=context(initial),action={type:'student.update',id,pet:'cat',expectedStudent:{pet:initial.students[0].pet},expectedPetContext:snapshot};
  const scored=run(initial,{type:'score',ids:[id],delta:3});assert.equal(run(scored,action).students[0].score,3);
- const modern=run(scored,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});assert.throws(()=>run(modern,action),/成长周期/);
+ const modern=run(scored,{type:'pet.draw',count:1});assert.throws(()=>run(modern,action),/成长周期/);
 });
 
 test('Non-group, non-adoption edits and identical legacy fields preserve ordinary and pet draw pools',()=>{

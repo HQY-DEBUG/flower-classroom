@@ -15,7 +15,9 @@ const first = state => state.students[0];
 const rules = state => Rules.list(state);
 const save = (state, changed) => act(state, { type: 'rules.save', rules: changed, expectedRules: rules(state), panelId: Core.panelId(state) });
 const configured = (patch, state = Core.createInitialState()) => save(state, rules(state).map((rule, index) => index ? rule : { ...rule, ...patch }));
-const enable = state => act(state, { type: 'pet.stage-rules', thresholds: [5, 5, 5, 5, 5, 5] });
+// Archived fixtures were generated once with immutable RC18; this suite executes only RC19.
+const archived = name => Core.validateState(clone(require('./fixtures/rc18-custom-growth-snapshots.json')[name]));
+const enable = state => state;
 const account = (state, id = first(state).id) => state.petAccounts.find(item => item.studentId === id);
 const cycle = (state, id = first(state).id) => account(state, id).cycles.find(item => item.id === account(state, id).activeCycleId);
 function ruleAction(state, { type = 'score', custom = false, id = first(state).id, index = 0 } = {}) {
@@ -56,64 +58,33 @@ test('RC14 reason growth: signed growth has strict numeric bounds and browser/Co
   assert.equal(vm.runInContext('ScoreRules.validateRules([{id:"rule_test",label:"合成",delta:1,growthDelta:-2}])[0].growthDelta', context), -2);
 });
 
-test('RC14 reason growth: old v1 saves, old history and ordinary custom score calls remain unchanged', () => {
+test('RC14 reason growth: old v1 records and rule metadata survive root progression upgrade', () => {
   const old = Core.validateState(legacyState());
   assert.deepEqual(Core.validateState(clone(old)), old);
-  assert.equal(old.version, 1);
+  assert.equal(old.version, 2);
   assert.ok(old.logs.every(log => !Object.hasOwn(log, 'growthDelta')));
   assert.ok(rules(old).every(rule => !Object.hasOwn(rule, 'growthDelta')));
 });
 
-test('RC14 reason growth: ordinary custom score calls retain positive growth and zero deduction growth', () => {
-  let state = Core.createInitialState();
-  const id = first(state).id;
-  state = act(state, { type: 'score', ids: [id], delta: 6, reason: '合成临时加分' });
-  state = act(state, { type: 'score', ids: [id], delta: -3, reason: '合成临时扣分' });
-  assert.equal(state.version, 1);
-  assert.equal(first(state).score, 3);
-  assert.equal(first(state).growth, 6);
-  assert.ok(state.logs.every(log => !Object.hasOwn(log, 'growthDelta')));
+test('RC14 reason growth replacement: all new scores freeze legacy growth and record explicit zero effect', () => {
+ let state=Core.createInitialState();const id=first(state).id;state=act(state,{type:'score',ids:[id],delta:6});state=act(state,{type:'score',ids:[id],delta:-3});
+ assert.equal(first(state).score,3);assert.equal(first(state).growth,0);assert.ok(state.logs.every(l=>l.growthDelta===0));assert.deepEqual(Core.validateState(clone(state)),state);
 });
 
-test('RC14 reason growth: explicit positive/zero customization preserves score and snaps growth into history', () => {
-  for (const growthDelta of [0, 1, 7, 100]) {
-    const state = configured({ delta: 3, growthDelta });
-    const next = act(state, ruleAction(state, { custom: true }));
-    assert.equal(next.version, 2);
-    assert.equal(first(next).score, 3);
-    assert.equal(first(next).growth, growthDelta);
-    assert.equal(next.logs[0].growthDelta, growthDelta);
-    assert.equal(next.logs[0].changes[0].afterGrowth - next.logs[0].changes[0].beforeGrowth, growthDelta);
-    assert.deepEqual(Core.validateState(clone(next)), next);
-    assert.deepEqual(first(act(next, { type: 'undo', logId: next.logs[0].id })), first(state));
-  }
+test('RC14 reason growth replacement: saved rule growth metadata cannot change new score effects', () => {
+ for(const growthDelta of [-100,-1,0,1,7,100]){const state=configured({delta:3,growthDelta}),next=act(state,ruleAction(state));assert.equal(first(next).score,3);assert.equal(first(next).growth,0);assert.equal(next.logs[0].growthDelta,0);assert.equal(next.logs[0].changes[0].afterGrowth,0);assert.deepEqual(Core.validateState(clone(next)),next);assert.deepEqual(first(act(next,{type:'undo',logId:next.logs[0].id})),first(state));}
 });
 
-test('RC14 reason growth: deduction may explicitly award growth and zero-growth reward leaves its egg intact', () => {
-  let state = configured({ delta: -3, growthDelta: 4 });
-  state = act(state, ruleAction(state, { custom: true }));
-  assert.equal(first(state).score, -3);
-  assert.equal(first(state).growth, 4);
-  assert.equal(Progress.profile(state, first(state)).isEgg, false);
-  state = act(state, { type: 'undo', logId: state.logs[0].id });
-  assert.equal(Progress.profile(state, first(state)).isEgg, true);
-  state = configured({ delta: 4, growthDelta: 0 }, state);
-  state = act(state, ruleAction(state, { custom: true }));
-  assert.equal(first(state).score, 4);
-  assert.equal(Progress.profile(state, first(state)).isEgg, true);
+test('RC14 reason growth replacement: deductions and zero-growth metadata still follow score egg boundaries', () => {
+ let state=configured({delta:-3,growthDelta:4});state=act(state,ruleAction(state));assert.equal(first(state).score,-3);assert.equal(first(state).growth,0);assert.equal(Progress.profile(state,first(state)).isEgg,true);
+ state=act(state,{type:'undo',logId:state.logs[0].id});state=configured({delta:5,growthDelta:0},state);state=act(state,ruleAction(state));assert.equal(Progress.profile(state,first(state)).level,1);assert.equal(first(state).growth,0);
 });
 
-test('RC14 reason growth: detached customization and invalid legacy signed values cannot mutate state', () => {
-  const state = configured({ growthDelta: 4 });
-  const command = ruleAction(state, { custom: true });
-  for (const growthDelta of [-1, 0, 5, 101, '4', null, undefined]) {
-    rejectsWithoutChange(state, { ...command, growthDelta }, /成长值/);
-  }
-  const detached = { ...command }; delete detached.expectedRule;
-  rejectsWithoutChange(state, detached, /成长值/);
-  const negative = configured({ growthDelta: -2 });
-  rejectsWithoutChange(negative, ruleAction(negative, { custom: true }), /负成长仅支持独立宠物成长/);
-  rejectsWithoutChange(negative, ruleAction(negative), /负成长仅支持独立宠物成长/);
+test('RC14 reason growth replacement: nonzero or malformed direct growth overrides reject atomically', () => {
+ const state=configured({growthDelta:4}),command=ruleAction(state);
+ for(const growthDelta of [-1,1,4,5,101,'4',null,undefined])rejectsWithoutChange(state,{...command,growthDelta},/成长|积分|停用/);
+ const detached={...command,growthDelta:4};delete detached.expectedRule;rejectsWithoutChange(state,detached,/成长|积分|停用/);
+ assert.equal(act(state,{...command,growthDelta:0}).logs[0].growthDelta,0);
 });
 
 test('RC14 reason growth: saved values upgrade to v2 and cannot hide in downgraded rules/history', () => {
@@ -129,35 +100,15 @@ test('RC14 reason growth: saved values upgrade to v2 and cannot hide in downgrad
   assert.deepEqual(untouched.sharedScoreRules.rules, Rules.list());
 });
 
-test('RC14 reason growth: removing the new history field cannot weaken old log validation', () => {
-  const state = configured({ delta: 3, growthDelta: 7 });
-  const next = act(state, ruleAction(state, { custom: true }));
-  for (const mutate of [
-    log => delete log.growthDelta,
-    log => { log.growthDelta = 6; },
-    log => { log.growthDelta = -1; },
-    log => { log.growthDelta = '7'; },
-    log => { log.changes[0].afterGrowth = 3; }
-  ]) {
-    const broken = clone(next); mutate(broken.logs[0]);
-    assert.throws(() => Core.validateState(broken), /成长|前后数值/);
-  }
-  const legacy = Core.validateState(legacyState());
-  legacy.logs[0].changes[0].afterGrowth++;
-  assert.throws(() => Core.validateState(legacy), /前后数值/);
+test('RC14 reason growth: archived custom growth amounts remain strictly validated after loading', () => {
+ const next=archived('custom');assert.equal(next.logs[0].growthDelta,7);
+ for(const mutate of [l=>delete l.growthDelta,l=>l.growthDelta=6,l=>l.growthDelta=-1,l=>l.growthDelta='7',l=>l.changes[0].afterGrowth=3]){const broken=clone(next);mutate(broken.logs[0]);assert.throws(()=>Core.validateState(broken),/成长|前后数值/);}
+ const legacy=Core.validateState(legacyState());legacy.logs[0].changes[0].afterGrowth++;assert.throws(()=>Core.validateState(legacy),/前后数值/);
 });
 
-test('RC14 reason growth: new rules never recalculate saved historical values or undo amounts', () => {
-  let state = configured({ label: '合成旧原因', delta: 2, growthDelta: 5 });
-  state = act(state, ruleAction(state, { custom: true }));
-  const originalLog = clone(state.logs[0]);
-  state = configured({ label: '合成新原因', delta: 7, growthDelta: 1 }, state);
-  state = act(state, ruleAction(state, { custom: true }));
-  assert.deepEqual(state.logs[0], originalLog);
-  state = act(state, { type: 'undo', logId: originalLog.id });
-  assert.equal(first(state).score, 7);
-  assert.equal(first(state).growth, 1);
-  assert.equal(state.logs[0].reason, '合成旧原因');
+test('RC14 reason growth: new rules preserve historical custom amounts and historic undo reverses the original effect', () => {
+ let state=archived('custom');const originalLog=clone(state.logs[0]);state=configured({label:'合成新原因',delta:7,growthDelta:1},state);state=act(state,ruleAction(state));assert.deepEqual(state.logs[0],originalLog);
+ state=act(state,{type:'undo',logId:originalLog.id});assert.equal(first(state).score,7);assert.equal(first(state).growth,0);assert.equal(state.logs[0].reason,originalLog.reason);assert.equal(state.logs.at(-1).growthDelta,0);
 });
 
 test('RC14 reason growth: rule-save concurrency includes explicit growth and detects omitted-versus-zero changes', () => {
@@ -169,186 +120,64 @@ test('RC14 reason growth: rule-save concurrency includes explicit growth and det
   rejectsWithoutChange(newer, { type: 'rules.save', rules: current, expectedRules: current }, /另一窗口/);
 });
 
-test('RC14 reason growth: stale selected rule identity is rejected on both award paths', () => {
-  for (const type of ['score', 'pet.growth']) for (const patch of [{ label: '合成已改名' }, { delta: 2 }, { growthDelta: 3 }, { growthDelta: 0 }]) {
-    const original = enable(Core.createInitialState());
-    const command = ruleAction(original, { type });
-    const changed = configured(patch, original);
-    rejectsWithoutChange(changed, command, /另一窗口/);
-  }
-  const original = configured({ growthDelta: 0 }, enable(Core.createInitialState()));
-  const command = ruleAction(original);
-  const nextRules = rules(original); delete nextRules[0].growthDelta;
-  rejectsWithoutChange(save(original, nextRules), command, /另一窗口/);
-  const removed = save(original, rules(original).slice(1));
-  rejectsWithoutChange(removed, command, /另一窗口/);
+test('RC14 reason growth: stale selected rule identity rejects scores and retired growth paths', () => {
+ for(const patch of [{label:'合成已改名'},{delta:2},{growthDelta:3},{growthDelta:0}]){const original=Core.createInitialState(),command=ruleAction(original),changed=configured(patch,original);rejectsWithoutChange(changed,command,/另一窗口/);rejectsWithoutChange(changed,{...command,type:'pet.growth'},/另一窗口|停用/);}
+ const original=configured({growthDelta:0}),command=ruleAction(original),nextRules=rules(original);delete nextRules[0].growthDelta;rejectsWithoutChange(save(original,nextRules),command,/另一窗口/);rejectsWithoutChange(save(original,rules(original).slice(1)),command,/另一窗口/);
 });
 
-test('RC14 reason growth: award delta/reason must match its checked rule while free-form actions still work', () => {
-  for (const type of ['score', 'pet.growth']) {
-    const state = configured({ delta: 3, growthDelta: 2 }, enable(Core.createInitialState()));
-    const command = ruleAction(state, { type });
-    rejectsWithoutChange(state, { ...command, delta: 4 }, /所选规则/);
-    rejectsWithoutChange(state, { ...command, reason: '合成被替换原因' }, /所选规则/);
-    const custom = { ...command, delta: 4, reason: '合成临时原因' }; delete custom.expectedRule;
-    assert.doesNotThrow(() => act(state, custom));
-  }
+test('RC14 reason growth: score delta and reason must match the checked rule while free-form scoring works', () => {
+ const state=configured({delta:3,growthDelta:2}),command=ruleAction(state);rejectsWithoutChange(state,{...command,delta:4},/所选规则/);rejectsWithoutChange(state,{...command,reason:'合成被替换原因'},/所选规则/);const custom={...command,delta:4,reason:'合成临时原因'};delete custom.expectedRule;assert.equal(first(act(state,custom)).score,4);rejectsWithoutChange(state,ruleAction(state,{type:'pet.growth'}),/停用/);
 });
 
-test('RC14 reason growth: migration links explicit historical growth including negative scores and zero rewards', () => {
-  let state = configured({ delta: -2, growthDelta: 7 });
-  state = act(state, ruleAction(state, { custom: true }));
-  state = configured({ delta: 4, growthDelta: 0 }, state);
-  state = act(state, ruleAction(state, { custom: true }));
-  state = enable(state);
-  assert.equal(cycle(state).netGrowth, 7);
-  assert.equal(state.logs[0].changes[0].petEffect.delta, 7);
-  assert.equal(state.logs[1].changes[0].petEffect, null);
-  assert.deepEqual(Core.validateState(clone(state)), state);
-  state = act(state, { type: 'undo', logId: state.logs[0].id });
-  assert.equal(cycle(state).netGrowth, 0);
-  assert.equal(first(state).score, 4);
-  assert.equal(first(state).growth, 0);
+test('RC14 reason growth: archived negative-score growth attribution and zero rewards survive migration and undo', () => {
+ let state=archived('migrated');assert.equal(cycle(state).netGrowth,7);assert.equal(state.logs[0].changes[0].petEffect.delta,7);assert.equal(state.logs[1].changes[0].petEffect,null);assert.deepEqual(Core.validateState(clone(state)),state);
+ state=act(state,{type:'undo',logId:state.logs[0].id});assert.equal(cycle(state).netGrowth,0);assert.equal(first(state).score,4);assert.equal(first(state).growth,0);
 });
 
-test('RC14 reason growth: linked scores validate custom growth effect and reject missing/mismatched attribution', () => {
-  const state = configured({ delta: -3, growthDelta: 6 }, enable(Core.createInitialState()));
-  const next = act(state, ruleAction(state, { custom: true }));
-  assert.equal(cycle(next).netGrowth, 6);
-  assert.equal(next.logs[0].changes[0].petEffect.delta, 6);
-  for (const petEffect of [null, { ...next.logs[0].changes[0].petEffect, delta: 3 }]) {
-    const broken = clone(next); broken.logs[0].changes[0].petEffect = petEffect;
-    assert.throws(() => Core.validateState(broken), /归属/);
-  }
-  const zero = configured({ delta: 5, growthDelta: 0 }, next);
-  const unchanged = act(zero, ruleAction(zero, { custom: true }));
-  assert.equal(cycle(unchanged).netGrowth, 6);
-  assert.equal(unchanged.logs.at(-1).changes[0].petEffect, null);
+test('RC14 reason growth: archived linked scores reject missing or mismatched cycle attribution', () => {
+ const next=archived('linked');assert.equal(cycle(next).netGrowth,6);assert.equal(next.logs[0].changes[0].petEffect.delta,6);
+ for(const petEffect of [null,{...next.logs[0].changes[0].petEffect,delta:3}]){const broken=clone(next);broken.logs[0].changes[0].petEffect=petEffect;assert.throws(()=>Core.validateState(broken),/归属/);}
+ const state=configured({delta:5,growthDelta:0},next),scored=act(state,ruleAction(state));assert.deepEqual(scored.petAccounts,state.petAccounts);assert.equal(scored.logs.at(-1).growthDelta,0);
 });
 
-test('RC14 reason growth: a custom score batch rejects overflow without any partial score, growth or history', () => {
-  const state = configured({ growthDelta: 100 });
-  state.students[1].growth = 1_000_000_000;
-  const command = { ...ruleAction(state, { custom: true }), ids: state.students.slice(0, 2).map(student => student.id) };
-  rejectsWithoutChange(state, command, /成长值/);
-  assert.equal(first(state).score, 0);
-  assert.equal(first(state).growth, 0);
-  assert.equal(state.logs.length, 0);
+test('RC14 reason growth replacement: score batch overflow rejects without partial score or history changes', () => {
+ const state=configured({delta:3,growthDelta:100});state.students[1].score=1_000_000_000;state.students[1].growth=1_000_000_000;
+ rejectsWithoutChange(state,{...ruleAction(state),ids:state.students.slice(0,2).map(s=>s.id)},/积分/);assert.equal(first(state).score,0);assert.equal(first(state).growth,0);assert.equal(state.logs.length,0);
 });
 
-test('RC14 reason growth: old-cycle custom score undo preserves a new adoption and graduation snapshot', () => {
-  let state = configured({ delta: 2, growthDelta: 30 }, enable(Core.createInitialState()));
-  state = act(state, ruleAction(state, { custom: true }));
-  const logId = state.logs[0].id, oldCycle = cycle(state).id;
-  state = act(state, { type: 'pet.graduate', id: first(state).id });
-  const graduation = clone(account(state).graduations[0]);
-  state = act(state, { type: 'pet.adopt', id: first(state).id, pet: 'cat' });
-  state = act(state, { type: 'pet.growth', ids: [first(state).id], delta: 5 });
-  state = act(state, { type: 'undo', logId });
-  assert.equal(cycle(state).netGrowth, 5);
-  assert.equal(account(state).cycles.find(item => item.id === oldCycle).netGrowth, 0);
-  assert.equal(first(state).growth, 0);
-  assert.deepEqual(account(state).graduations[0], graduation);
-  assert.equal(Progress.profile(state, first(state)).medalTotal, 1);
+test('RC14 reason growth: archived old-cycle custom score undo preserves the later adoption and graduation', () => {
+ let state=archived('oldCycle');const before=clone(account(state).graduations[0]),active=cycle(state).id,old=state.logs[0].changes[0].petEffect.cycleId;state=act(state,{type:'undo',logId:state.logs[0].id});assert.equal(cycle(state).id,active);assert.equal(cycle(state).netGrowth,5);assert.equal(account(state).cycles.find(c=>c.id===old).netGrowth,0);assert.equal(first(state).growth,0);assert.deepEqual(account(state).graduations[0],before);assert.equal(Progress.profile(state,first(state)).medalTotal,1);
 });
 
-test('RC14 reason growth: custom growth after graduation stays unassigned and undo never touches the next pet', () => {
-  let state = configured({ delta: -1, growthDelta: 5 }, enable(Core.createInitialState()));
-  state = act(state, { type: 'pet.growth', ids: [first(state).id], delta: 30 });
-  state = act(state, { type: 'pet.graduate', id: first(state).id });
-  state = act(state, ruleAction(state, { custom: true }));
-  const log = state.logs[0];
-  assert.equal(log.changes[0].petEffect.cycleId, null);
-  assert.equal(account(state).unassignedGrowth, 5);
-  state = act(state, { type: 'pet.adopt', id: first(state).id, pet: 'cat' });
-  assert.equal(cycle(state).netGrowth, 0);
-  state = act(state, { type: 'undo', logId: log.id });
-  assert.equal(account(state).unassignedGrowth, 0);
-  assert.equal(cycle(state).netGrowth, 0);
-  assert.equal(first(state).growth, 0);
+test('RC14 reason growth: archived unassigned growth undo cannot touch a later pet cycle', () => {
+ let state=archived('unassigned');const log=state.logs[0],active=cycle(state).id;assert.equal(log.changes[0].petEffect.cycleId,null);assert.equal(account(state).unassignedGrowth,5);state=act(state,{type:'undo',logId:log.id});assert.equal(account(state).unassignedGrowth,0);assert.equal(cycle(state).id,active);assert.equal(cycle(state).netGrowth,0);assert.equal(first(state).growth,0);
 });
 
-test('RC14 reason growth: staged rule rewards change only pet growth and support signed changes', () => {
-  let state = configured({ delta: 9, growthDelta: 4 }, enable(Core.createInitialState()));
-  const students = clone(state.students);
-  state = act(state, ruleAction(state, { type: 'pet.growth' }));
-  const firstLog = state.petLogs[0].id;
-  assert.equal(cycle(state).netGrowth, 4);
-  assert.deepEqual(state.students, students);
-  assert.equal(state.logs.length, 0);
-  state = configured({ delta: 7, growthDelta: -3 }, state);
-  state = act(state, ruleAction(state, { type: 'pet.growth' }));
-  assert.equal(cycle(state).netGrowth, 1);
-  rejectsWithoutChange(state, ruleAction(state, { type: 'pet.growth' }), /低于 0/);
-  state = act(state, { type: 'pet.undo', logId: state.petLogs.at(-1).id });
-  state = act(state, { type: 'pet.undo', logId: firstLog });
-  assert.equal(cycle(state).netGrowth, 0);
-  assert.equal(Progress.profile(state, first(state)).isEgg, true);
-  assert.deepEqual(state.students, students);
+test('RC14 reason growth replacement: signed staged histories survive but new growth and growth undo reject', () => {
+ const state=archived('staged');assert.equal(cycle(state).netGrowth,1);assert.deepEqual(state.petLogs.map(l=>l.delta),[4,-3]);assert.deepEqual(Core.validateState(clone(state)),state);
+ for(const delta of [-3,4])rejectsWithoutChange(state,{type:'pet.growth',ids:[first(state).id],delta},/停用/);
+ for(const log of state.petLogs)rejectsWithoutChange(state,{type:'pet.undo',logId:log.id},/停用/);
 });
 
-test('RC14 reason growth: staged negative custom rule preserves explicit clamp snapshots and exact undo', () => {
-  let state = configured({ delta: -1, growthDelta: -5 }, enable(Core.createInitialState()));
-  state = act(state, { type: 'pet.growth-policy', growthFloor: 'clamp', expectedRevision: state.revision });
-  state = act(state, { type: 'pet.growth', ids: [first(state).id], delta: 2 });
-  state = act(state, ruleAction(state, { type: 'pet.growth' }));
-  const log = state.petLogs.at(-1);
-  assert.equal(log.delta, -5);
-  assert.equal(log.changes[0].actualDelta, -2);
-  assert.equal(log.floorPolicy, 'clamp');
-  assert.equal(cycle(state).netGrowth, 0);
-  state = Core.validateState(clone(state));
-  state = act(state, { type: 'pet.undo', logId: log.id });
-  assert.equal(cycle(state).netGrowth, 2);
+test('RC14 reason growth replacement: archived clamp snapshots stay exact and cannot be modified', () => {
+ const state=archived('clamp'),log=state.petLogs.at(-1);assert.equal(log.delta,-5);assert.equal(log.changes[0].actualDelta,-2);assert.equal(log.floorPolicy,'clamp');assert.equal(cycle(state).netGrowth,0);assert.deepEqual(Core.validateState(clone(state)),state);
+ rejectsWithoutChange(state,{type:'pet.undo',logId:log.id},/停用/);for(const mutate of [l=>l.changes[0].actualDelta=-5,l=>l.changes[0].afterGrowth=1]){const bad=clone(state);mutate(bad.petLogs.at(-1));assert.throws(()=>Core.validateState(bad));}
 });
 
-test('RC14 reason growth: ordinary rule points ignore customized growth on independent pets', () => {
-  let state = enable(Core.createInitialState());
-  state = act(state, { type: 'student.add', name: '纯合成独立学生' });
-  const id = state.students.at(-1).id;
-  state = configured({ delta: 2, growthDelta: -5 }, state);
-  state = act(state, ruleAction(state, { id }));
-  assert.equal(cycle(state, id).netGrowth, 0);
-  assert.equal(state.students.at(-1).score, 2);
-  assert.equal(state.students.at(-1).growth, 2);
-  assert.equal(state.logs.at(-1).changes[0].petEffect, null);
-  assert.equal(Object.hasOwn(state.logs.at(-1), 'growthDelta'), false);
+test('RC14 reason growth replacement: new students ignore old growth metadata in all historical panel modes', () => {
+ let state=archived('linked');state=act(state,{type:'student.add',name:'纯合成独立学生'});const id=state.students.at(-1).id;state=configured({delta:2,growthDelta:-5},state);state=act(state,ruleAction(state,{id}));assert.equal(cycle(state,id).netGrowth,0);assert.equal(state.students.at(-1).score,2);assert.equal(state.students.at(-1).growth,0);assert.equal(state.logs.at(-1).growthDelta,0);
 });
 
-test('RC14 reason growth: zero staged rule is non-award and stale cycle/panel rejects before mutation', () => {
-  const zero = configured({ growthDelta: 0 }, enable(Core.createInitialState()));
-  rejectsWithoutChange(zero, ruleAction(zero, { type: 'pet.growth' }), /不能为零/);
-  const state = configured({ growthDelta: 4 }, zero);
-  rejectsWithoutChange(state, { ...ruleAction(state, { type: 'pet.growth' }), expectedCycles: [{ id: first(state).id, cycleId: 'pc_old_synthetic' }] }, /另一窗口/);
-  rejectsWithoutChange(state, { ...ruleAction(state), panelId: 'panel_old_synthetic' }, /面板已切换/);
+test('RC14 reason growth replacement: retired zero growth and stale score cycle or panel reject atomically', () => {
+ const state=archived('linked');rejectsWithoutChange(state,{type:'pet.growth',ids:[first(state).id],delta:0},/停用/);
+ rejectsWithoutChange(state,{...ruleAction(state),expectedCycles:[{id:first(state).id,cycleId:'pc_old_synthetic'}]},/另一窗口/);rejectsWithoutChange(state,{...ruleAction(state),panelId:'panel_old_synthetic'},/面板已切换/);
 });
 
-test('RC18 reason growth: full panel copy and backup share custom rules while preserving independent historical amounts', () => {
-  let state = configured({ label: '合成第一面板原因', growthDelta: 6 }, enable(Core.createInitialState()));
-  state = act(state, ruleAction(state, { custom: true }));
-  const oldId = Core.panelId(state), oldRules = clone(rules(state)), oldLog = clone(state.logs[0]);
-  state = act(state, { type: 'panel.create', mode: 'full', name: '合成完整副本' });
-  assert.equal(rules(state)[0].growthDelta, 6);
-  assert.equal(rules(state)[0].id, oldRules[0].id);
-  assert.equal(state.logs[0].growthDelta, 6);
-  state = configured({ growthDelta: 2 }, state);
-  state = Core.validateState(clone(state));
-  state = act(state, { type: 'panel.switch', id: oldId });
-  assert.deepEqual(rules(state), oldRules.map((rule, index) => index ? rule : {...rule, growthDelta: 2}));
-  assert.deepEqual(state.logs[0], oldLog);
-  assert.equal(state.logs[0].growthDelta, 6);
+test('RC18 reason growth: full copies share rule metadata while preserving independent historic amounts', () => {
+ let state=archived('full');const oldId=Core.panelId(state),oldRules=clone(rules(state)),oldLog=clone(state.logs[0]);state=act(state,{type:'panel.create',mode:'full',name:'合成完整副本'});assert.equal(rules(state)[0].growthDelta,6);assert.equal(rules(state)[0].id,oldRules[0].id);assert.equal(state.logs[0].growthDelta,6);state=configured({growthDelta:2},state);state=Core.validateState(clone(state));state=act(state,{type:'panel.switch',id:oldId});assert.deepEqual(rules(state),oldRules.map((r,i)=>i?r:{...r,growthDelta:2}));assert.deepEqual(state.logs[0],oldLog);assert.equal(state.logs[0].growthDelta,6);
 });
 
-test('RC14 reason growth: response-loss receipt replays once after rule edits and fingerprints growth snapshots', () => {
-  let state = configured({ growthDelta: 3 });
-  const receipts = createActionReceipts({ getState: () => state }), owner = {};
-  const command = { ...ruleAction(state, { custom: true }), _transportId: 'synthetic_rc14_reason_receipt' };
-  const run = action => (state = act(state, action));
-  assert.throws(() => receipts.execute(owner, command, action => { run(action); throw Error('synthetic response lost'); }), /response lost/);
-  assert.equal(receipts.inspect(owner, command._transportId).committed, true);
-  state = configured({ growthDelta: 9 }, state);
-  receipts.execute(owner, command, run);
-  assert.equal(first(state).growth, 3);
-  assert.equal(state.logs.length, 1);
-  assert.throws(() => receipts.execute(owner, { ...command, growthDelta: 9 }, run), /回执与内容不一致/);
+test('RC14 reason growth replacement: response-loss score receipt replays once and rejects altered growth payload', () => {
+ let state=configured({growthDelta:3});const receipts=createActionReceipts({getState:()=>state}),owner={},command={...ruleAction(state),_transportId:'synthetic_rc14_reason_receipt'},run=a=>(state=act(state,a));
+ assert.throws(()=>receipts.execute(owner,command,a=>{run(a);throw Error('synthetic response lost');}),/response lost/);assert.equal(receipts.inspect(owner,command._transportId).committed,true);state=configured({growthDelta:9},state);receipts.execute(owner,command,run);assert.equal(first(state).score,1);assert.equal(first(state).growth,0);assert.equal(state.logs.length,1);assert.equal(state.logs[0].growthDelta,0);assert.throws(()=>receipts.execute(owner,{...command,growthDelta:9},run),/回执与内容不一致/);
 });

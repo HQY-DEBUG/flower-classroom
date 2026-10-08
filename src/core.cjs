@@ -3,6 +3,7 @@
 const { randomUUID, randomInt } = require('node:crypto');
 const PetLedger = require('./pet-ledger.cjs');
 const PetProgress = require('./pet-progress.js');
+const PetScoreProgression = require('./pet-score-progression.js');
 const ScoreRules = require('./score-rules.js');
 const ClassroomWheels = require('./classroom-wheels.js');
 const ClassroomTools = require('./classroom-tools.js');
@@ -67,6 +68,7 @@ function student(input) {
   const result = { id: identifier(s.id, '学生编号'), name: text(s.name, 40, '姓名'), group: text(s.group, 40, '小组'),
     score: integer(s.score, -MAX_VALUE, MAX_VALUE, '积分'), growth: integer(s.growth, 0, MAX_VALUE, '成长值'), pet: s.pet, photo: photo(s.photo) };
   if (s.leader !== undefined) { if (typeof s.leader !== 'boolean') fail('组长标记无效'); result.leader = s.leader; }
+  if (s.gender !== undefined) { if (!['', '男', '女'].includes(s.gender)) fail('性别仅支持男、女或留空'); result.gender = s.gender; }
   if (s.adopted !== undefined) { if (typeof s.adopted !== 'boolean') fail('领养状态无效'); result.adopted = s.adopted; }
   // Optional on old saves: absence preserves their existing zero-growth form.
   if (Object.hasOwn(s, 'startFromEgg')) { if (typeof s.startFromEgg !== 'boolean') fail('宠物蛋起始标记无效'); result.startFromEgg = s.startFromEgg; }
@@ -86,6 +88,7 @@ function validateState(input, nestedPanel = false, sharedRules = undefined) {
   const s = record(input, '备份');
   if (nestedPanel && s.sharedScoreRules !== undefined) fail('共享计分卡片只能保存在完整存档根部');
   if (nestedPanel && s.appConfig !== undefined) fail('启动显示设置只能保存在完整存档根部');
+  if (nestedPanel && s.petProgression !== undefined) fail('全局宠物进阶只能保存在完整存档根部');
   const shared = !nestedPanel && s.sharedScoreRules !== undefined ? ScoreRules.validateShared(s.sharedScoreRules) : undefined;
   const canonicalRules = shared?.rules || sharedRules;
   if (canonicalRules && s.version !== 2) fail('共享计分卡片须使用新版存档格式');
@@ -172,6 +175,7 @@ function validateState(input, nestedPanel = false, sharedRules = undefined) {
     if (!timer.remainingMs) fail('运行中的计时器需有剩余时间');
   } else if (timer.endsAt !== null) fail('暂停的计时器不能包含结束时间');
   const result = { version: s.version, revision, settings, students, logs, draw, timer };
+  if (!nestedPanel) { result.petProgression = PetScoreProgression.get(s); result.version = 2; }
   if (!nestedPanel && s.appConfig !== undefined) result.appConfig = Configuration.appConfig(s.appConfig);
   PetLedger.validateExtensions(s, result);
   ClassroomTools.validateExtensions(s, result);
@@ -233,7 +237,7 @@ function makeStudent(name, group, pet = 'owl', image = '') {
 }
 function createInitialState() {
   const groups = ['向日葵组', '四叶草组', '郁金香组', '彩虹组'];
-  return { version: 1, revision: 0, settings: { className: '阳光示例班', petStep: 20, petFocusId: '' },
+  return { version: 2, revision: 0, petProgression: PetScoreProgression.get(), settings: { className: '阳光示例班', petStep: 20, petFocusId: '' },
     students: Array.from({ length: 12 }, (_, i) => makeStudent(`示例同学${String(i + 1).padStart(2, '0')}`, groups[Math.floor(i / 3)], PETS[i % PETS.length])),
     logs: [], draw: { mode: 'cycle', bag: [], lastIds: [], round: 0 },
     timer: { durationMs: 5 * 60 * 1000, remainingMs: 5 * 60 * 1000, endsAt: null, running: false } };
@@ -242,10 +246,9 @@ function remainingMs(timer, now = Date.now()) {
   record(timer, '计时状态'); timestamp(now);
   return timer.running ? Math.max(0, Math.min(timer.durationMs, timer.endsAt - now)) : timer.remainingMs;
 }
-function petLevel(s, step = 20) {
-  const value = integer(record(s, '学生').growth, 0, MAX_VALUE, '成长值');
-  integer(step, 1, 100, '每级成长值');
-  return { level: Math.floor(value / step) + 1, current: value % step, needed: step };
+function petLevel(s, progression = PetScoreProgression.DEFAULT_PROGRESSION) {
+  const p = PetScoreProgression.progress(record(s, '学生').score, progression);
+  return { level: p.level, current: p.current, needed: p.needed };
 }
 function shuffled(ids) {
   const result = [...ids];
@@ -262,12 +265,14 @@ function finish(s) {
   s.revision += 1; return validateState(s);
 }
 function panelId(s) { return s.panels?.activeId || 'panel_default'; }
-function withoutPanels(s) { const result = { ...s }; delete result.panels; delete result.sharedScoreRules; delete result.appConfig; return result; }
+function withoutPanels(s) { const result = { ...s }; delete result.panels; delete result.sharedScoreRules; delete result.appConfig; delete result.petProgression; return result; }
 function panelList(s) { return [{ id: panelId(s), name: s.settings.className, count: s.students.length }, ...(s.panels?.others || []).map(p => ({ id: p.id, name: p.data.settings.className, count: p.data.students.length }))]; }
-function writeScore(s, ids, delta, reason, now, customGrowth) {
+function writeScore(s, ids, delta, reason, now) {
   integer(delta, -100, 100, '分值');
   if (delta === 0) fail('分值不能为零');
-  const growthDelta = customGrowth === undefined ? Math.max(0, delta) : integer(customGrowth, 0, 100, '成长值');
+  // RC19 points own current progression. Historical growth ledgers are frozen
+  // for new score actions, including old cards with growthDelta metadata.
+  const growthDelta = 0;
   const selected = new Set(idList(ids, '积分名单', new Set(s.students.map(item => item.id)), { empty: false }));
   const changes = [];
   for (const item of s.students) if (selected.has(item.id)) {
@@ -279,7 +284,7 @@ function writeScore(s, ids, delta, reason, now, customGrowth) {
     changes.push(change);
   }
   s.logs.push({ id: `l_${randomUUID()}`, timestamp: now, delta, reason: text(reason ?? '课堂表现', 120, '积分原因', true), undone: false, changes,
-    ...(customGrowth === undefined ? {} : { growthDelta }) });
+    growthDelta });
 }
 
 function selectedRule(s, a) {
@@ -292,11 +297,27 @@ function selectedRule(s, a) {
   return current;
 }
 
+function assertPetScoreTargets(s, a, ids) {
+  if(a.expectedPetDraw!==undefined)idList(ids,'宠物抽取积分名单',new Set(s.petDraw?.lastIds||[]),{empty:false});
+  if (a.expectedCycles === undefined) return;
+  const targets=idList(ids,'宠物积分名单',new Set(s.students.map(v=>v.id)),{empty:false});
+  if(!Array.isArray(a.expectedCycles)||a.expectedCycles.length!==targets.length)fail('宠物积分目标快照不完整，请重新选择');
+  const seen=new Set();
+  for(const raw of a.expectedCycles){
+    const expected=record(raw,'宠物积分目标快照'),studentId=identifier(expected.id,'学生编号');
+    if(seen.has(studentId)||!targets.includes(studentId))fail('宠物积分目标快照重复或包含无效学生');
+    seen.add(studentId);
+    const cycleId=expected.cycleId===null?null:identifier(expected.cycleId,'宠物周期编号');
+    const current=PetProgress.profile(s,studentId);
+    if(!current.adopted||current.activeCycleId!==cycleId)fail('宠物已在另一窗口更换或暂停领养，请重新选择积分目标');
+  }
+}
 function applyAction(state, action, now = Date.now()) {
   const s = validateState(state);
   const a = record(action, '操作');
   timestamp(now);
   if (a.panelId !== undefined && a.panelId !== panelId(s)) fail('当前面板已切换，请重新选择学生');
+  if (a.expectedProgressionKey !== undefined && a.expectedProgressionKey !== PetScoreProgression.key(s)) fail('全局宠物进阶已在另一窗口修改，请重新打开并核对');
   for (const field of ['expectedKey', 'expectedRulesKey']) if (a[field] !== undefined && a[field] !== ScoreRules.key(s)) fail('共享规则或面板已在另一窗口修改，请重新打开并核对');
   if (a.sharedRevision !== undefined && a.sharedRevision !== s.sharedScoreRules?.revision) fail('共享规则已在另一窗口修改，请重新打开');
   if(a.expectedDraw!==undefined&&a.expectedDraw!==OrganizationTools.drawKey(s))fail('点名结果已变化，请重新确认奖励');
@@ -317,12 +338,13 @@ function applyAction(state, action, now = Date.now()) {
       next.settings.className = text(a.name, 80, '面板名称');
       if(a.mode!=='full'){
        next.settings.petStep = a.mode === 'copy' ? s.settings.petStep : 5;
-       next.students = a.mode === 'copy' ? s.students.map((v, i) => makeStudent(v.name, v.group, PETS[i % PETS.length])) : [];
+       next.students = a.mode === 'copy' ? s.students.map((v, i) => ({...makeStudent(v.name, v.group, PETS[i % PETS.length]), ...(v.gender !== undefined ? {gender: v.gender} : {})})) : [];
        PetLedger.enable(next, a.mode === 'copy' && s.settings.petRules ? s.settings.petRules.thresholds : [5, 5, 5, 5, 5, 5], now, false);
       }
       next.revision = s.revision;
       next.panels = { activeId: `p_${randomUUID()}`, others: [...others, { id: panelId(s), data: withoutPanels(s) }] };
       next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next);
+      next.petProgression = s.petProgression;
       if (s.appConfig !== undefined) next.appConfig = s.appConfig;
       return finish(next);
     }
@@ -331,6 +353,7 @@ function applyAction(state, action, now = Date.now()) {
       if (!target) fail('找不到要切换的面板');
       const next = { ...target.data, revision: s.revision, panels: { activeId: target.id, others: [...s.panels.others.filter(p => p.id !== a.id), { id: panelId(s), data: withoutPanels(s) }] } };
       if (s.sharedScoreRules) { next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next); }
+      next.petProgression = s.petProgression;
       if (s.appConfig !== undefined) next.appConfig = s.appConfig;
       return finish(next);
     }
@@ -339,6 +362,7 @@ function applyAction(state, action, now = Date.now()) {
       if (!target) fail('至少需要保留一个面板');
       const next = { ...target.data, revision: s.revision, panels: { activeId: target.id, others: s.panels.others.slice(1) } };
       if (s.sharedScoreRules) { next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next); }
+      next.petProgression = s.petProgression;
       if (s.appConfig !== undefined) next.appConfig = s.appConfig;
       return finish(next);
     }
@@ -353,7 +377,7 @@ function applyAction(state, action, now = Date.now()) {
       if(a.options!==undefined&&(a.expectedRevision!==s.revision||a.confirmed!==true))fail('数据已更新或尚未确认，请重新查看清零范围');
       if(options.scores)s.students.forEach(item=>{item.score=0;});
       if(options.groupScores&&s.groupBases)s.groupBases.forEach(item=>{item.score=0;});
-      if(options.petGrowth){if(!s.settings.petRules)PetLedger.enable(s,Array(6).fill(s.settings.petStep),now,true);PetLedger.clearCurrentGrowth(s,now);}
+      if(options.petGrowth)fail(PetScoreProgression.HISTORICAL_ACTION_MESSAGE);
       if(options.history){s.logs=[];if(s.groupLogs)s.groupLogs=[];}if(options.petHistory&&s.petLogs)s.petLogs=[];
       break;
     }
@@ -406,6 +430,13 @@ function applyAction(state, action, now = Date.now()) {
       const target=s.groupBases?.find(v=>v.group===log.group);if(!target)fail('找不到小组基础分');
       target.score-=log.delta;log.undone=true;break;
     }
+    case 'students.group.create': {
+      if(typeof a.panelId!=='string'||a.panelId!==panelId(s))fail('请在当前面板重新打开分配窗口');
+      const patch=GroupTools.createAndAssignPatch(s,a.ids,a.expectedAssignments,a.group),ids=new Set(a.ids);
+      s.groupBases=patch.groupBases;if(patch.groupOrder!==undefined)s.settings.groupOrder=patch.groupOrder;
+      s.students.forEach(item=>{if(ids.has(item.id))item.group=patch.group;});
+      s.version=2;OrganizationTools.resetDraw(s,true,true);PetLedger.resetDraw(s);break;
+    }
     case 'students.group': {
       const ids = new Set(idList(a.ids, '分组名单', new Set(s.students.map(item => item.id)), { empty: false }));
       const group = a.expectedAssignments!==undefined||a.requireExistingGroup===true?GroupTools.assertAssignments(s,[...ids],a.expectedAssignments,a.group):text(a.group, 40, '小组');
@@ -419,6 +450,7 @@ function applyAction(state, action, now = Date.now()) {
       s.students.push(makeStudent(a.name, a.group == null || a.group === '' ? '未分组' : a.group, a.pet ?? 'owl', a.photo ?? ''));
       if (a.leader !== undefined) s.students[s.students.length - 1] = student({...s.students[s.students.length - 1],leader:a.leader});
       if (a.adopted !== undefined) s.students[s.students.length - 1] = student({...s.students[s.students.length - 1],adopted:a.adopted});
+      if (a.gender !== undefined) s.students[s.students.length - 1] = student({...s.students[s.students.length - 1],gender:a.gender});
       PetLedger.addStudent(s, s.students[s.students.length - 1], now);
       resetDraw(s);
       break;
@@ -427,10 +459,10 @@ function applyAction(state, action, now = Date.now()) {
       if (index < 0) fail('找不到这位学生');
       const previous = s.students[index];
       const patch = {};
-      for (const key of ['name', 'group', 'pet', 'photo', 'leader', 'adopted']) if (Object.hasOwn(a, key)) patch[key] = a[key];
+      for (const key of ['name', 'group', 'pet', 'photo', 'leader', 'adopted', 'gender']) if (Object.hasOwn(a, key)) patch[key] = a[key];
       if (patch.group === '') patch.group = '未分组';
       const updated = student({ ...previous, ...patch });
-      const fieldValue = (value,key) => key === 'leader' ? value.leader === true : key === 'adopted' ? value.adopted !== false : value[key];
+      const fieldValue = (value,key) => key === 'leader' ? value.leader === true : key === 'adopted' ? value.adopted !== false : key === 'gender' ? (value.gender || '') : value[key];
       // Modern editors send only fields the teacher changed. Compare those
       // fields atomically; unrelated scores, photos or roster edits can survive.
       // Older action callers remain supported without a snapshot.
@@ -468,7 +500,8 @@ function applyAction(state, action, now = Date.now()) {
     case 'settings':
       if(a.expectedClassName!==undefined&&a.expectedClassName!==s.settings.className)fail('面板名称已在另一窗口修改，请关闭后重新核对');
       s.settings.className = text(a.className, 80, '班级名称'); break;
-    case 'pet.rules': s.settings.petStep = integer(a.step, 1, 100, '每级成长值'); break;
+    case 'petProgression.update': PetScoreProgression.set(s, a.petProgression, a.expectedProgressionKey); break;
+    case 'pet.rules': fail(PetScoreProgression.HISTORICAL_ACTION_MESSAGE); break;
     case 'pet.switch': {
       if(a.panelId!==panelId(s))fail('面板已切换，请重新选择伙伴');
       const student=s.students.find(v=>v.id===a.id);if(!student)fail('找不到这位学生');
@@ -509,23 +542,23 @@ function applyAction(state, action, now = Date.now()) {
       break;
     }
     case 'score': {
-      const rule = selectedRule(s, a);
-      if (!s.settings.petRules && rule?.growthDelta < 0) fail('负成长仅支持独立宠物成长，请从宠物成长入口操作');
-      if (Object.hasOwn(a, 'growthDelta')) {
-        if (!rule || !Object.hasOwn(rule, 'growthDelta') || a.growthDelta !== rule.growthDelta) fail('自定义成长值与所选规则不一致，请重新选择原因');
-        if (a.growthDelta < 0) fail('负成长仅支持独立宠物成长，请从宠物成长入口操作');
-        integer(a.growthDelta, 0, 100, '成长值');
-      }
-      writeScore(s, a.ids, a.delta, a.reason, now, a.growthDelta);
+      assertPetScoreTargets(s, a, a.ids);
+      selectedRule(s, a);
+      if (Object.hasOwn(a, 'growthDelta') && a.growthDelta !== 0) fail('当前计分只更改学生积分，旧独立成长参数已停用，请刷新后重新选择积分原因');
+      writeScore(s, a.ids, a.delta, a.reason, now);
       break;
     }
     case 'score.mixed': {
-      const maximum=s.draw.scope==='groups'?MAX_STUDENTS:20;
+      const sourceDraw=a.expectedPetDraw!==undefined?s.petDraw:s.draw;
+      if(!sourceDraw)fail('点名结果已变化，请重新确认奖励');
+      const maximum=sourceDraw.scope==='groups'?MAX_STUDENTS:20;
       if (!Array.isArray(a.awards) || !a.awards.length || a.awards.length > maximum) fail(`单次点名奖励需包含1–${maximum}位学生`);
-      idList(a.awards.map(item => record(item, '点名奖励').id), '点名奖励名单', new Set(s.draw.lastIds), { empty: false });
+      const awardIds=idList(a.awards.map(item => record(item, '点名奖励').id), '点名奖励名单', new Set(sourceDraw.lastIds), { empty: false });
+      assertPetScoreTargets(s, a, awardIds);
       const groups = new Map();
       for (const award of a.awards) {
-        const delta = integer(award.delta, 1, 100, '奖励分值');
+        const delta = integer(award.delta, a.expectedPetDraw!==undefined?-100:1, 100, '奖励分值');
+        if(delta===0)fail('分值不能为零');
         if (!groups.has(delta)) groups.set(delta, []);
         groups.get(delta).push(award.id);
       }
@@ -584,10 +617,10 @@ function importRows(rows, existingState, mode = 'append') {
   const incoming = rows.map((row, i) => {
     const r = record(row, `第 ${i + 1} 行`);
     const name = r['姓名'] ?? r.name;
-    const group = r['小组'] ?? r.group ?? '未分组';
+    const group = r['小组'] ?? r['组号'] ?? r.group ?? '未分组';
     // Import preparation resolves optional avatar names to bounded local image
     // snapshots. Persist the snapshot only, never a folder path or filename.
-    try { return makeStudent(name, typeof group === 'string' && !group.trim() ? '未分组' : group, PETS[i % PETS.length], Object.hasOwn(r, 'photo') ? r.photo : ''); }
+    try { const incoming = makeStudent(name, typeof group === 'string' && !group.trim() ? '未分组' : group, PETS[i % PETS.length], Object.hasOwn(r, 'photo') ? r.photo : ''); const gender = r['性别'] ?? r.gender; return gender === undefined ? incoming : student({...incoming, gender}); }
     catch (error) { fail(`第 ${i + 1} 行：${error.message}`); }
   });
   if (mode === 'replace') { const emptyGroups=(s.groupBases||[]).filter(g=>!s.students.some(student=>student.group===g.group)).map(g=>({group:g.group,score:0}));s.students = incoming; s.logs = []; if(emptyGroups.length)s.groupBases=emptyGroups;else delete s.groupBases; delete s.groupLogs; if(s.petAccounts)s.petAccounts=[];if(s.petLogs)s.petLogs=[]; delete s.petOperations; }
@@ -599,4 +632,4 @@ function importRows(rows, existingState, mode = 'append') {
 }
 
 module.exports = { createInitialState, validateState, applyAction, remainingMs, petLevel, importRows, panelId, panelList,
-  petProfile: PetProgress.profile, assertStateCapacity, MAX_STATE_BYTES };
+  petProfile: PetProgress.profile, petProgression: PetScoreProgression.get, assertStateCapacity, MAX_STATE_BYTES };

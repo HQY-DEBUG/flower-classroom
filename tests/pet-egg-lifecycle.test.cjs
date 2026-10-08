@@ -1,265 +1,56 @@
 'use strict';
-const {mirroredLegacyPanel} = require('./shared-rule-fixtures.cjs');
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const fs = require('node:fs');
-const path = require('node:path');
-const Core = require('../src/core.cjs');
-const Progress = require('../src/pet-progress.js');
-const Art = require('../src/pet-art.js');
-const { legacyState } = require('./pet-fixtures.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const {Core,Pet,clone,first,account,cycle,act,score,profile,historic,graduatedArchive,reject,initLedger,guard}=require('./pet-history-rc19.cjs');
+const Art=require('../src/pet-art.js'),Scores=require('../src/pet-score-progression.js'),{legacyState}=require('./pet-fixtures.cjs');
+const id=s=>first(s).id,switchPet=(s,pet)=>act(s,{type:'pet.switch',id:id(s),pet,panelId:Core.panelId(s),expectedPet:profile(s).pet,expectedCycleId:profile(s).activeCycleId});
+function unmarkedArchive(){const s=historic();delete first(s).startFromEgg;delete cycle(s).startFromEgg;first(s).score=0;return Core.validateState(s);}
 
-const clone = value => JSON.parse(JSON.stringify(value));
-const act = (state, action) => Core.applyAction(state, action, 9_000_000);
-const firstId = state => state.students[0].id;
-const profile = (state, id = firstId(state)) => Progress.profile(state, id);
-const account = (state, id = firstId(state)) => state.petAccounts.find(value => value.studentId === id);
-const cycle = (state, id = firstId(state)) => account(state, id).cycles.find(value => value.id === account(state, id).activeCycleId);
-const enable = (state = Core.createInitialState(), thresholds = [5, 5, 5, 5, 5, 5]) => act(state, { type: 'pet.stage-rules', thresholds });
-const grow = (state, delta, ids = [firstId(state)]) => act(state, { type: 'pet.growth', ids, delta, reason: '纯合成蛋生命周期' });
-const score = (state, delta, ids = [firstId(state)]) => act(state, { type: 'score', ids, delta, reason: '纯合成课堂积分' });
-const batch = (state, operation, ids, options = {}) => act(state, { type: 'pet.batch', operation, ids,
-  requestId: `egg_batch_${state.revision}`, expectedRevision: state.revision, ...options });
-const switchPet = (state, pet, id = firstId(state)) => act(state, { type: 'pet.switch', id, pet,
-  panelId: Core.panelId(state), expectedPet: profile(state, id).pet, expectedCycleId: profile(state, id).activeCycleId });
-const resetGrowth = state => act(state, { type: 'points.clear', confirmed: true, expectedRevision: state.revision,
-  options: { scores: false, groupScores: false, petGrowth: true, history: false, petHistory: false } });
-
-// Synthetic RC10-format archive, specified independently of current creation
-// and migration code so absent markers cannot be accidentally regenerated.
-function rc10Archive() {
-  return {
-    version: 2, revision: 17,
-    settings: { className: '纯合成RC10兼容班', petStep: 5, petFocusId: '', petRules: { thresholds: [5, 5, 5, 5, 5, 5] } },
-    students: [{ id: 's_rc10', name: '虚构旧版同学', group: '合成组', score: 0, growth: 0, pet: 'cat', photo: '', adopted: true }],
-    logs: [], draw: { mode: 'cycle', bag: [], lastIds: [], round: 0 },
-    timer: { durationMs: 300000, remainingMs: 300000, endsAt: null, running: false },
-    petAccounts: [{ id: 'pa_rc10', studentId: 's_rc10', mode: 'independent', activeCycleId: 'pc_rc10', legacyMedals: 0,
-      unassignedGrowth: 0, lifetimeNetGrowth: 0,
-      cycles: [{ id: 'pc_rc10', pet: 'cat', status: 'active', netGrowth: 0, openedAt: 1000000, origin: 'explicit-adoption' }],
-      graduations: [], badgeEvents: [] }], petLogs: []
-  };
-}
-
-test('RC11 eggs: new examples and all 40 species share zero-growth egg state without changing seven-stage math', () => {
-  const examples = Core.createInitialState();
-  assert.ok(examples.students.every(student => student.startFromEgg === true && profile(examples, student.id).isEgg));
-  const pets = Object.keys(Art.names);
-  assert.equal(pets.length, 40);
-  let state = Core.importRows(pets.map((pet, index) => ({ name: `纯合成宠物${index}`, group: '合成组' })), examples, 'replace');
-  assert.deepEqual(state.students.map(student => student.pet), pets);
-  state = enable(state);
-  assert.ok(state.petAccounts.every(value => value.cycles[0].startFromEgg === true));
-  for (const student of state.students) {
-    const p = profile(state, student.id);
-    assert.equal(p.isEgg, true); assert.equal(p.adopted, true); assert.equal(p.level, 1); assert.equal(p.shape, 1); assert.equal(p.growth, 0);
-  }
-  const ids = state.students.map(student => student.id);
-  state = grow(state, 1, ids);
-  assert.ok(ids.every(id => !profile(state, id).isEgg && profile(state, id).level === 1 && profile(state, id).growth === 1));
-  state = grow(state, 4, ids);
-  assert.ok(ids.every(id => !profile(state, id).isEgg && profile(state, id).level === 2 && profile(state, id).growth === 5));
-  for (let level = 3; level <= 7; level++) {
-    state = grow(state, 5, ids);
-    assert.ok(ids.every(id => profile(state, id).level === level && profile(state, id).shape === level));
-  }
-  assert.ok(ids.every(id => profile(state, id).maxed && profile(state, id).medalTotal === 0));
+test('RC19 eggs: all forty species use levels zero at 0–4, then exact shared score boundaries and capped art',()=>{
+ const examples=Core.createInitialState();assert.ok(examples.students.every(s=>s.startFromEgg===true&&Pet.profile(examples,s).isEgg));const pets=Object.keys(Art.names);assert.equal(pets.length,40);
+ let s=Core.importRows(pets.map((pet,i)=>({name:`纯合成宠物${i}`,group:'合成组'})),examples,'replace');assert.deepEqual(s.students.map(v=>v.pet),pets);const ids=s.students.map(v=>v.id);
+ for(const [delta,value,level] of [[1,1,0],[3,4,0],[1,5,1],[10,15,2],[15,30,3],[20,50,4],[20,70,5],[20,90,6],[20,110,7],[20,130,8]]){s=score(s,delta,ids);assert.ok(s.students.every(v=>v.score===value&&Pet.profile(s,v).level===level&&Pet.profile(s,v).shape===Math.min(7,level)&&Pet.profile(s,v).isEgg===(level===0)));}
+ assert.ok(s.students.every(v=>v.growth===0&&Pet.profile(s,v).medalTotal===0));
 });
-
-test('RC11 eggs: legacy v1 zero/nonzero forms, photos, history and migration remain unchanged', () => {
-  const original = Core.validateState(legacyState());
-  assert.deepEqual(Core.validateState(clone(original)), original);
-  for (const student of original.students) {
-    assert.equal(Object.hasOwn(student, 'startFromEgg'), false);
-    assert.equal(profile(original, student.id).isEgg, false);
-  }
-  const migrated = enable(original);
-  assert.deepEqual(migrated.students, original.students);
-  assert.ok(migrated.petAccounts.every(value => !Object.hasOwn(value.cycles[0], 'startFromEgg')));
-  for (const student of original.students) {
-    assert.equal(profile(migrated, student.id).growth, student.growth);
-    assert.equal(profile(migrated, student.id).isEgg, false);
-  }
-  assert.deepEqual(Core.validateState(clone(migrated)), migrated);
-  const oldZeroId = 's_legacy_cat';
-  let changed = grow(migrated, 1, [oldZeroId]);
-  changed = act(changed, { type: 'pet.undo', logId: changed.petLogs.at(-1).id });
-  assert.equal(profile(changed, oldZeroId).isEgg, false);
+test('RC19 eggs: legacy v1 marker absence, photos and audit data remain intact while display uses score',()=>{
+ const raw=legacyState(),s=Core.validateState(raw);assert.deepEqual(s.students,raw.students);assert.deepEqual(s.logs,raw.logs);for(const student of s.students){assert.equal(Object.hasOwn(student,'startFromEgg'),false);assert.equal(Pet.profile(s,student).isEgg,student.adopted===false||student.score<5);}
+ const initialized=initLedger(s);assert.deepEqual(initialized.students,s.students);for(const student of s.students)assert.equal(Pet.profile(initialized,student).level,Scores.progress(student.score).level);assert.deepEqual(Core.validateState(clone(initialized)),initialized);
 });
-
-test('RC11 eggs: an unmarked RC10 explicit-adoption cycle stays a baby at zero across import, switch, pause and resume', () => {
-  const archived = rc10Archive();
-  let state = Core.validateState(clone(archived));
-  assert.deepEqual(state, archived);
-  assert.equal(profile(state).isEgg, false);
-  state = switchPet(state, 'dragon');
-  const originalCycle = cycle(state).id;
-  state = act(state, { type: 'student.update', id: firstId(state), adopted: false });
-  assert.equal(profile(state).isEgg, true);
-  state = act(state, { type: 'pet.adopt', id: firstId(state), pet: 'seal' });
-  assert.equal(cycle(state).id, originalCycle); assert.equal(profile(state).isEgg, false);
-  assert.equal(Object.hasOwn(cycle(state), 'startFromEgg'), false);
-  assert.deepEqual(Core.validateState(clone(state)), state);
-  state = grow(state, 9);
-  state = act(state, { type: 'student.update', id: firstId(state), adopted: false });
-  state = act(state, { type: 'pet.adopt', id: firstId(state), pet: 'fox' });
-  assert.equal(profile(state).growth, 9); assert.equal(profile(state).level, 2); assert.equal(profile(state).isEgg, false);
+test('RC19 eggs: old unmarked cycles become eggs at score zero through restore, switch, pause and resume',()=>{
+ let s=unmarkedArchive(),old=clone(s),cycleId=cycle(s).id;assert.equal(profile(s).isEgg,true);assert.equal(profile(s).level,0);s=switchPet(s,'dragon');s=act(s,{type:'student.update',id:id(s),adopted:false});s=act(s,{type:'pet.adopt',id:id(s),pet:'cat'});
+ assert.equal(profile(s).isEgg,true);assert.equal(first(s).score,0);assert.equal(cycle(s).id,cycleId);assert.equal(Object.hasOwn(cycle(s),'startFromEgg'),false);assert.equal(cycle(s).netGrowth,cycle(old).netGrowth);assert.deepEqual(s.petLogs,old.petLogs);
 });
-
-test('RC11 eggs: pre-ledger score/undo and nonzero enabling preserve original score semantics', () => {
-  let state = Core.createInitialState();
-  state = score(state, -2); assert.equal(profile(state).isEgg, true);
-  state = score(state, 1); const positive = state.logs.at(-1).id;
-  assert.equal(profile(state).isEgg, false); assert.equal(profile(state).level, 1);
-  state = score(state, -3); assert.equal(profile(state).growth, 1); assert.equal(profile(state).isEgg, false);
-  state = act(state, { type: 'undo', logId: positive }); assert.equal(profile(state).isEgg, true);
-  state = score(state, 25);
-  const before = clone(state.students);
-  state = enable(state);
-  assert.deepEqual(state.students, before); assert.equal(profile(state).growth, 25); assert.equal(profile(state).level, 6); assert.equal(profile(state).isEgg, false);
-  assert.equal(cycle(state).startFromEgg, true);
+test('RC19 eggs: pre-ledger score and undo hatch only at five without writing historical growth',()=>{
+ let s=Core.createInitialState();s=score(s,4);assert.equal(profile(s).isEgg,true);s=score(s,1);const log=s.logs.at(-1).id;assert.equal(profile(s).isEgg,false);assert.equal(profile(s).level,1);assert.equal(first(s).growth,0);s=act(s,{type:'undo',logId:log});assert.equal(profile(s).isEgg,true);const before=clone(s.students);s=initLedger(s);assert.deepEqual(s.students,before);assert.equal(profile(s).level,0);assert.equal(cycle(s).netGrowth,0);
 });
-
-test('RC11 eggs: new additions, append/replace imports, blank panels and fresh roster copies are marked; complete copies retain legacy forms', () => {
-  for (const base of [Core.validateState(legacyState()), enable(legacyState())]) {
-    let state = act(base, { type: 'student.add', name: '纯合成新增', pet: 'dragon', adopted: false });
-    const newcomer = state.students.at(-1);
-    assert.equal(newcomer.startFromEgg, true); assert.equal(profile(state, newcomer.id).isEgg, true);
-    assert.deepEqual(state.students.slice(0, -1), base.students);
-    state = Core.importRows([{ name: '纯合成导入' }], state, 'append');
-    assert.equal(state.students.at(-1).startFromEgg, true); assert.equal(profile(state, state.students.at(-1).id).isEgg, true);
-    state = Core.importRows([{ name: '纯合成替换' }], state, 'replace');
-    assert.equal(profile(state).isEgg, true);
-    if (state.settings.petRules) assert.equal(cycle(state).startFromEgg, true);
-    const copied = act(base, { type: 'panel.create', mode: 'copy', name: '纯合成名单副本' });
-    assert.ok(copied.students.every(student => profile(copied, student.id).isEgg));
-    assert.deepEqual(copied.panels.others[0].data, mirroredLegacyPanel(base));
-    assert.deepEqual(copied.sharedScoreRules.rules, copied.panels.others[0].data.settings.scoreRules);
-    const complete = act(base, { type: 'panel.create', mode: 'full', name: '纯合成完整副本' });
-    assert.ok(complete.students.every(student => !profile(complete, student.id).isEgg));
-    let blank = act(base, { type: 'panel.create', mode: 'blank', name: '纯合成空白' });
-    blank = act(blank, { type: 'student.add', name: '纯合成空白新增' });
-    assert.equal(profile(blank).isEgg, true); assert.equal(cycle(blank).startFromEgg, true);
-  }
+test('RC19 eggs: add/import/fresh copies start at zero; full copies retain source score and every marker',()=>{
+ for(const base of [Core.validateState(legacyState()),historic()]){let s=act(base,{type:'student.add',name:'纯合成新增',pet:'dragon',adopted:false});assert.equal(s.students.at(-1).startFromEgg,true);assert.equal(Pet.profile(s,s.students.at(-1)).level,0);assert.deepEqual(s.students.slice(0,-1),base.students);
+ s=Core.importRows([{name:'纯合成导入'}],s,'append');assert.equal(Pet.profile(s,s.students.at(-1)).isEgg,true);s=Core.importRows([{name:'纯合成替换'}],s,'replace');assert.equal(profile(s).isEgg,true);
+ const fresh=act(base,{type:'panel.create',mode:'copy',name:'纯合成名单副本'});assert.ok(fresh.students.every(v=>Pet.profile(fresh,v).isEgg&&v.score===0));assert.deepEqual(fresh.panels.others[0].data.students,base.students);assert.equal(fresh.panels.others[0].data.petProgression,undefined);
+ const full=act(base,{type:'panel.create',mode:'full',name:'纯合成完整副本'});assert.deepEqual(full.students.map(v=>[v.score,v.growth,v.startFromEgg,Pet.profile(full,v).isEgg]),base.students.map(v=>[v.score,v.growth,v.startFromEgg,Pet.profile(base,v).isEgg]));
+ let blank=act(base,{type:'panel.create',mode:'blank',name:'纯合成空白'});blank=act(blank,{type:'student.add',name:'纯合成空白新增'});assert.equal(profile(blank).isEgg,true);}
 });
-
-test('RC11 eggs: deduction, clamping, undo and reversible reset return marked cycles to an egg at zero', () => {
-  let state = grow(enable(), 5); const award = state.petLogs.at(-1).id;
-  state = grow(state, -5); const penalty = state.petLogs.at(-1).id;
-  assert.equal(profile(state).isEgg, true);
-  state = act(state, { type: 'pet.undo', logId: penalty }); assert.equal(profile(state).growth, 5); assert.equal(profile(state).isEgg, false);
-  state = act(state, { type: 'pet.undo', logId: award }); assert.equal(profile(state).isEgg, true);
-  state = act(state, { type: 'pet.growth-policy', growthFloor: 'clamp' });
-  state = grow(state, -100); assert.equal(profile(state).isEgg, true); assert.equal(state.petLogs.at(-1).changes[0].actualDelta, 0);
-  state = grow(state, 3);
-  state = resetGrowth(state);
-  assert.equal(profile(state).isEgg, true); const reset = state.petLogs.at(-1);
-  assert.equal(reset.kind, 'reset'); assert.equal(reset.changes[0].actualDelta, -3);
-  state = act(state, { type: 'pet.undo', logId: reset.id }); assert.equal(profile(state).growth, 3); assert.equal(profile(state).isEgg, false);
-  const legacy = grow(Core.validateState(rc10Archive()), 5);
-  const resetLegacy = resetGrowth(legacy);
-  assert.equal(profile(resetLegacy).growth, 0); assert.equal(profile(resetLegacy).isEgg, false);
+test('RC19 eggs: deduction and undo cross the egg boundary, negative points preserve debt, explicit score clear resets it',()=>{
+ let s=score(historic(),-100);s=score(s,-15);assert.equal(first(s).score,5);assert.equal(profile(s).isEgg,false);const old=clone(s);s=score(s,-1);const penalty=s.logs.at(-1).id;assert.equal(profile(s).isEgg,true);s=act(s,{type:'undo',logId:penalty});assert.equal(profile(s).isEgg,false);s=score(s,-100);assert.equal(first(s).score,-95);assert.equal(profile(s).remainingToNext,100);
+ s=act(s,{type:'points.clear',confirmed:true,expectedRevision:s.revision,options:{scores:true,groupScores:false,petGrowth:false,history:false,petHistory:false}});assert.equal(first(s).score,0);assert.equal(profile(s).level,0);assert.deepEqual(s.petAccounts,old.petAccounts);assert.deepEqual(s.petLogs,old.petLogs);
 });
-
-test('RC11 eggs: graduation/readoption and old-cycle undo never hatch or reset a newer cycle, or alter honors', () => {
-  let state = grow(Core.validateState(rc10Archive()), 30); const oldLog = state.petLogs.at(-1).id;
-  const oldCycle = cycle(state).id;
-  state = act(state, { type: 'pet.graduate', id: firstId(state) });
-  assert.equal(profile(state).isEgg, true); assert.equal(profile(state).adopted, false); assert.equal(profile(state).medalTotal, 1);
-  const snapshot = clone(account(state).graduations);
-  state = act(state, { type: 'pet.adopt', id: firstId(state), pet: 'cat' });
-  assert.notEqual(cycle(state).id, oldCycle); assert.equal(cycle(state).startFromEgg, true);
-  assert.equal(profile(state).isEgg, true); assert.equal(profile(state).adopted, true);
-  state = grow(state, 1);
-  state = act(state, { type: 'pet.undo', logId: oldLog });
-  assert.equal(account(state).cycles.find(value => value.id === oldCycle).netGrowth, 0);
-  assert.equal(profile(state).growth, 1); assert.equal(profile(state).isEgg, false); assert.equal(profile(state).medalTotal, 1);
-  assert.deepEqual(account(state).graduations, snapshot);
-  state = grow(state, 29);
-  state = act(state, { type: 'pet.graduate', id: firstId(state) });
-  state = act(state, { type: 'pet.adopt', id: firstId(state), pet: 'cat' });
-  const newestCycle = cycle(state).id;
-  state = act(state, { type: 'pet.undo', logId: state.petLogs.find(value => value.delta === 1).id });
-  assert.equal(cycle(state).id, newestCycle); assert.equal(profile(state).growth, 0); assert.equal(profile(state).isEgg, true);
-  assert.equal(account(state).cycles.length, 3); assert.equal(profile(state).medalTotal, 2);
-  assert.deepEqual(Core.validateState(clone(state)), state);
+test('RC19 eggs: re-adoption after a historical graduation does not reset score and old-score undo preserves the newer cycle',()=>{
+ let s=graduatedArchive(),oldCycle=account(s).cycles[0].id,snapshots=clone(account(s).graduations);s=act(s,{type:'pet.adopt',id:id(s),pet:'cat'});const newCycle=cycle(s).id;assert.notEqual(newCycle,oldCycle);assert.equal(cycle(s).startFromEgg,true);assert.equal(profile(s).isEgg,false);assert.equal(profile(s).level,7);
+ s=act(s,{type:'undo',logId:'legacy_score_rc19_fixture'});assert.equal(profile(s).level,7);assert.equal(first(s).score,110);assert.equal(cycle(s).netGrowth,0);assert.equal(account(s).cycles.find(c=>c.id===oldCycle).netGrowth,190);assert.deepEqual(account(s).graduations,snapshots);assert.equal(profile(s).medalTotal,1);assert.deepEqual(Core.validateState(clone(s)),s);
 });
-
-test('RC11 eggs: single/batch switches and pause/resume retain marker, current growth and cycle identity', () => {
-  let state = enable(); const id = firstId(state), originalCycle = cycle(state).id;
-  for (const pet of Object.keys(Art.names)) {
-    state = switchPet(state, pet);
-    assert.equal(profile(state).isEgg, true); assert.equal(cycle(state).id, originalCycle); assert.equal(cycle(state).startFromEgg, true);
-  }
-  state = grow(state, 7);
-  const before = clone(state), ids = state.students.slice(0, 2).map(student => student.id);
-  state = batch(state, 'switch', ids, { pet: 'cat' });
-  assert.equal(profile(state).growth, 7); assert.equal(profile(state).isEgg, false); assert.equal(profile(state, ids[1]).isEgg, true);
-  assert.equal(cycle(state).id, originalCycle); assert.deepEqual(state.petLogs, before.petLogs); assert.deepEqual(state.logs, before.logs);
-  state = act(state, { type: 'student.update', id, adopted: false });
-  state = act(state, { type: 'pet.adopt', id, pet: 'dragon' });
-  assert.equal(profile(state).growth, 7); assert.equal(profile(state).isEgg, false); assert.equal(cycle(state).id, originalCycle);
+test('RC19 eggs: single/batch species switches and pause/resume retain score, historical markers and cycle identity',()=>{
+ let s=unmarkedArchive(),originalCycle=cycle(s).id;for(const pet of Object.keys(Art.names)){s=switchPet(s,pet);assert.equal(profile(s).isEgg,true);assert.equal(cycle(s).id,originalCycle);assert.equal(Object.hasOwn(cycle(s),'startFromEgg'),false);}
+ s=score(s,7);const before=clone(s),ids=s.students.slice(0,2).map(v=>v.id);s=act(s,{type:'pet.batch',operation:'switch',ids,pet:'cat',...guard(s)});assert.equal(profile(s).level,1);assert.equal(first(s).score,7);assert.equal(profile(s).isEgg,false);assert.equal(Pet.profile(s,ids[1]).isEgg,true);assert.deepEqual(s.logs,before.logs);assert.deepEqual(s.petLogs,before.petLogs);
+ s=act(s,{type:'student.update',id:id(s),adopted:false});s=act(s,{type:'pet.adopt',id:id(s),pet:'dragon'});assert.equal(first(s).score,7);assert.equal(cycle(s).id,originalCycle);
 });
-
-test('RC11 eggs: preview, rank and honor data expose egg state without changing eligibility or level ranking', () => {
-  let state = enable(); const ids = state.students.slice(0, 2).map(student => student.id);
-  let preview = Progress.batchPreview(state, { operation: 'growth', ids, delta: 1 });
-  assert.ok(preview.rows.every(row => row.eligible && row.isEgg && !row.afterIsEgg && row.level === 1 && row.afterLevel === 1));
-  state = batch(state, 'growth', ids, { delta: 1 });
-  preview = Progress.batchPreview(state, { operation: 'growth', ids, delta: -1 });
-  assert.ok(preview.rows.every(row => row.eligible && !row.isEgg && row.afterIsEgg));
-  state = batch(state, 'growth', ids, { delta: -1 });
-  assert.ok(Progress.studentRankings(state, { sortBy: 'level' }).every(row => row.rank === 1 && row.level === 1 && row.isEgg));
-  assert.ok(Progress.groupRankings(state).every(row => row.medalTotal === 0 && row.averageMedals === 0));
-  const card = Progress.honorCard(state, ids[0]); assert.equal(card.isEgg, true); assert.equal(card.level, 1); assert.equal(card.adopted, true);
-  assert.equal(card.totalHonors, 0); assert.equal(card.graduationCount, 0);
-  state = grow(state, 30, ids);
-  preview = Progress.batchPreview(state, { operation: 'graduate', ids });
-  assert.ok(preview.rows.every(row => row.eligible && !row.isEgg && row.afterIsEgg));
-  state = batch(state, 'graduate', ids);
-  preview = Progress.batchPreview(state, { operation: 'adopt', ids, pet: 'dragon' });
-  assert.ok(preview.rows.every(row => row.eligible && row.isEgg && row.afterIsEgg));
-  state = batch(state, 'adopt', ids, { pet: 'dragon' });
-  assert.ok(ids.every(id => profile(state, id).isEgg && profile(state, id).medalTotal === 1));
+test('RC19 eggs: adoption previews, rankings and honor cards all expose the same score-based level and egg state',()=>{
+ let s=Core.createInitialState(),ids=s.students.slice(0,2).map(v=>v.id);assert.ok(Pet.studentRankings(s,{sortBy:'level'}).every(row=>row.rank===1&&row.level===0&&row.isEgg));assert.ok(Pet.groupRankings(s).every(row=>row.medalTotal===0));let card=Pet.honorCard(s,ids[0]);assert.equal(card.level,0);assert.equal(card.isEgg,true);
+ s=score(s,5,ids);s=act(s,{type:'student.update',id:ids[0],adopted:false});const preview=Pet.batchPreview(s,{operation:'adopt',ids,pet:'dragon'});assert.equal(preview.eligibleIds.length,1);assert.equal(preview.rows[0].afterLevel,1);assert.equal(preview.rows[0].afterIsEgg,false);s=act(s,{type:'pet.batch',operation:'adopt',ids:preview.eligibleIds,pet:'dragon',...guard(s)});card=Pet.honorCard(s,ids[0]);assert.equal(card.level,1);assert.equal(card.isEgg,false);assert.equal(card.totalHonors,0);
 });
-
-test('RC11 eggs: optional true/false markers round-trip while non-booleans fail atomically in students and cycles', () => {
-  for (const value of [true, false]) {
-    const raw = Core.validateState(legacyState()); raw.students[3].startFromEgg = value;
-    const state = Core.validateState(clone(raw));
-    assert.deepEqual(state, raw); assert.equal(profile(state, 's_legacy_cat').isEgg, value);
-    const enabled = enable(state); assert.equal(cycle(enabled, 's_legacy_cat').startFromEgg, value);
-    assert.deepEqual(Core.validateState(clone(enabled)), enabled);
-  }
-  for (const invalid of [undefined, null, 0, 1, 'true', [], {}]) {
-    const raw = Core.validateState(legacyState()); raw.students[0].startFromEgg = invalid;
-    assert.throws(() => Core.validateState(raw), /蛋起始标记/);
-    const enabled = enable(); cycle(enabled).startFromEgg = invalid;
-    assert.throws(() => Core.validateState(enabled), /蛋起始标记/);
-  }
-  let state = grow(enable(), 30);
-  state = act(state, { type: 'pet.graduate', id: firstId(state) });
-  account(state).cycles[0].startFromEgg = 'false';
-  assert.throws(() => Core.validateState(state), /蛋起始标记/);
+test('RC19 eggs: optional historical true/false markers round-trip but never override current score; non-booleans reject',()=>{
+ for(const marker of [true,false]){const raw=historic();first(raw).startFromEgg=marker;cycle(raw).startFromEgg=marker;first(raw).score=4;const s=Core.validateState(raw);assert.deepEqual(s,raw);assert.equal(profile(s).isEgg,true);assert.equal(profile(score(s,1)).isEgg,false);assert.deepEqual(Core.validateState(clone(s)),s);}
+ for(const invalid of [undefined,null,0,1,'true',[],{}]){let bad=historic();first(bad).startFromEgg=invalid;assert.throws(()=>Core.validateState(bad),/蛋起始标记/);bad=historic();cycle(bad).startFromEgg=invalid;assert.throws(()=>Core.validateState(bad),/蛋起始标记/);bad=historic();account(bad).cycles[0].startFromEgg=invalid;assert.throws(()=>Core.validateState(bad),/蛋起始标记/);}
 });
-
-test('RC11 eggs: mixed legacy/new panel archives preserve marker absence, growth, snapshots and browser-model results', () => {
-  let state = Core.validateState(rc10Archive()); const legacyPanel = Core.panelId(state);
-  state = act(state, { type: 'panel.create', mode: 'copy', name: '纯合成新蛋班' });
-  const eggPanel = Core.panelId(state);
-  state = grow(state, 30); state = act(state, { type: 'pet.graduate', id: firstId(state) });
-  state = act(state, { type: 'pet.adopt', id: firstId(state), pet: 'cat' });
-  const newPanelState = clone(state);
-  state = act(state, { type: 'panel.switch', id: legacyPanel });
-  assert.equal(profile(state).isEgg, false); assert.equal(Object.hasOwn(cycle(state), 'startFromEgg'), false);
-  state = Core.validateState(clone(state));
-  state = act(state, { type: 'panel.switch', id: eggPanel });
-  for (const key of ['students', 'logs', 'petAccounts', 'petLogs', 'settings']) assert.deepEqual(state[key], newPanelState[key]);
-  assert.equal(profile(state).isEgg, true);
-  const context = vm.createContext({});
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/pet-progress.js'), 'utf8'), context);
-  assert.deepEqual(clone(context.PetProgress.profile(state, firstId(state))), profile(state));
-  assert.deepEqual(clone(context.PetProgress.honorCard(state, firstId(state))), Progress.honorCard(state, firstId(state)));
-  assert.deepEqual(Core.validateState(clone(state)), state);
+test('RC19 eggs: mixed old/new panel archives retain marker absence and snapshots, including browser model parity',()=>{
+ let s=unmarkedArchive(),oldPanel=Core.panelId(s),old=clone(s);s=act(s,{type:'panel.create',mode:'copy',name:'纯合成新蛋班'});const newPanel=Core.panelId(s);s=score(s,5);const next=clone(s);s=act(s,{type:'panel.switch',id:oldPanel});assert.equal(profile(s).isEgg,true);assert.equal(Object.hasOwn(cycle(s),'startFromEgg'),false);assert.deepEqual(s.petAccounts,old.petAccounts);s=act(s,{type:'panel.switch',id:newPanel});for(const key of ['students','logs','petAccounts','petLogs','settings'])assert.deepEqual(s[key],next[key]);
+ const c=vm.createContext({});for(const f of ['pet-score-progression.js','pet-progress.js'])vm.runInContext(fs.readFileSync(require.resolve('../src/'+f),'utf8'),c);c.json=JSON.stringify(s);for(const fn of ['profile','honorCard'])assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext(`PetProgress.${fn}(JSON.parse(json),JSON.parse(json).students[0].id)`,c))),Pet[fn](s,id(s)));assert.deepEqual(Core.validateState(clone(s)),s);
 });

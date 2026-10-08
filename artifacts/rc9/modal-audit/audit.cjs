@@ -2,8 +2,8 @@
 // Synthetic-only interaction audit of the actual delivered ASAR.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'../../..'),out=path.resolve(process.env.FLOWER_MODAL_OUT||path.join(__dirname,'base-run-'+Date.now())),q=JSON.stringify;fs.mkdirSync(out,{recursive:true});
-const defaultArchive=process.env.FLOWER_MODAL_ARCHIVE||'/tmp/flower-classroom-workspace/flower-window-exits-work/FlowerClassroom-source/dist-rc8-final3/win-unpacked/resources/app.asar';
-const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(defaultArchive,'src/main.cjs'));const asarMarker=entry.indexOf('.asar'+path.sep),archive=asarMarker<0?null:entry.slice(0,asarMarker+5);
+const defaultArchive=process.env.FLOWER_MODAL_ARCHIVE||null;
+const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||(defaultArchive?path.join(defaultArchive,'src/main.cjs'):path.join(root,'src/main.cjs')));const asarMarker=entry.indexOf('.asar'+path.sep),archive=asarMarker<0?null:entry.slice(0,asarMarker+5);
 const sha=f=>crypto.createHash('sha256').update((process.versions.electron?require('original-fs'):fs).readFileSync(f)).digest('hex');
 if(!process.versions.electron){
  const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-modal-new-'));

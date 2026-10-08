@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const out=process.env.RULE_AUDIT_OBSERVER_OUT,sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex'),dependencies=new Map(),violations=[],spawns=[];
 if(out){
  fs.mkdirSync(out,{recursive:true});
- const roots=[process.env.RULE_AUDIT_RUNTIME,process.env.RULE_AUDIT_ENTRY_ROOT].filter(Boolean),inside=p=>roots.some(r=>p.startsWith(r+path.sep));
+ const roots=[process.env.RULE_AUDIT_RUNTIME,process.env.RULE_AUDIT_ENTRY_ROOT,...(process.env.FLOWER_RULE_MODE==='source'?[fs.realpathSync(path.join(process.env.RULE_AUDIT_REPO,'node_modules'))]:[])].filter(Boolean),inside=p=>roots.some(r=>p.startsWith(r+path.sep));
  const resolve=Module._resolveFilename,load=Module._load;
  Module._resolveFilename=function(request,parent,...rest){const value=resolve.call(this,request,parent,...rest);if(path.isAbsolute(value)&&fs.existsSync(value)&&fs.statSync(value).isFile()){
   if(!dependencies.has(value))dependencies.set(value,{file:value,sha256Before:sha(value)});

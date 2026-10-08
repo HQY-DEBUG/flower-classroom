@@ -1,0 +1,26 @@
+{
+  "sources": {
+    "episode29": {
+      "url": "https://www.douyin.com/video/7683808107228060148",
+      "page_date": "2026-09-10 00:39",
+      "duration": "01:44",
+      "version_limit": "晚于目标，精确版本未知。",
+      "match": "同作者同合集，通过星形组分、独立基础分行、成员±分行、蓝色工具栏、小红花入口与养宠评分弹窗等布局匹配同系列；精确版本未知，且晚于目标。"
+    }
+  },
+  "evidence": [
+    {
+      "id": "F008",
+      "source": "episode29",
+      "time": "01:29.82→01:32.26→01:37.26→01:42.26",
+      "level": "后续版本现有宠物更换入口及外形结果",
+      "finding": "匿名学生A原养宠卡为小猪外形，LV1、成长0/5、徽章0；加减分评定弹窗有黄色换宠物按钮；选择面板有确定更换，选择另一宠物后同一学生A外形已更换，仍显示LV1、徽章0。",
+      "limit": "结果成长数字被字幕/取景遮挡，无法证明成长保留或清零。原徽章本就0，不能由此推断非零徽章规则。片中日期晚于目标，不能声称第26集已具备同样入口。"
+    }
+  ],
+  "provenance": {
+    "original": "artifacts/reference/supplemental-followup-evidence.json",
+    "sha256": "8c1cc60796b8d7622a530396834280cf1e5b541146c911d0c367211c21876a87",
+    "purpose": "Existing anonymized F008 metadata used by the inherited synthetic switch QA; no video frames or rosters copied"
+  }
+}

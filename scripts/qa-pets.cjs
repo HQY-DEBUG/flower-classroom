@@ -100,7 +100,7 @@ app.whenReady().then(async () => {
       await shot(main, '02-pet-garden');
       return {oldPath:'duplicate topbar pet shortcut and inline tool strip',newPaths:paths,studentCardEntryCount:4,dataUnchanged:true};
     });
-    await check('Legacy high-growth pet keeps its full level and seven-stage visual cap', async () => {
+    await check('Legacy score 200 displays level 11 and the seven-stage visual cap while preserving old growth', async () => {
       await detail('s_legacy_bunny'); const content = await textOf(main);
       assert.match(content, /(?:LV\.?|Lv\.?|等级\s*)\s*11/); assert.equal((await state(main)).students[2].growth, 200);
       assert.ok(await exists(main, '[data-do="pet-album"]')); await shot(main, '03-high-growth-detail');
@@ -135,13 +135,13 @@ app.whenReady().then(async () => {
       assert.deepEqual(await state(main), before);
     });
     await check('Reward picker cancellation is non-mutating and +2 reason commits only once under repeated click', async () => {
-      await restore(); await detail(); const before = await state(main);
+      const boundaryFixture=legacyState(); boundaryFixture.students[0].score=29; await restore(boundaryFixture); await detail(); const before = await state(main);
       await click(main, '[data-do="pet-reward"]'); assert.match(await textOf(main, '#modal'), /认真做题/); await closeModal(); assert.deepEqual(await state(main), before);
       await click(main, '[data-do="pet-reward"]');
       await js(main, `(()=>{const b=[...document.querySelectorAll('#modal [data-do="pet-reason"]')].find(b=>b.textContent.includes('认真做题'));if(!b)throw Error('Missing +2 reason');b.click();b.click();return true;})()`);
       await until(async () => (await state(main)).revision > before.revision, 'reward persisted'); await sleep(150);
       const after = await state(main); assert.equal(after.revision, before.revision + 1); assert.equal(after.logs.length, before.logs.length + 1);
-      assert.equal(after.logs.at(-1).delta, 2); assert.equal(after.logs.at(-1).reason, '认真做题'); assert.equal(after.students[0].score, 21); assert.equal(after.students[0].growth, 21);
+      assert.equal(after.logs.at(-1).delta, 2); assert.equal(after.logs.at(-1).reason, '认真做题'); assert.equal(after.students[0].score, 31); assert.equal(after.students[0].growth, 19); assert.equal(after.logs.at(-1).growthDelta,0);
       assert.equal(await exists(main, '#modal .dialog'), false); assert.equal(await js(main, 'document.querySelector("#app").inert'), false);
       assert.match(await textOf(main, '#pet-feedback'), /升级/); await sleep(500); await shot(main, '05-upgrade-feedback');
     });
@@ -159,9 +159,9 @@ app.whenReady().then(async () => {
       assert.match(feedback, /撤销|回退|恢复|降级/); await shot(main, '06-undo-feedback');
     });
     await check('Rules dialog cancel, validation and repeated submit preserve historic values and never fake upgrades', async () => {
-      await closeFeedback(); await goPets(); const before = await state(main); await click(main, '[data-do="pet-rules"]'); await fill(main, '#pet-step', 5); await closeModal(); assert.deepEqual(await state(main), before);
-      await click(main, '[data-do="pet-rules"]'); await fill(main, '#pet-step', 0); await submit(main, '#pet-rules-form'); await sleep(50); assert.deepEqual(await state(main), before);
-      await fill(main, '#pet-step', 5); await submit(main, '#pet-rules-form', true); await until(async () => (await state(main)).settings.petStep === 5); await sleep(100);
+      await closeFeedback(); await goPets(); const before = await state(main); await click(main, '[data-do="pet-rules"]'); await fill(main, '[name=threshold-0]', 6); await closeModal(); assert.deepEqual(await state(main), before);
+      await click(main, '[data-do="pet-rules"]'); await fill(main, '[name=threshold-0]', 0); await submit(main, '#pet-rules-form'); await sleep(50); assert.deepEqual(await state(main), before);
+      await fill(main, '[name=threshold-0]', 6); await submit(main, '#pet-rules-form', true); await until(async () => (await state(main)).petProgression.costs[0] === 6); await sleep(100);
       const after = await state(main); assert.equal(after.revision, before.revision + 1); assert.deepEqual(after.students, before.students); assert.deepEqual(after.logs, before.logs);
       assert.equal(await exists(main, '#modal .dialog'), false); assert.equal(await textOf(main, '#pet-feedback'), '');
     });
@@ -192,7 +192,7 @@ app.whenReady().then(async () => {
     await check('Concurrent points from four windows are all retained and every renderer converges', async () => {
       const before = await state(main), id = before.students[0].id; const windows = [main, panel, pet, pets];
       await Promise.all(Array.from({ length: 24 }, (_, i) => action(windows[i % windows.length], { type: 'score', ids: [id], delta: 1, reason: '纯合成多窗成长' })));
-      const after = await state(main); assert.equal(after.revision, before.revision + 24); assert.equal(after.students[0].growth, before.students[0].growth + 24); assert.equal(after.students[0].score, before.students[0].score + 24);
+      const after = await state(main); assert.equal(after.revision, before.revision + 24); assert.equal(after.students[0].growth, before.students[0].growth); assert.equal(after.students[0].score, before.students[0].score + 24);
       assert.equal(after.logs.length, before.logs.length + 24); for (const w of [...windows, sidebar]) assert.deepEqual(await state(w), after);
       await until(async () => Number(await js(panel, 'document.querySelector(".quick-student strong").textContent')) === after.students[0].score);
       await shot(pets, '09-synced-classroom');
@@ -200,10 +200,10 @@ app.whenReady().then(async () => {
     await check('Full native backup/export/restore recovers pet rules, focus, photos and points without phantom celebration', async () => {
       await closeFeedback(); const before = await state(main); savePath = path.join(out, 'synthetic-pet-backup.json');
       assert.equal(await file(main, { command: 'backup' }), true); assert.deepEqual(JSON.parse(fs.readFileSync(savePath)), before);
-      await action(main, { type: 'pet.rules', step: 100 }); await action(main, { type: 'student.update', id: before.students[0].id, pet: 'cat', photo: '' });
+      await action(main, { type:'petProgression.update',petProgression:{...before.petProgression,repeatCost:100} }); await action(main, { type: 'student.update', id: before.students[0].id, pet: 'cat', photo: '' });
       openPath = savePath; const incoming = await file(main, { command: 'restore-preview' }); assert.deepEqual(validateState(incoming), before); await applyRestorePreview(incoming); await sleep(100);
       assert.deepEqual(snapshotWithoutRevision(await state(main)), snapshotWithoutRevision(before)); assert.equal(await textOf(main, '#pet-feedback'), '');
-      const restored = await state(main); await action(main,{type:'pet.rules',step:99}); assert.deepEqual((await state(main)).students,restored.students); assert.deepEqual((await state(main)).logs,restored.logs);
+      const restored = await state(main); await action(main,{type:'petProgression.update',petProgression:{...restored.petProgression,repeatCost:99}}); assert.deepEqual((await state(main)).students,restored.students); assert.deepEqual((await state(main)).logs,restored.logs);
       assert.ok(fs.readdirSync((await file(main,{command:'folder-info'})).backup).some(n => n.startsWith('before-restore-'))); openPath = null; savePath = null;
     });
     await check('Old-format backup import restores original defaults and data; cancelled import is non-mutating', async () => {
@@ -214,11 +214,11 @@ app.whenReady().then(async () => {
     });
     await check('A restore that resembles exactly one threshold-crossing award does not trigger any window celebration', async () => {
       await restore(); for (const w of [main, pet, pets]) await closeFeedback(w);
-      const replacement = legacyState(); replacement.students[0].score = 20; replacement.students[0].growth = 20;
-      replacement.logs.push({ id: 'l_old_backup_extra_award', timestamp: 1_004_000, delta: 1, reason: '纯合成备份中的旧记录', undone: false, changes: [{ id: 's_legacy_owl', name: '虚构兼容甲', beforeScore: 19, afterScore: 20, beforeGrowth: 19, afterGrowth: 20 }] });
+      const replacement = legacyState(); replacement.students[0].score = 30; replacement.students[0].growth = 30;
+      replacement.logs.push({ id: 'l_old_backup_extra_award', timestamp: 1_004_000, delta: 11, reason: '纯合成备份中的旧记录', undone: false, changes: [{ id: 's_legacy_owl', name: '虚构兼容甲', beforeScore: 19, afterScore: 30, beforeGrowth: 19, afterGrowth: 30 }] });
       await restoreFixture(replacement); await sleep(120);
       for (const w of [main, pet, pets]) assert.equal(await textOf(w, '#pet-feedback'), '', w.flowerRole + ' must not celebrate a restore');
-      assert.equal((await state(main)).students[0].growth, 20);
+      assert.equal((await state(main)).students[0].growth, 30);
     });
     await check('Removing a student during a reward dialog cannot award another student or leave the reward lock stuck', async () => {
       await restore(); await detail(); await click(main, '[data-do="pet-reward"]');
@@ -228,7 +228,7 @@ app.whenReady().then(async () => {
       assert.equal(await exists(main, '#modal .dialog'), false); assert.equal(await js(main, 'document.querySelector("#app").inert'), false);
       await detail('s_legacy_fox'); await click(main, '[data-do="pet-reward"]'); await js(main, `(()=>{const b=[...document.querySelectorAll('#modal [data-do="pet-reason"]')].find(b=>b.textContent.includes('进步很大'));if(!b)throw Error('Missing +5 reason');b.click();return true;})()`);
       await until(async () => (await state(main)).revision === before.revision + 1);
-      assert.equal((await state(main)).logs.at(-1).delta, 5); assert.equal((await state(main)).students.find(s => s.id === 's_legacy_fox').growth, 32);
+      assert.equal((await state(main)).logs.at(-1).delta, 5); assert.equal((await state(main)).students.find(s => s.id === 's_legacy_fox').growth, 27);
       await restore();
     });
     await check('Minimum window sizes and maximum legal names do not hide content behind horizontal overflow', async () => {
@@ -249,25 +249,25 @@ app.whenReady().then(async () => {
       const dialogText = await textOf(main, '#modal'); for (const student of before.students.slice(0, 2)) assert.ok(dialogText.includes(student.name));
       await js(main, `(()=>{const b=[...document.querySelectorAll('#modal [data-do="pet-reason"]')].find(b=>b.textContent.includes('进步很大'));if(!b)throw Error('Missing +5 reason');b.click();return true;})()`); await until(async () => (await state(main)).revision > before.revision);
       const after = await state(main), log = after.logs.at(-1); assert.equal(after.revision, before.revision + 1); assert.equal(after.logs.length, before.logs.length + 1); assert.equal(log.delta, 5); assert.deepEqual(log.changes.map(c => c.id), ids);
-      after.students.slice(0, 2).forEach((student, index) => { assert.equal(student.score, before.students[index].score + 5); assert.equal(student.growth, before.students[index].growth + 5); }); assert.deepEqual(after.students.slice(2), before.students.slice(2));
-      await closeFeedback(); await detail(ids[0]); await click(main, `[data-do="undo"][data-id="${log.id}"]`); await until(async () => (await state(main)).logs.at(-1).undone);
+      after.students.slice(0, 2).forEach((student, index) => { assert.equal(student.score, before.students[index].score + 5); assert.equal(student.growth, before.students[index].growth); }); assert.deepEqual(after.students.slice(2), before.students.slice(2));
+      await closeFeedback(); await click(main, '[data-page="logs"]'); await click(main, `[data-do="undo"][data-id="${log.id}"]`); await until(async () => (await state(main)).logs.at(-1).undone);
       assert.deepEqual((await state(main)).students, before.students); await shot(main, '11-batch-undo');
     });
     await check('Restore, rule changes and profile edits immediately remove an obsolete upgrade card in every pet window', async () => {
       for (const change of ['rules', 'profile', 'restore']) {
-        await restore(); await action(main, { type: 'score', ids: ['s_legacy_owl'], delta: 1, reason: '纯合成清理旧庆祝' });
+        await restore(); await action(main, { type: 'score', ids: ['s_legacy_owl'], delta: 11, reason: '纯合成清理旧庆祝' });
         for (const w of [main, pet, pets]) await until(async () => (await textOf(w, '#pet-feedback')).includes('升级'), w.flowerRole + ' upgrade visible');
-        if (change === 'rules') await action(main, { type: 'pet.rules', step: 5 });
+        if (change === 'rules') await action(main, { type:'petProgression.update',petProgression:{...(await state(main)).petProgression,repeatCost:5} });
         else if (change === 'profile') await action(main, { type: 'student.update', id: 's_legacy_owl', pet: 'cat' });
         else await restoreFixture(legacyState());
         await sleep(80); for (const w of [main, pet, pets]) assert.equal(await textOf(w, '#pet-feedback'), '', `${change} must clear ${w.flowerRole} obsolete feedback`);
       }
     });
-    await check('Deleting the focused companion falls back safely and a blank class uses its documented five-point rule', async () => {
+    await check('Deleting the focused companion falls back safely and a blank class preserves global progression', async () => {
       await restore(); await action(main, { type: 'pet.focus', id: 's_legacy_fox' }); await action(main, { type: 'student.remove', id: 's_legacy_fox' });
       assert.equal((await state(main)).settings.petFocusId, ''); await until(async () => (await textOf(pet)).includes('虚构兼容甲'));
       const before = await state(main); await file(main, { command: 'blank' }); await sleep(100); const blank = await state(main);
-      assert.equal(blank.students.length, 0); assert.equal(blank.settings.petStep, 5); assert.equal(blank.settings.petFocusId, '');
+      assert.equal(blank.students.length, 0); assert.equal(blank.settings.petStep, 5); assert.equal(blank.settings.petFocusId, ''); assert.deepEqual(blank.petProgression,before.petProgression);
       const backups=(await file(main,{command:'folder-info'})).backup;assert.ok(fs.readdirSync(backups).filter(n => n.startsWith('before-blank-')).some(n => JSON.stringify(JSON.parse(fs.readFileSync(path.join(backups, n)))) === JSON.stringify(before)));
       assert.match(await textOf(pet), /添加|暂无|还没有|空/); await goPets(); await shot(main, '11-empty-pet-garden');
     });
@@ -277,7 +277,7 @@ app.whenReady().then(async () => {
       assert.equal(await js(main, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300);
       assert.equal(await js(pets, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300);
       await action(panel, { type: 'score', ids: fixture.students.map(s => s.id), delta: 20, reason: '纯合成全班进化' }); await sleep(100);
-      assert.ok((await state(main)).students.every(s => s.growth === 20));
+      assert.ok((await state(main)).students.every(s => s.score === 20 && s.growth === 0));
       assert.equal(await js(main, 'document.documentElement.scrollWidth<=innerWidth'), true); await shot(main, '12-300-pets');
       assert.ok(Date.now() - started < 12_000, '300-pet update should complete within 12s in this environment'); return `${Date.now() - started} ms including offscreen screenshot`;
     });
@@ -287,7 +287,7 @@ app.whenReady().then(async () => {
       const originalScroll = await js(pet, `(()=>{const button=document.querySelector(${JSON.stringify(selector)});button.scrollIntoView({block:'center'});return document.querySelector('.floating-pet-content').scrollTop;})()`);
       assert.ok(originalScroll > 1_000, 'target is genuinely below the top of the long list');
       await click(pet, selector); await click(pet, '#modal [data-do="pet-reason"][data-index="1"]'); await until(async () => (await state(main)).revision === before.revision + 1); await sleep(80);
-      const after = await state(main); assert.equal(after.students[20].id, target.id); assert.equal(after.students[20].growth, target.growth + 2); assert.deepEqual(after.students[0], before.students[0]);
+      const after = await state(main); assert.equal(after.students[20].id, target.id); assert.equal(after.students[20].growth, target.growth); assert.equal(after.students[20].score,target.score+2); assert.deepEqual(after.students[0], before.students[0]);
       const afterScroll = await js(pet, "document.querySelector('.floating-pet-content').scrollTop"); assert.ok(Math.abs(afterScroll - originalScroll) <= 1, JSON.stringify({ originalScroll, afterScroll }));
       await shot(pet, '13-floating-keeps-scroll'); return { originalScroll, afterScroll, studentIndex: 20 };
     });

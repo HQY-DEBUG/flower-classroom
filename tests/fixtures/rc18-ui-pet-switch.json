@@ -1,0 +1,697 @@
+{
+  "active": {
+    "version": 2,
+    "revision": 6,
+    "settings": {
+      "className": "纯合成换宠专项班",
+      "petStep": 5,
+      "petFocusId": "s_switch_a",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_switch_a",
+        "name": "合成学生A",
+        "group": "合成一组",
+        "score": 21,
+        "growth": 4,
+        "pet": "fox",
+        "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGOsWHCCgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAEl4AiCcDJG+AAAAAElFTkSuQmCC",
+        "adopted": true,
+        "medals": 0
+      },
+      {
+        "id": "s_switch_b",
+        "name": "合成学生B",
+        "group": "合成二组",
+        "score": -3,
+        "growth": 7,
+        "pet": "cat",
+        "photo": "",
+        "medals": 2
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_70c86c14-4af7-4e9a-ad18-06d70af9b7c4",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "合成普通积分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "beforeScore": 17,
+            "afterScore": 21,
+            "beforeGrowth": 0,
+            "afterGrowth": 4,
+            "petEffect": null
+          }
+        ]
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [
+        "s_switch_b"
+      ],
+      "lastIds": [
+        "s_switch_a"
+      ],
+      "round": 2
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 115000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_switch_0",
+        "studentId": "s_switch_a",
+        "mode": "independent",
+        "activeCycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 38,
+        "cycles": [
+          {
+            "id": "pc_switch_0",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          },
+          {
+            "id": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 8,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "cycleId": "pc_switch_0",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成学生A",
+            "groupName": "合成一组",
+            "sourceActionId": "ga_09dd9632-33ec-4284-820f-58bdab412765"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_f780a55d-2bc3-4055-9509-2d0ed7c29c2d",
+            "type": "graduation",
+            "graduationId": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_switch_1",
+        "studentId": "s_switch_b",
+        "mode": "independent",
+        "activeCycleId": "pc_switch_1",
+        "legacyMedals": 2,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 7,
+        "cycles": [
+          {
+            "id": "pc_switch_1",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 7,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_198d9485-01b8-4289-803a-8da89ad9095e",
+        "timestamp": 14000000,
+        "delta": 30,
+        "reason": "合成首轮毕业成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_switch_0",
+            "beforeGrowth": 0,
+            "afterGrowth": 30
+          }
+        ]
+      },
+      {
+        "id": "pg_9c3dce12-637d-4be1-a4d4-b68569e44bfe",
+        "timestamp": 14000000,
+        "delta": 8,
+        "reason": "合成第二轮成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "beforeGrowth": 0,
+            "afterGrowth": 8
+          }
+        ]
+      }
+    ]
+  },
+  "graduated": {
+    "version": 2,
+    "revision": 8,
+    "settings": {
+      "className": "纯合成换宠专项班",
+      "petStep": 5,
+      "petFocusId": "s_switch_a",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_switch_a",
+        "name": "合成学生A",
+        "group": "合成一组",
+        "score": 21,
+        "growth": 4,
+        "pet": "fox",
+        "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGOsWHCCgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAEl4AiCcDJG+AAAAAElFTkSuQmCC",
+        "adopted": false,
+        "medals": 0
+      },
+      {
+        "id": "s_switch_b",
+        "name": "合成学生B",
+        "group": "合成二组",
+        "score": -3,
+        "growth": 7,
+        "pet": "cat",
+        "photo": "",
+        "medals": 2
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_70c86c14-4af7-4e9a-ad18-06d70af9b7c4",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "合成普通积分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "beforeScore": 17,
+            "afterScore": 21,
+            "beforeGrowth": 0,
+            "afterGrowth": 4,
+            "petEffect": null
+          }
+        ]
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [
+        "s_switch_b"
+      ],
+      "lastIds": [
+        "s_switch_a"
+      ],
+      "round": 2
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 115000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_switch_0",
+        "studentId": "s_switch_a",
+        "mode": "independent",
+        "activeCycleId": null,
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 60,
+        "cycles": [
+          {
+            "id": "pc_switch_0",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          },
+          {
+            "id": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "pet": "fox",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "cycleId": "pc_switch_0",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成学生A",
+            "groupName": "合成一组",
+            "sourceActionId": "ga_09dd9632-33ec-4284-820f-58bdab412765"
+          },
+          {
+            "id": "gr_2db80cf1-7cde-4980-8ec0-66c9a755af5c",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "graduatedAt": 14000000,
+            "petSnapshot": "fox",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成学生A",
+            "groupName": "合成一组",
+            "sourceActionId": "ga_48fac971-422e-4e2b-9730-31ce3c3450cf"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_f780a55d-2bc3-4055-9509-2d0ed7c29c2d",
+            "type": "graduation",
+            "graduationId": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "amount": 1,
+            "timestamp": 14000000
+          },
+          {
+            "id": "pb_6822f542-4132-4977-bf1c-063242c05000",
+            "type": "graduation",
+            "graduationId": "gr_2db80cf1-7cde-4980-8ec0-66c9a755af5c",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_switch_1",
+        "studentId": "s_switch_b",
+        "mode": "independent",
+        "activeCycleId": "pc_switch_1",
+        "legacyMedals": 2,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 7,
+        "cycles": [
+          {
+            "id": "pc_switch_1",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 7,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_198d9485-01b8-4289-803a-8da89ad9095e",
+        "timestamp": 14000000,
+        "delta": 30,
+        "reason": "合成首轮毕业成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_switch_0",
+            "beforeGrowth": 0,
+            "afterGrowth": 30
+          }
+        ]
+      },
+      {
+        "id": "pg_9c3dce12-637d-4be1-a4d4-b68569e44bfe",
+        "timestamp": 14000000,
+        "delta": 8,
+        "reason": "合成第二轮成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "beforeGrowth": 0,
+            "afterGrowth": 8
+          }
+        ]
+      },
+      {
+        "id": "pg_9b6b8ca3-935e-4f8a-9870-6f69165155f2",
+        "timestamp": 14000000,
+        "delta": 22,
+        "reason": "合成另一周期",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "beforeGrowth": 8,
+            "afterGrowth": 30
+          }
+        ]
+      }
+    ]
+  },
+  "readopted": {
+    "version": 2,
+    "revision": 9,
+    "settings": {
+      "className": "纯合成换宠专项班",
+      "petStep": 5,
+      "petFocusId": "s_switch_a",
+      "petRules": {
+        "thresholds": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
+    },
+    "students": [
+      {
+        "id": "s_switch_a",
+        "name": "合成学生A",
+        "group": "合成一组",
+        "score": 21,
+        "growth": 4,
+        "pet": "fox",
+        "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGOsWHCCgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAEl4AiCcDJG+AAAAAElFTkSuQmCC",
+        "adopted": true,
+        "medals": 0
+      },
+      {
+        "id": "s_switch_b",
+        "name": "合成学生B",
+        "group": "合成二组",
+        "score": -3,
+        "growth": 7,
+        "pet": "cat",
+        "photo": "",
+        "medals": 2
+      }
+    ],
+    "logs": [
+      {
+        "id": "l_70c86c14-4af7-4e9a-ad18-06d70af9b7c4",
+        "timestamp": 14000000,
+        "delta": 4,
+        "reason": "合成普通积分",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "beforeScore": 17,
+            "afterScore": 21,
+            "beforeGrowth": 0,
+            "afterGrowth": 4,
+            "petEffect": null
+          }
+        ]
+      }
+    ],
+    "draw": {
+      "mode": "cycle",
+      "bag": [
+        "s_switch_b"
+      ],
+      "lastIds": [
+        "s_switch_a"
+      ],
+      "round": 2
+    },
+    "timer": {
+      "durationMs": 300000,
+      "remainingMs": 115000,
+      "endsAt": null,
+      "running": false
+    },
+    "petAccounts": [
+      {
+        "id": "pa_switch_0",
+        "studentId": "s_switch_a",
+        "mode": "independent",
+        "activeCycleId": "pc_f7671248-d2ff-4ff3-b5a9-f41e825f0070",
+        "legacyMedals": 0,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 60,
+        "cycles": [
+          {
+            "id": "pc_switch_0",
+            "pet": "owl",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          },
+          {
+            "id": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "pet": "fox",
+            "status": "graduated",
+            "netGrowth": 30,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          },
+          {
+            "id": "pc_f7671248-d2ff-4ff3-b5a9-f41e825f0070",
+            "pet": "fox",
+            "status": "active",
+            "netGrowth": 0,
+            "openedAt": 14000000,
+            "origin": "explicit-adoption",
+            "startFromEgg": true
+          }
+        ],
+        "graduations": [
+          {
+            "id": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "cycleId": "pc_switch_0",
+            "graduatedAt": 14000000,
+            "petSnapshot": "owl",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成学生A",
+            "groupName": "合成一组",
+            "sourceActionId": "ga_09dd9632-33ec-4284-820f-58bdab412765"
+          },
+          {
+            "id": "gr_2db80cf1-7cde-4980-8ec0-66c9a755af5c",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "graduatedAt": 14000000,
+            "petSnapshot": "fox",
+            "ruleSnapshot": {
+              "thresholds": [
+                5,
+                5,
+                5,
+                5,
+                5,
+                5
+              ]
+            },
+            "growthSnapshot": 30,
+            "levelSnapshot": 7,
+            "shapeSnapshot": 7,
+            "studentName": "合成学生A",
+            "groupName": "合成一组",
+            "sourceActionId": "ga_48fac971-422e-4e2b-9730-31ce3c3450cf"
+          }
+        ],
+        "badgeEvents": [
+          {
+            "id": "pb_f780a55d-2bc3-4055-9509-2d0ed7c29c2d",
+            "type": "graduation",
+            "graduationId": "gr_166838b0-1467-40c0-8502-387bf2815f0a",
+            "amount": 1,
+            "timestamp": 14000000
+          },
+          {
+            "id": "pb_6822f542-4132-4977-bf1c-063242c05000",
+            "type": "graduation",
+            "graduationId": "gr_2db80cf1-7cde-4980-8ec0-66c9a755af5c",
+            "amount": 1,
+            "timestamp": 14000000
+          }
+        ]
+      },
+      {
+        "id": "pa_switch_1",
+        "studentId": "s_switch_b",
+        "mode": "independent",
+        "activeCycleId": "pc_switch_1",
+        "legacyMedals": 2,
+        "unassignedGrowth": 0,
+        "lifetimeNetGrowth": 7,
+        "cycles": [
+          {
+            "id": "pc_switch_1",
+            "pet": "cat",
+            "status": "active",
+            "netGrowth": 7,
+            "openedAt": 1000000,
+            "origin": "explicit-adoption"
+          }
+        ],
+        "graduations": [],
+        "badgeEvents": []
+      }
+    ],
+    "petLogs": [
+      {
+        "id": "pg_198d9485-01b8-4289-803a-8da89ad9095e",
+        "timestamp": 14000000,
+        "delta": 30,
+        "reason": "合成首轮毕业成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_switch_0",
+            "beforeGrowth": 0,
+            "afterGrowth": 30
+          }
+        ]
+      },
+      {
+        "id": "pg_9c3dce12-637d-4be1-a4d4-b68569e44bfe",
+        "timestamp": 14000000,
+        "delta": 8,
+        "reason": "合成第二轮成长",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "beforeGrowth": 0,
+            "afterGrowth": 8
+          }
+        ]
+      },
+      {
+        "id": "pg_9b6b8ca3-935e-4f8a-9870-6f69165155f2",
+        "timestamp": 14000000,
+        "delta": 22,
+        "reason": "合成另一周期",
+        "undone": false,
+        "changes": [
+          {
+            "id": "s_switch_a",
+            "name": "合成学生A",
+            "accountId": "pa_switch_0",
+            "cycleId": "pc_0a1f56c2-740d-4af8-a8d9-bb7defd127c6",
+            "beforeGrowth": 8,
+            "afterGrowth": 30
+          }
+        ]
+      }
+    ]
+  }
+}

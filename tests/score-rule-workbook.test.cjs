@@ -58,7 +58,7 @@ test('explicit first open creates workbook with every panel, preserved IDs, and 
   const sheet = book.getWorksheet('计分卡片');
   assert.deepEqual(sheet.getRow(1).values.slice(1), ['规则ID', '卡片名称', '积分变化', '成长值变化']);
   assert.equal(sheet.getRow(2).getCell(1).value, 'rule_a');
-  assert.equal(book.getWorksheet('宠物进阶').getRow(3).getCell(1).value, 'panel_b');
+  assert.equal(book.getWorksheet('面板设置').getRow(3).getCell(1).value, 'panel_b');
   assert.equal(sheet.getRow(4).getCell(2).value, '同编号不同规则');
   assert.equal(sheet.getRow(2).getCell(4).value, null);
   const before = fs.readFileSync(file);
@@ -140,8 +140,8 @@ test('refresh rejects unknown/missing panels, duplicate IDs, partial rows, extra
   const {service, file} = setup(t), state = classroom();
   await service.open(state); const baseline = fs.readFileSync(file);
   const variants = [
-    [(_sheet, book) => book.getWorksheet('宠物进阶').getCell('A2').value = 'unknown_panel', /面板ID不存在/],
-    [(_sheet, book) => book.getWorksheet('宠物进阶').spliceRows(3, 1), /不得遗漏/],
+    [(_sheet, book) => book.getWorksheet('面板设置').getCell('A2').value = 'unknown_panel', /面板ID不存在/],
+    [(_sheet, book) => book.getWorksheet('面板设置').spliceRows(3, 1), /须包含每个现有面板/],
     [sheet => sheet.getCell('A3').value = 'rule_a', /重复/],
     [sheet => sheet.getCell('A2').value = '', /编号无效/],
     [sheet => sheet.getCell('B2').value = '', /1–120/],
@@ -433,7 +433,7 @@ test('renamed classroom after restart uses stable panel IDs and refreshes displa
   const opened = await restarted.open(renamed);
   assert.equal(opened.externalChanged, true); assert.match(opened.warning, /不同|当前课堂/);
   const preview = await restarted.prepareRefresh(renamed);
-  assert.match(preview.warning, /当前课堂/);
+  assert.ok(preview.configSummary.some(group => group.sheet === '面板设置' && group.changes.some(change => change.key === 'name')));
   const refreshed = restarted.commitRefresh(preview, {currentState: renamed, saveState: saved});
   assert.equal(refreshed.settings.className, '一班');
   assert.equal(refreshed.panels.others[0].data.settings.className, '二班');
@@ -443,20 +443,20 @@ test('renamed classroom after restart uses stable panel IDs and refreshes displa
   const next = changed(refreshed), prepared = await freshProcess.prepareSave(refreshed, next);
   freshProcess.commitPrepared(prepared, {currentState: refreshed, nextState: next, saveState: saved});
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(file);
-  assert.equal(book.getWorksheet('宠物进阶').getCell('B2').value, '一班');
-  assert.equal(book.getWorksheet('宠物进阶').getCell('B3').value, '二班');
+  assert.equal(book.getWorksheet('面板设置').getCell('B2').value, '一班');
+  assert.equal(book.getWorksheet('面板设置').getCell('B3').value, '二班');
 });
 
 test('renamed display names never hide real external rule changes or unknown/missing panel IDs', async t => {
   const {directory, service, file} = setup(t), state = classroom(); await service.open(state);
   const renamed = structuredClone(state); renamed.settings.className = '新班名';
-  await edit(file, (sheet,book) => {sheet.getCell('B2').value = '真正的外部规则修改'; book.getWorksheet('宠物进阶').getCell('B2').value = '另一个显示名称';});
+  await edit(file, (sheet,book) => {sheet.getCell('B2').value = '真正的外部规则修改'; book.getWorksheet('面板设置').getCell('B2').value = '另一个显示名称';});
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory});
   await assert.rejects(restarted.prepareSave(renamed, changed(renamed)), /外部更改/);
   const preview = await restarted.prepareRefresh(renamed);
   const imported = restarted.commitRefresh(preview, {currentState: renamed, saveState: saved});
   assert.equal(imported.settings.scoreRules[0].label, '真正的外部规则修改');
-  assert.equal(imported.settings.className, '一班');
-  await edit(file, (_sheet,book) => book.getWorksheet('宠物进阶').getCell('A2').value = 'missing_panel');
+  assert.equal(imported.settings.className, '另一个显示名称');
+  await edit(file, (_sheet,book) => book.getWorksheet('面板设置').getCell('A2').value = 'missing_panel');
   await assert.rejects(restarted.prepareRefresh(imported), /面板ID不存在/);
 });

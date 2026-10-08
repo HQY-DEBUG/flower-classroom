@@ -44,7 +44,8 @@ test('fresh extraction resources contain all originals, real editable defaults a
   assert.deepEqual(rules.getRow(1).values.slice(1), HEADERS);
   const progression=workbook.getWorksheet(PROGRESSION_SHEET);
   assert.deepEqual(progression.getRow(1).values.slice(1), PROGRESSION_HEADERS);
-  assert.deepEqual(progression.getRow(2).values.slice(4), [20,40,60,80,100,120,'不适用']);
+  assert.deepEqual(progression.getRows(2,8).map(row=>row.getCell(2).value), [5,10,15,20,20,20,20,20]);
+  assert.deepEqual(progression.getRows(2,8).map(row=>row.getCell(3).value.result), [5,15,30,50,70,90,110,130]);
   assert.equal(result.workbookSha256, INITIAL_SHA256);
   const again = await prepareFolderResources(f);
   assert.equal(again.workbookSha256, result.workbookSha256);

@@ -9,10 +9,14 @@ const ExcelJS = require('exceljs');
 const Core = require('../src/core.cjs');
 const Rules = require('../src/score-rules.js');
 const Progress = require('../src/pet-progress.js');
+const PetScores = require('../src/pet-score-progression.js');
+const PetLedger = require('../src/pet-ledger.cjs');
 const W = require('../src/score-rule-workbook.cjs');
 const clone = value => structuredClone(value), saved = value => Core.validateState(value);
 function legacyState() {
-  const state = Core.createInitialState(), second = Core.applyAction(Core.createInitialState(), {type:'pet.stage-rules',thresholds:[1,2,3,4,5,6]}, 1000);
+  const state = Core.createInitialState(), second = Core.createInitialState();
+  // Historical input fixture, constructed without invoking a retired UI action.
+  PetLedger.enable(second,[1,2,3,4,5,6],1000);delete second.petProgression;
   state.settings.className='合成旧版班'; state.settings.petStep=13; state.settings.scoreRules=[{id:'rule_same',label:'合成旧卡片',delta:2}];
   second.settings.className='合成六段班'; second.settings.scoreRules=[{id:'rule_same',label:'合成另一卡片',delta:4,growthDelta:0}];
   state.version=2;state.panels={activeId:'panel_old',others:[{id:'panel_six',data:second}]};
@@ -34,37 +38,35 @@ async function legacyBytes(state) {
 }
 function changeRules(state) {const next=clone(state),rules=Rules.list(next);rules[0].label='合成更改卡片';Rules.setShared(next,rules);next.revision++;return next;}
 
-test('RC18 uses one shared card sheet and exact cumulative growth for both existing progression modes',async t=>{
+test('RC19 uses one shared card sheet and one global progression while preserving both historical mode records',async t=>{
   const f=fixture(t),state=sharedState();await f.service.open(state);
   const book=new ExcelJS.Workbook();await book.xlsx.readFile(f.file);
   assert.deepEqual(book.getWorksheet(W.SHEET_NAME).getRow(1).values.slice(1),W.HEADERS);
   assert.equal(book.getWorksheet(W.SHEET_NAME).actualRowCount,Rules.list(state).length+1);
   const parsed=await W.parseBytes(fs.readFileSync(f.file),state);
-  assert.deepEqual(parsed.map(p=>p.cumulative),[[13,26,39,52,65,78],[1,3,6,10,15,21]]);
+  assert.deepEqual(parsed.configSnapshot.petProgression,PetScores.DEFAULT_PROGRESSION);
   assert.deepEqual(parsed[0].rules,parsed[1].rules);
-  assert.deepEqual(parsed.map(p=>p.mode),['legacy-step','ledger-six']);
+  assert.equal(state.settings.petStep,13);assert.deepEqual(state.panels.others[0].data.settings.petRules.thresholds,[1,2,3,4,5,6]);
 });
 
 test('RC18 combined card and progression apply is atomic and retains all ledger and historical snapshots',async t=>{
   const f=fixture(t),state=sharedState(),original=clone(state);await f.service.open(state);
-  await edit(f.file,book=>{book.getWorksheet(W.SHEET_NAME).getCell('B2').value='合成所有面板共用';const s=book.getWorksheet(W.PROGRESSION_SHEET);[7,14,21,28,35,42].forEach((v,i)=>s.getRow(2).getCell(i+4).value=v);[2,5,9,14,20,27].forEach((v,i)=>s.getRow(3).getCell(i+4).value=v);});
+  await edit(f.file,book=>{book.getWorksheet(W.SHEET_NAME).getCell('B2').value='合成所有面板共用';const s=book.getWorksheet(W.PROGRESSION_SHEET);[7,10,15,20,20,20,20].forEach((v,i)=>s.getRow(i+2).getCell(2).value=v);s.getCell('B9').value=25;});
   const external=fs.readFileSync(f.file),preview=await f.service.prepareRefresh(state);
   assert.equal(preview.shared,true);assert.equal(preview.ruleCount,2);assert.equal(preview.progression.every(p=>p.changed),true);
   assert.deepEqual(state,original);assert.deepEqual(fs.readFileSync(f.file),external);
   assert.throws(()=>f.service.commitRefresh(preview,{currentState:state,saveState:()=>{throw Error('synthetic JSON denied');}}),/synthetic JSON denied/);
   assert.deepEqual(state,original);assert.deepEqual(fs.readFileSync(f.file),external);
   const retry=await f.service.prepareRefresh(state),next=f.service.commitRefresh(retry,{currentState:state,saveState:saved});
-  assert.equal(next.settings.petStep,7);assert.equal(next.settings.petRules,undefined);
-  assert.deepEqual(next.panels.others[0].data.settings.petRules.thresholds,[2,3,4,5,6,7]);
+  assert.equal(next.settings.petStep,13);assert.equal(next.settings.petRules,undefined);
+  assert.deepEqual(next.petProgression,{version:1,costs:[7,10,15,20,20,20,20],repeatCost:25});
+  assert.deepEqual(next.panels.others[0].data.settings.petRules.thresholds,[1,2,3,4,5,6]);
   assert.deepEqual(next.students,state.students);assert.deepEqual(next.logs,state.logs);
   assert.deepEqual(next.panels.others[0].data.petAccounts,state.panels.others[0].data.petAccounts);
   assert.deepEqual(next.panels.others[0].data.petLogs,state.panels.others[0].data.petLogs);
   assert.deepEqual(Rules.list(Core.applyAction(next,{type:'panel.switch',id:'panel_six'})),Rules.list(next));
   assert.equal(Rules.list(next)[0].label,'合成所有面板共用');
-  const six=next.panels.others[0].data;
-  for(const [growth,level] of [[0,1],[1,1],[2,2],[4,2],[5,3],[26,6],[27,7]])assert.equal(Progress.progress(growth,six.settings.petRules.thresholds).level,level);
-  assert.equal(Core.petLevel({...next.students[0],growth:6},next.settings.petStep).level,1);
-  assert.equal(Core.petLevel({...next.students[0],growth:7},next.settings.petStep).level,2);
+  for(const [score,level] of [[-1,0],[0,0],[6,0],[7,1],[16,1],[17,2],[112,7],[137,8]])assert.equal(PetScores.progress(score,next.petProgression).level,level);
 });
 
 test('RC18 missing progression sheet requires migration preview, preserves every current setting and backs original bytes',async t=>{
@@ -94,9 +96,9 @@ test('RC18 differing legacy workbook imports only after explicit preview and pre
   assert.deepEqual(next.panels.others[0].data.petAccounts,state.panels.others[0].data.petAccounts);
 });
 
-test('RC18 rejects invalid, missing, duplicate, switched-mode and nonmonotonic progression without accepting card edits',async t=>{
+test('RC19 rejects invalid, missing and duplicate global progression rows without accepting card edits',async t=>{
   const f=fixture(t),state=sharedState();await f.service.open(state);const baseline=fs.readFileSync(f.file);
-  for(const modify of [s=>s.getCell('C2').value='六段成长账本',s=>s.getCell('E2').value=25,s=>s.getCell('E3').value=1,s=>s.getCell('I3').value=1000000001,s=>s.getCell('D2').value=0,s=>s.getCell('D3').value={formula:'1+1',result:2},s=>s.spliceRows(2,1),s=>s.getCell('A3').value='panel_old',s=>s.getCell('D1').value='LV2积分']){
+  for(const modify of [s=>s.getCell('C2').value='不应修改',s=>s.getCell('B2').value=0,s=>s.getCell('B3').value=-1,s=>s.getCell('B3').value=1000000001,s=>s.getCell('B9').value=0,s=>s.getCell('B3').value={formula:'1+1',result:2},s=>s.spliceRows(2,1),s=>s.getCell('A3').value='LV1',s=>s.getCell('B1').value='LV2积分']){
     fs.writeFileSync(f.file,baseline);await edit(f.file,book=>{book.getWorksheet(W.SHEET_NAME).getCell('B2').value='合成不应应用';modify(book.getWorksheet(W.PROGRESSION_SHEET));});
     const before=fs.readFileSync(f.file);await assert.rejects(f.service.prepareRefresh(state));assert.deepEqual(fs.readFileSync(f.file),before);assert.equal(Rules.list(state)[0].label,'合成旧卡片');
   }

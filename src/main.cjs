@@ -18,6 +18,7 @@ const workbookActionTypes = new Set(Configuration.actionTypes);
 const workbookActionKey = action => {const value={...action};delete value.workbookToken;delete value._transportId;return JSON.stringify(value);};
 const { createStore } = require('./storage.cjs');
 const PetProgress = require('./pet-progress.js');
+const PetScoreProgression = require('./pet-score-progression.js');
 const Rankings = require('./classroom-rankings.js');
 const ToolboxExtra = require('./toolbox-extra.js');
 const ToolboxExport = require('./toolbox-export.cjs');
@@ -81,7 +82,8 @@ function blankState(current){
   if(current.appConfig)next.appConfig=JSON.parse(JSON.stringify(current.appConfig));
   if(current.sharedScoreRules){next.sharedScoreRules=JSON.parse(JSON.stringify(current.sharedScoreRules));ScoreRules.mirrorShared(next);}
   else if(current.settings.scoreRules)next.settings.scoreRules=JSON.parse(JSON.stringify(current.settings.scoreRules));
-  return applyAction(next,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});
+  next.petProgression=PetScoreProgression.get(current);
+  return applyAction(next,{type:'settings',className:next.settings.className});
 }
 function restoreFileSnapshot(file) {
   let stat;try{stat=fs.statSync(file);}catch(error){if(error.code==='ENOENT')return {path:file,hash:null,bytes:null};throw error;}
@@ -266,13 +268,13 @@ async function importList(mode = 'append') {
   const lockAtStart=lockRevision;
   const startPanel=panelId(state),startGeneration=restoreGeneration;
   const check=()=>{assertUnlocked(lockAtStart);if(startPanel!==panelId(state)||startGeneration!==restoreGeneration)throw new Error('面板或备份已变化，请重新选择名单文件');};
-  const result = await dialog.showOpenDialog(mainWindow, { title: '导入学生名单（姓名、小组、可选头像名称）', defaultPath:resourceDirectory, properties: ['openFile'], filters: [{ name: 'Excel / CSV', extensions: ['xlsx', 'csv'] }] });
+  const result = await dialog.showOpenDialog(mainWindow, { title: '导入学生名单（姓名、性别、组号、头像）', defaultPath:resourceDirectory, properties: ['openFile'], filters: [{ name: 'Excel / CSV', extensions: ['xlsx', 'csv'] }] });
   if (result.canceled) return null;
   assertUnlocked(lockAtStart);
   const file = result.filePaths[0];
   if (fs.statSync(file).size > 10 * 1024 * 1024) throw new Error('名单文件不能超过 10 MB');
   const parsed = await parseWorkbook(fs.readFileSync(file), file);check();
-  const hasAvatarNames=parsed.some(row=>String(row['头像名称']??row.avatarName??'').trim());
+  const hasAvatarNames=parsed.some(row=>String(row['头像名称']??row['头像']??row.avatarName??'').trim());
   const library=hasAvatarNames?await avatarLibrary.refresh({check}):{items:[],warning:''};check();
   const {rows,avatarMatches}=resolveAvatarRows(parsed,library.items);
   const preview = importRows(rows, state, mode);
@@ -286,9 +288,9 @@ async function exportTemplate() {
   assertUnlocked(lockAtStart);
   const ExcelJS = require('exceljs');
   const book = new ExcelJS.Workbook(), sheet = book.addWorksheet('名单');
-  sheet.columns = [{ header: '姓名', key: 'name', width: 20, style: { numFmt: '@' } }, { header: '小组', key: 'group', width: 20, style: { numFmt: '@' } }, {header:'头像名称',key:'avatarName',width:30,style:{numFmt:'@'}}];
-  sheet.addRows([{ name: '示例同学', group: '向日葵组',avatarName:'01-星星猫头鹰.png' }]);
-  const help=book.addWorksheet('填写说明');help.columns=[{header:'项目',key:'topic',width:18},{header:'说明',key:'note',width:80}];help.addRows([{topic:'头像名称',note:'可选。填写头像文件夹内的图片文件名，例如 01-星星猫头鹰.png。留空使用姓名头像。'},{topic:'文本填写',note:'三列已设为文本。0001 等含前导零的姓名、小组或头像名称请保持文本格式；已被 Excel 转成数字或日期的内容需先改为文本并重新填写。'},{topic:'管理头像',note:'班级设置 → 打开头像库 → 打开头像文件夹。全部素材放在这一层；添加或移除后刷新。'},{topic:'匹配规则',note:'建议填写完整文件名（含后缀）。不含后缀时仅匹配唯一同名图片。未匹配或重名会在导入预览中提示。'},{topic:'旧模板',note:'只有姓名、小组两列的旧模板可以继续使用。姓名必填，每次最多300位学生。'},{topic:'保存方式',note:'确认导入后使用预览时的头像快照。之后删除素材不影响已保存头像；完整备份包含已选头像。'}]);help.getColumn(2).alignment={wrapText:true,vertical:'top'};help.eachRow((row,i)=>{if(i>1)row.height=45;});
+  sheet.columns = [{header:'姓名',key:'name',width:20,style:{numFmt:'@'}},{header:'性别',key:'gender',width:12,style:{numFmt:'@'}},{header:'组号',key:'group',width:20,style:{numFmt:'@'}},{header:'头像',key:'avatarName',width:30,style:{numFmt:'@'}}];
+  sheet.addRows([{ name: '示例同学', gender:'',group: '1',avatarName:'01-星星猫头鹰.png' }]);
+  const help=book.addWorksheet('填写说明');help.columns=[{header:'项目',key:'topic',width:18},{header:'说明',key:'note',width:80}];help.addRows([{topic:'性别',note:'可选，只填写男、女或留空。不根据姓名推断性别。'},{topic:'组号',note:'可填1、2等组号，也可使用小组名称。导入后作为学生所属小组保存。'},{topic:'头像',note:'可选。填写头像文件夹内的图片文件名，例如 01-星星猫头鹰.png。留空使用姓名头像。'},{topic:'文本填写',note:'四列已设为文本。0001 等含前导零的姓名、小组或头像名称请保持文本格式；已被 Excel 转成数字或日期的内容需先改为文本并重新填写。'},{topic:'管理头像',note:'班级设置 → 打开头像库 → 打开头像文件夹。全部素材放在这一层；添加或移除后刷新。'},{topic:'匹配规则',note:'建议填写完整文件名（含后缀）。不含后缀时仅匹配唯一同名图片。未匹配或重名会在导入预览中提示。'},{topic:'旧模板',note:'姓名、小组两列模板以及头像名称列继续支持。姓名必填，每次最多300位学生。'},{topic:'保存方式',note:'确认导入后使用预览时的头像快照。之后删除素材不影响已保存头像；完整备份包含已选头像。'}]);help.getColumn(2).alignment={wrapText:true,vertical:'top'};help.eachRow((row,i)=>{if(i>1)row.height=45;});
   sheet.getRow(1).font = { bold: true };
   const output = Buffer.from(await book.xlsx.writeBuffer());
   writeFileAtomic(result.filePath, output, {beforeCommit:()=>assertUnlocked(lockAtStart)}); return true;
@@ -426,7 +428,7 @@ async function fileCommand(event, request = {}) {
     const ExcelJS = require('exceljs');
     const book=new ExcelJS.Workbook();book.creator='花伴课堂';book.created=new Date();
     const students=book.addWorksheet('学生积分'),groups=book.addWorksheet('小组积分'),logs=book.addWorksheet('积分记录');
-    students.columns=[{header:'学生编号',key:'id',width:40},{header:'姓名',key:'name',width:22},{header:'小组',key:'group',width:22},{header:'当前积分',key:'score',width:14},{header:'课堂累计成长（兼容）',key:'growth',width:24},{header:'宠物',key:'pet',width:18},{header:'等级',key:'level',width:12},{header:'组长标记',key:'leader',width:14},{header:'当前宠物成长',key:'petGrowth',width:18},{header:'宠物生涯净成长',key:'petLifetime',width:20},{header:'总徽章',key:'medals',width:14},{header:'可兑换徽章',key:'available',width:18}];
+    students.columns=[{header:'学生编号',key:'id',width:40},{header:'姓名',key:'name',width:22},{header:'性别',key:'gender',width:12},{header:'小组',key:'group',width:22},{header:'当前积分',key:'score',width:14},{header:'历史累计成长',key:'growth',width:24},{header:'宠物',key:'pet',width:18},{header:'等级',key:'level',width:12},{header:'组长标记',key:'leader',width:14},{header:'进阶积分（负分按0）',key:'petGrowth',width:18},{header:'历史生涯净成长',key:'petLifetime',width:20},{header:'总徽章',key:'medals',width:14},{header:'可兑换徽章',key:'available',width:18}];
     const petNames=require('./pet-art.js').names;
     students.addRows(snapshot.students.map(s=>{const p=PetProgress.profile(snapshot,s);return {...s,pet:petNames[p.pet],level:p.adopted?p.level:'未领养',leader:s.leader?'是':'',petGrowth:p.growth,petLifetime:p.lifetimeNetGrowth,medals:p.medalTotal,available:p.medalAvailable===null?'待核定':p.medalAvailable};}));
     groups.columns=[{header:'小组',key:'group',width:24},{header:'成员人数',key:'count',width:14},{header:'成员积分合计',key:'total',width:18},{header:'独立基础分',key:'base',width:18},{header:'小组总分',key:'combined',width:16},{header:'成员平均分',key:'average',width:18}];

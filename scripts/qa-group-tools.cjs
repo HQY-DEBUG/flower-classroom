@@ -18,13 +18,10 @@ if(!process.versions.electron){
 }else{
  const {app,BrowserWindow,dialog}=require('electron'),Core=require('../src/core.cjs'),Groups=require('../src/group-tools.js');app.disableHardwareAcceleration();
  if(phase==='flows'){
-  let state=Core.createInitialState();state.settings.className='纯合成小组验收班';state.students=state.students.slice(0,3);
-  state.students.forEach((student,index)=>{student.name='合成学生'+(index+1);student.group=index<2?'合成向日葵组':'合成四叶草组';student.score=[20,100,50][index];student.growth=index===0?35:7;student.leader=index===0;});
+  let state=Core.validateState(require('../tests/fixtures/group-history-rc19.json'));state.settings.className='纯合成小组验收班';state.students=state.students.slice(0,3);state.petAccounts=state.petAccounts.filter(account=>state.students.some(student=>student.id===account.studentId));
+  state.students.forEach((student,index)=>{student.name='合成学生'+(index+1);student.group=index<2?'合成向日葵组':'合成四叶草组';student.score=[20,100,50][index];student.leader=index===0;});
   state.students[0].photo=require('../tests/pet-fixtures.cjs').SYNTHETIC_PNG;
-  state=Core.applyAction(state,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});
-  state=Core.applyAction(state,{type:'pet.graduate',id:state.students[0].id});
-  state=Core.applyAction(state,{type:'pet.adopt',id:state.students[0].id,pet:'cat'});
-  state=Core.applyAction(state,{type:'pet.growth',ids:[state.students[0].id],delta:4,reason:'合成成长记录'});
+  // Keep archived pet history without invoking retired growth/graduation controls.
   fs.writeFileSync(path.join(dir,'classroom-v2.json'),JSON.stringify(state));fs.writeFileSync(path.join(out,'baseline.json'),JSON.stringify(state));
  }
  const mainEntry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'));require('./package-boundary.cjs')(mainEntry,path.join(out,'dependency-boundary-'+phase+'.json'));require(mainEntry);

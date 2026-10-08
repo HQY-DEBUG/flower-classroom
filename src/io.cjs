@@ -26,7 +26,7 @@ function saveAtomic(file, state, { preservePrevious = false } = {}) {
   if (!preservePrevious && fs.existsSync(file)) fs.copyFileSync(file, file + '.previous');
   fs.renameSync(temp, file);
 }
-const rosterTextHeaders = new Set(['姓名', 'name', '小组', 'group', '头像名称', 'avatarName']);
+const rosterTextHeaders = new Set(['姓名', 'name', '性别', 'gender', '小组', '组号', 'group', '头像名称', '头像', 'avatarName']);
 // The worksheet scan has its own generous bound; blank/template rows are not
 // students and must never consume the separate 300-student limit.
 const MAX_WORKSHEET_ROWS = 100000;
@@ -119,10 +119,11 @@ async function parseWorkbook(buffer, filename) {
   const emptyCaches = zip ? await emptyFormulaCaches(zip, sheet.id) : new Set();
   const headerRow = sheet.getRow(1);
   const headers = headerRow.values.slice(1).map((v, j) => workbookCellText(headerRow.getCell(j + 1), true, emptyCaches).replace(/^\uFEFF/, '').trim());
-  if(headers.length>100)throw new Error('名单列数过多，请仅保留姓名、小组和可选头像名称列');
-  if(headers.filter(h=>['姓名','name'].includes(h)).length!==1 || headers.filter(h=>['小组','group'].includes(h)).length>1)throw new Error('姓名或小组表头重复或混用，请仅保留一列');
+  if(headers.length>100)throw new Error('名单列数过多，请仅保留姓名、性别、组号和头像等名单列');
+  if(headers.filter(h=>['姓名','name'].includes(h)).length!==1 || headers.filter(h=>['小组','组号','group'].includes(h)).length>1)throw new Error('姓名或小组/组号表头重复或混用，请仅保留一列');
   if (!headers.includes('姓名') && !headers.includes('name')) throw new Error('第一行需包含「姓名」或 name 表头');
-  if(headers.filter(h=>['头像名称','avatarName'].includes(h)).length>1)throw new Error('头像名称表头重复或混用，请仅保留一列');
+  if(headers.filter(h=>['头像名称','头像','avatarName'].includes(h)).length>1)throw new Error('头像名称表头重复或混用，请仅保留一列');
+  if(headers.filter(h=>['性别','gender'].includes(h)).length>1)throw new Error('性别表头重复或混用，请仅保留一列');
   const rows = [];
   sheet.eachRow((row, i) => {
     if (i === 1) return;
@@ -141,9 +142,12 @@ function resolveAvatarRows(rows, items = []) {
   const stem=name=>name.replace(/\.(?:png|jpe?g|webp)$/i,'');
   const matches=[];
   const resolved=rows.map((row,index)=>{
-    const rawRequested=String(row['头像名称']??row.avatarName??'');
+    const rawRequested=String(row['头像名称']??row['头像']??row.avatarName??'');
     const requested=rawRequested.trim()?rawRequested:'';
-    const result={name:row['姓名']??row.name,group:row['小组']??row.group,photo:''};
+    const rawGender=row['性别']??row.gender;
+    const gender=rawGender===undefined?undefined:String(rawGender).trim();
+    if(gender!==undefined&&!['','男','女'].includes(gender))throw new Error(`第${index+2}行性别仅支持男、女或留空，请核对原名单`);
+    const result={name:row['姓名']??row.name,group:row['小组']??row['组号']??row.group,photo:'',...(gender===undefined?{}:{gender})};
     let status='default', detail='使用默认姓名头像', match;
     if(requested){
       if(/[\\/:\x00-\x1f\x7f]/.test(requested)||requested.trim()==='.'||requested.trim()==='..') {status='invalid';detail='只填写头像文件名，不支持路径或网址；使用默认头像';}

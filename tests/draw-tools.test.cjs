@@ -74,13 +74,13 @@ test('row content and draft attributes are escaped', () => {
   assert.doesNotMatch(html, /<img src=x|value="" autofocus/);
 });
 
-test('individual award adds requested score and growth only to the selected row, and is undoable', async () => {
+test('individual award changes only the selected score, preserves history and is undoable', async () => {
   const h = harness(), id = h.state.draw.lastIds[1], other = h.state.draw.lastIds[0], expectedDraw=h.current.dataset.drawKey;
   h.score(id).value = '5'; h.score(other).value = '3';
   assert.equal(await h.tools.handle('draw-reward', { dataset: { id } }, h.context), true);
   assert.deepEqual(h.calls, [{ type: 'score', ids: [id], delta: 5, reason: '随机点名奖励', expectedDraw }]);
   assert.equal(h.state.students.find(student => student.id === id).score, 5);
-  assert.equal(h.state.students.find(student => student.id === id).growth, 5);
+  assert.equal(h.state.students.find(student => student.id === id).growth, 0);
   assert.equal(h.state.students.find(student => student.id === other).score, 0);
   assert.equal(h.score(id).value, ''); assert.equal(h.score(other).value, '3');
   assert.ok(h.messages.at(-1).includes('+5'));

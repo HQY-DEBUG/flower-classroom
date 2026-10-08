@@ -6,7 +6,7 @@ const clone=value=>structuredClone(value);
 const mirroredSettings=['scoreRules','showAvatars','scoreStep','studentSort','hideLateForms','timerSound','toolDefaults','wheelPrizes','challengeOptions'];
 function classroomPayload(state,original,root=true){
  const value=clone(state);delete value.version;
- if(root){delete value.revision;delete value.sharedScoreRules;delete value.appConfig;}
+ if(root){delete value.revision;delete value.sharedScoreRules;delete value.appConfig;delete value.petProgression;}
  for(const key of mirroredSettings)if(!Object.hasOwn(original.settings,key))delete value.settings[key];
  if(value.panels)value.panels.others=value.panels.others.map(panel=>({...panel,data:classroomPayload(panel.data,original.panels.others.find(p=>p.id===panel.id).data,false)}));
  return value;
@@ -18,6 +18,7 @@ function assertRestoredState(actual,incoming,previous,{configuration,rules}){
  assert.equal(actual.version,2);assert.equal(actual.revision,previous.revision+1);
  const expectedConfiguration=configuration.snapshot({...incoming,appConfig:incoming.appConfig??previous.appConfig});
  assert.deepEqual(configuration.snapshot(actual),expectedConfiguration,'Restore must retain every effective configuration value');
+ assert.deepEqual(actual.petProgression,expectedConfiguration.petProgression,'Restore must preserve or explicitly default root score progression');
  if(incoming.sharedScoreRules)assert.deepEqual(actual.sharedScoreRules,incoming.sharedScoreRules,'Existing shared rule metadata must survive restore');
  else{
   const expected=rules.previewShared(incoming);assert.equal(expected.required,false,'General classroom fixtures must not silently merge conflicting old cards');

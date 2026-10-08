@@ -125,9 +125,8 @@ test('core removes dead order references after roster edits while keeping a deli
  state=Core.applyAction(state,{type:'student.remove',id:state.students[0].id});assert.deepEqual(state.settings.groupOrder,['保留的合成空组']);assert.deepEqual(state.groupBases,[{group:'保留的合成空组',score:0}]);
 });
 test('replace import preserves previously empty group names at zero base and appends new roster groups without mutating source records',()=>{
- const Core=require('../src/core.cjs');let state=Core.createInitialState();state.students=state.students.slice(0,2);
- state.students[0].photo=require('./pet-fixtures.cjs').SYNTHETIC_PNG;state.students[0].score=20;state.students[0].growth=35;state.students[0].leader=true;
- state=Core.applyAction(state,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});state=Core.applyAction(state,{type:'pet.graduate',id:state.students[0].id});
+ const Core=require('../src/core.cjs');let state=Core.validateState(require('./fixtures/group-history-rc19.json'));state.students=state.students.slice(0,2);state.petAccounts=state.petAccounts.filter(account=>state.students.some(student=>student.id===account.studentId));
+ state.students[0].score=20;state.students[0].leader=true;
  state=Core.applyAction(state,{type:'group.create',group:'合成非零空组',panelId:Core.panelId(state)});state=Core.applyAction(state,{type:'group.create',group:'合成零分空组',panelId:Core.panelId(state)});
  state=Core.applyAction(state,{type:'group.base',group:'合成非零空组',delta:17,reason:'合成空组基础分'});state=Core.applyAction(state,{type:'group.base',group:state.students[0].group,delta:33,reason:'合成有成员组基础分'});
  const oldGroup=state.students[0].group,order=Groups.names(state);state=Core.applyAction(state,{type:'group.order',order:['合成零分空组',oldGroup,'合成非零空组'],expectedOrder:order,panelId:Core.panelId(state)});

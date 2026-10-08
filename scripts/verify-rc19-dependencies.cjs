@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),asar=require('@electron/asar');
+const root=path.resolve(__dirname,'..'),current=path.join(root,'dist-rc19-final/win-unpacked/resources/app.asar'),baseline=path.resolve(root,'../../flower-rc18-work/FlowerClassroom-source/dist-rc18-final/win-unpacked/resources/app.asar');
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),files=a=>asar.listPackage(a).map(p=>p.slice(1)).filter(p=>p.startsWith('node_modules/')&&!asar.statFile(a,p).files).sort();
+assert.equal(sha(fs.readFileSync(baseline)),'a85789dd38dd2ddea662a1c5bb186d9e68ae537419c75200d73d116710c2026a');
+const before=sha(fs.readFileSync(current)),names=files(baseline);assert.deepEqual(files(current),names);
+const lock=JSON.parse(fs.readFileSync(path.join(root,'package-lock.json'))),oldLock=JSON.parse(fs.readFileSync(path.resolve(root,'../../flower-rc18-work/FlowerClassroom-source/package-lock.json')));delete lock.version;delete oldLock.version;delete lock.packages[''].version;delete oldLock.packages[''].version;assert.deepEqual(lock,oldLock);
+for(const name of names)assert.equal(sha(asar.extractFile(current,name)),sha(asar.extractFile(baseline,name)),name);
+assert.equal(sha(fs.readFileSync(current)),before);
+const result={status:'passed',verifiedAtUtc:new Date().toISOString(),productionDependencyFiles:names.length,exactDependencyFileSet:true,lockDependenciesUnchanged:true,baselineAsarSha256:sha(fs.readFileSync(baseline)),asarSha256:before,asarUnchanged:true};
+fs.writeFileSync(path.join(root,'artifacts/rc19/package/dependency-equivalence.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

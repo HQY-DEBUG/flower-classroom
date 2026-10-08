@@ -1,7 +1,7 @@
 'use strict';
 // Attests the complete source manifest around a real existing integration command.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
-const root=path.resolve(__dirname,'..'),out=path.join(root,process.env.FLOWER_FREEZE_DIR||'artifacts/rc4'),kind=process.argv[2];
+const root=path.resolve(__dirname,'..'),out=path.join(root,process.env.FLOWER_FREEZE_DIR||'artifacts/rc19'),kind=process.argv[2];
 const choices={petextra:{entry:'scripts/qa-pet-extra.cjs',raw:'artifacts/qa-pet-extra/results.json',electron:true},care:{entry:'scripts/qa-pet-care.cjs',raw:'artifacts/qa-pet-care/results.json',electron:true},lock:{entry:'tests/classroom-lock-fixture.cjs',raw:'artifacts/qa-classroom-lock/results.json',electron:false}};
 assert(Object.hasOwn(choices,kind),'Choose care, lock or petextra');const task=choices[kind],sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const manifest=()=>Object.fromEntries(fs.readdirSync(path.join(root,'src')).sort().map(n=>[n,sha(fs.readFileSync(path.join(root,'src',n)))]));

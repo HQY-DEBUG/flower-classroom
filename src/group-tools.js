@@ -68,5 +68,12 @@
   if(!naturalNames(state).includes(target))throw Error('目标小组已变化，请重新选择');
   return target;
  }
- return Object.freeze({MAX_GROUPS,MAX_BASES,groupName,validateOrder,names,reconcileOrder,orderedGroups,createGroupPatch,orderPatch,move,assertAssignments});
+ // Prepare both operations before the caller commits anything. A failed
+ // selection snapshot must never leave an empty group behind.
+ function createAndAssignPatch(state,ids,expected,value){
+  const patch=createGroupPatch(state,value);
+  assertAssignments({...state,groupBases:patch.groupBases},ids,expected,patch.group);
+  return patch;
+ }
+ return Object.freeze({MAX_GROUPS,MAX_BASES,groupName,validateOrder,names,reconcileOrder,orderedGroups,createGroupPatch,createAndAssignPatch,orderPatch,move,assertAssignments});
 });
