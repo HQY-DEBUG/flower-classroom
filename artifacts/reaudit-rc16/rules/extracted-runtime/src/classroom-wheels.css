@@ -1,0 +1,13 @@
+.cw-dialog{width:760px!important;max-width:calc(100vw - 48px)!important}.cw-layout{display:grid;grid-template-columns:minmax(200px,1fr) minmax(160px,1fr);gap:24px;align-items:center}.cw-wheel-wrap{position:relative;text-align:center;max-width:320px;margin:20px auto;width:100%}.cw-pointer{position:absolute;top:-11px;left:calc(50% - 13px);color:#766698;font-size:28px;z-index:2}.cw-wheel-wrap svg{width:100%;display:block}.cw-wheel-wrap>.button{margin-top:14px}.cw-options{padding-left:28px;line-height:1.8;max-height:350px;overflow:auto}.cw-options li{padding:6px 0;border-bottom:1px solid #eee;overflow-wrap:anywhere}.cw-options strong{display:block;font-size:12px;color:#746389}.cw-result-card{padding:20px;background:#f4effa;border-radius:18px;text-align:center}.cw-result-card h3{font-size:24px;margin:6px}.cw-debt{color:#a64359!important;font-weight:600}.cw-result-card .button-row{justify-content:center}.cw-edit-row{display:flex;gap:8px;margin-bottom:9px}.cw-edit-row input[name=label]{flex:1;min-width:0}.cw-edit-row input[name=cost]{width:100px}.cw-dialog small{display:block;margin-top:16px}.cw-options li::marker{color:#766698;font-weight:bold}@media(max-width:560px){.cw-layout{grid-template-columns:1fr;gap:4px}.cw-wheel-wrap{max-width:230px}.cw-options{max-height:170px}.cw-edit-row{flex-wrap:wrap}.cw-edit-row input[name=label]{min-width:130px}}
+/* Keep wheel controls inside the 240px score panel without clipping input fields. */
+@media(max-width:360px){
+ .modal-backdrop:has(>.cw-dialog){padding:10px}
+ .cw-dialog{width:100%!important;max-width:100%!important;max-height:calc(100vh - 20px);padding:22px 10px!important}
+ .cw-dialog>.segmented{flex-wrap:wrap;min-width:0}
+ .cw-dialog>.segmented button{flex:1 1 100%;min-width:0;min-height:44px;white-space:normal}
+ .cw-edit-row{flex-direction:column;min-width:0}
+ .cw-edit-row input[name=label],.cw-edit-row input[name=cost]{width:100%;min-width:0;flex:none}
+ .cw-edit-row .button{width:100%;min-height:44px}
+ .cw-dialog .dialog-actions{flex-direction:column;align-items:stretch;gap:8px}
+ .cw-dialog .dialog-actions .button{width:100%;min-height:44px;white-space:normal}
+}

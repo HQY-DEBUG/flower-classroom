@@ -1,0 +1,47 @@
+'use strict';
+// Synthetic Electron regression: a normally bound classroom restart and storage
+// do not load workbook tooling. First-run binding is covered by RC15 folder QA.
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.FLOWER_LAZY_EXCEL_OUT||path.join(root,'artifacts/rc9/lazy-excel'));
+fs.mkdirSync(out,{recursive:true});
+if(!process.versions.electron){
+ (async()=>{
+  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'flower-lazy-excel-')),ExcelJS=require('exceljs'),book=new ExcelJS.Workbook(),sheet=book.addWorksheet('合成名单');
+  sheet.addRows([['姓名','小组'],['合成Excel甲','合成组'],['合成Excel乙','']]);const fixture=path.join(temp,'synthetic-roster.xlsx');await book.xlsx.writeFile(fixture);
+  const results=[];
+  for(const mode of ['template-first','import-first']){
+   const data=path.join(temp,mode);fs.mkdirSync(data);fs.writeFileSync(path.join(data,'classroom.json'),require('../tests/pet-fixtures.cjs').legacyJSON());
+   const Workbook=require('../src/score-rule-workbook.cjs'),state=require('../src/core.cjs').validateState(require('../tests/pet-fixtures.cjs').legacyState());
+   const bound=await Workbook.buildBytes(state);assert.equal(Workbook.isInitialBytes(bound),false);
+   const parsed=await Workbook.parseBytes(bound,state);assert.deepEqual(parsed.map(({id,name,rules})=>({id,name,rules})),Workbook.configuration(state));
+   fs.writeFileSync(path.join(data,Workbook.FILE_NAME),bound);
+   const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,FLOWER_FOLDER_ROOT:data,FLOWER_EXTERNAL_RESOURCE_DIR:data,FLOWER_LAZY_EXCEL_MODE:mode,FLOWER_LAZY_EXCEL_FIXTURE:fixture,FLOWER_LAZY_EXCEL_OUT:out},encoding:'utf8',timeout:45000,maxBuffer:4*1024*1024});
+   fs.writeFileSync(path.join(out,mode+'.log'),(run.stdout||'')+(run.stderr||''));const result={mode,status:run.status,error:run.error?.message,report:fs.existsSync(path.join(out,mode+'.json'))?JSON.parse(fs.readFileSync(path.join(out,mode+'.json'))):null};results.push(result);console.log(mode,run.status,result.report?.checks?.length||0,'checks');if(run.status!==0)console.error(run.stderr);
+  }
+  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({version:require('../package.json').version,mainEntry:process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'),syntheticOnly:true,windowsExecuted:false,results},null,2));assert.ok(results.every(r=>r.status===0));
+ })().catch(error=>{console.error(error);process.exitCode=1;});
+}else{
+ const {app,BrowserWindow,dialog}=require('electron'),Module=require('node:module');app.disableHardwareAcceleration();
+ const mode=process.env.FLOWER_LAZY_EXCEL_MODE,mainEntry=process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'),checks=[],excelLoads=[];let main;
+ require('./package-boundary.cjs')(mainEntry,path.join(out,mode+'-dependency-boundary.json'));
+ const originalLoad=Module._load;Module._load=function(request,parent){if(request==='exceljs')excelLoads.push({parent:parent?.filename,time:Date.now()});return originalLoad.apply(this,arguments);};
+ const wait=ms=>new Promise(r=>setTimeout(r,ms)),js=code=>main.webContents.executeJavaScript(code,true),file=request=>js(`classroom.file(${JSON.stringify(request)})`),get=()=>js('classroom.get().then(x=>x.state)'),act=request=>js(`classroom.action(${JSON.stringify(request)})`);
+ const check=async(name,fn)=>{await fn();checks.push({name,status:'passed'});console.log('PASS',name);};
+ const panel=state=>state.panels?.activeId||'panel_default';
+ async function until(fn){for(let i=0;i<160;i++){if(await fn())return;await wait(10);}throw Error('UI readiness timeout');}
+ require(mainEntry);
+ app.whenReady().then(async()=>{try{
+  await until(async()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();});await until(()=>js('!!document.querySelector(".student-card") && document.querySelector("#classroom-lock-overlay")?.hidden===true'));
+  await check('Native restart with a valid bound workbook loads no ExcelJS module',async()=>assert.equal(excelLoads.length,0));
+  await check('Ordinary scoring and atomic saves work before ExcelJS loads',async()=>{const before=await get();await act({type:'score',ids:[before.students[0].id],delta:1,reason:'合成延迟加载回归'});const after=await get();assert.equal(after.students[0].score,before.students[0].score+1);assert.equal(fs.existsSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json')),true);assert.equal(excelLoads.length,0);});
+  await check('Canceled import and every workbook export leave ExcelJS unloaded',async()=>{dialog.showSaveDialog=async()=>({canceled:true});dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});const s=await get();for(const request of [{command:'template'},{command:'rankings-export',mode:'students'},{command:'summary-export'},{command:'export-category',category:'all',panelId:panel(s),expectedRevision:s.revision}])assert.equal(await file(request),false);assert.equal(await file({command:'import-preview'}),null);assert.equal(excelLoads.length,0);});
+  async function preview(){dialog.showOpenDialog=async()=>({canceled:false,filePaths:[process.env.FLOWER_LAZY_EXCEL_FIXTURE]});const before=await get(),result=await file({command:'import-preview',mode:'append'});assert.deepEqual(result.rows,[{name:'合成Excel甲',group:'合成组',photo:''},{name:'合成Excel乙',group:'',photo:''}]);assert.deepEqual(result.avatarMatches.map(r=>r.status),['default','default']);assert.equal(result.count,2);assert.deepEqual(await get(),before);}
+  const templatePath=path.join(out,mode+'-template.xlsx');async function template(){dialog.showSaveDialog=async()=>({canceled:false,filePath:templatePath});assert.equal(await file({command:'template'}),true);}
+  await check('First '+(mode==='import-first'?'XLSX import':'template export')+' loads ExcelJS only when needed',async()=>{if(mode==='import-first')await preview();else await template();assert.ok(excelLoads.length>0);assert.ok(excelLoads[0].parent.startsWith(path.dirname(mainEntry)));});
+  const ExcelJS=require('exceljs'),read=async p=>{const b=new ExcelJS.Workbook();await b.xlsx.readFile(p);return b;};
+  await check('XLSX preview preserves state and template reopens with Chinese headers and example row',async()=>{await preview();await template();const b=await read(templatePath);assert.equal(b.worksheets.length,2);assert.equal(b.getWorksheet('名单').getCell('C1').value,'头像名称');assert.equal(b.getWorksheet('名单').getCell('C2').value,'01-星星猫头鹰.png');assert.ok(b.getWorksheet('填写说明'));assert.equal(b.getWorksheet('名单').getCell('A1').value,'姓名');assert.equal(b.getWorksheet('名单').getCell('B1').value,'小组');assert.equal(b.getWorksheet('名单').getCell('A2').value,'示例同学');});
+  await check('All four ranking exports reopen with the actual first ranked name and score',async()=>{const s=await get(),Rankings=require(path.join(path.dirname(mainEntry),'classroom-rankings.js'));for(const ranking of Object.keys(Rankings.labels)){const target=path.join(out,mode+'-ranking-'+ranking+'.xlsx');dialog.showSaveDialog=async()=>({canceled:false,filePath:target});assert.equal(await file({command:'rankings-export',mode:ranking}),true);const b=await read(target),sheet=b.getWorksheet('排行榜'),expected=Rankings.rows(s,ranking)[0];assert.equal(sheet.getCell('A2').value,expected.rank);assert.equal(sheet.getCell('B2').value,expected.name);assert.equal(sheet.getCell(ranking==='students'?'D2':'C2').value,ranking==='students'?expected.score:expected.base);}assert.deepEqual(await get(),s);});
+  await check('Summary and all six category workbooks save and reload without mutating classroom data',async()=>{const s=await get(),target=path.join(out,mode+'-summary.xlsx');dialog.showSaveDialog=async()=>({canceled:false,filePath:target});assert.equal(await file({command:'summary-export'}),true);const summary=await read(target);assert.deepEqual(summary.worksheets.map(w=>w.name),['学生积分','小组积分','积分记录']);assert.equal(summary.getWorksheet('学生积分').getCell('B2').value,s.students[0].name);for(const category of ['students','groups','scores','pets','homework','all']){const target=path.join(out,mode+'-'+category+'.xlsx');dialog.showSaveDialog=async()=>({canceled:false,filePath:target});assert.equal(await file({command:'export-category',category,panelId:panel(s),expectedRevision:s.revision}),true);const b=await read(target);assert.ok(b.worksheets.length>0);if(category==='students'||category==='all')assert.ok(b.getWorksheet('学生资料与积分'));}assert.deepEqual(await get(),s);});
+  fs.writeFileSync(path.join(out,mode+'.json'),JSON.stringify({mode,mainEntry,syntheticOnly:true,windowsExecuted:false,checks,excelLoads},null,2));app.exit(0);
+ }catch(error){console.error(error);fs.writeFileSync(path.join(out,mode+'.json'),JSON.stringify({mode,mainEntry,checks,excelLoads,error:error.stack},null,2));app.exit(1);}});setTimeout(()=>app.exit(3),35000);
+}

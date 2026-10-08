@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-*/
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+user-data/
+userdata/
+backups/

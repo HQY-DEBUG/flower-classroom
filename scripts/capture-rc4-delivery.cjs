@@ -1,0 +1,30 @@
+'use strict';
+// Final presentation only, synthetic profiles and exact packaged artwork. No product source edits.
+const {app,BrowserWindow}=require('electron');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'artifacts/rc4/delivery-images'),data=path.join(root,'.qa-rc4-delivery');
+const mainEntry=process.env.FLOWER_PACKAGE_MAIN;if(!mainEntry)throw Error('Use frozen packaged main');
+const Core=require(path.join(path.dirname(mainEntry),'core.cjs')),Art=require(path.join(path.dirname(mainEntry),'pet-art.js'));
+fs.mkdirSync(out,{recursive:true});fs.mkdirSync(data,{recursive:true});
+const initial=Core.createInitialState();initial.students=initial.students.slice(0,8);initial.settings.className='阳光示例班 · 全部为虚构同学';initial.settings.petStep=5;initial.students.forEach((s,i)=>Object.assign(s,{name:'合成同学'+String(i+1).padStart(2,'0'),photo:'',pet:['penguin','panda','elephant','dragon','unicorn','otter','seal','deer'][i],score:0,growth:0}));initial.logs=[];
+let fixture=Core.applyAction(initial,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});
+for(let i=0;i<8;i++)fixture=Core.applyAction(fixture,{type:'pet.growth',ids:[fixture.students[i].id],delta:[4,7,13,16,22,25,30,2][i],reason:'合成展示成长'});
+fs.writeFileSync(path.join(data,'classroom.json'),JSON.stringify(initial));
+process.env.FLOWER_HEADLESS_TEST='1';process.env.FLOWER_DATA_DIR=data;app.disableHardwareAcceleration();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)),js=(w,s)=>w.webContents.executeJavaScript(s,true);
+const click=(w,s)=>js(w,`(()=>{const e=document.querySelector(${JSON.stringify(s)});if(!e)throw Error('Missing control');e.click();return true})()`);
+async function ready(w){for(let n=0;n<100;n++){if(await js(w,'!!window.classroom&&!!document.querySelector("#app")?.innerText.trim()').catch(()=>false))return;await sleep(50)}throw Error('renderer timeout');}
+async function shot(w,name){await sleep(950);await js(w,'new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');if(w.webContents.invalidate)w.webContents.invalidate();await sleep(120);fs.writeFileSync(path.join(out,name+'.png'),(await w.webContents.capturePage()).toPNG());}
+require(mainEntry);
+app.whenReady().then(async()=>{try{
+ await sleep(300);const main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');await ready(main);main.setSize(1440,1250);
+ await js(main,`classroom.file({command:'restore-apply',state:${JSON.stringify(fixture)}})`);await sleep(200);await click(main,'[data-page=pets]');if(await js(main,'document.querySelector("[data-do=panel-toggle]")?.getAttribute("aria-expanded")==="true"'))await click(main,'[data-do=panel-toggle]');await shot(main,'01-宠物花园-RC4');
+ await click(main,`[data-do=pet-reward][data-id="${fixture.students[0].id}"]`);await click(main,'[data-do=pet-reason][data-index="0"]');assert.ok(await js(main,'!!document.querySelector(".pet-celebration")'));await shot(main,'02-进化成功-RC4');await click(main,'[data-do=pet-feedback-close]');
+ await js(main,"classroom.window({command:'open',role:'pet'})");await sleep(250);const pet=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='pet');await ready(pet);pet.setSize(340,900);await shot(pet,'03-独立宠物侧栏-RC4');
+ for(const all of [false,true]){
+  const rows=all?Object.entries(Art.names).map(([id,name])=>`<section class="row"><h2>${name}</h2>${Array.from({length:7},(_,i)=>`<article>${Art.render(id,i+1)}<small>LV.${i+1} ${Art.stages[i]}</small></article>`).join('')}</section>`).join(''):Object.entries(Art.names).map(([id,name],i)=>`<article class="species"><em>${String(i+1).padStart(2,'0')}</em>${Art.render(id,4)}<h2>${name}</h2><small>7个成长阶段 · 独立物种</small></article>`).join('');
+  const html=`<!doctype html><meta charset="utf-8"><title>花伴课堂原创宠物</title><style>*{box-sizing:border-box}body{margin:0;padding:48px 60px;background:#f9f6fc;color:#40394f;font-family:'Noto Sans CJK SC',sans-serif}header{margin-bottom:30px}p{color:#80738f;font-size:20px}h1{font-size:42px;margin:0 0 12px}h2{font-size:23px;margin:10px 0}small{font-size:15px;color:#8e7aa3}main{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}.species{position:relative;border:1px solid #e6dcef;border-radius:22px;background:white;text-align:center;padding:16px 10px 22px}.species svg{width:200px;height:200px;display:block;margin:auto}em{position:absolute;left:15px;top:12px;font-size:16px;font-style:normal;color:#af99c7}.all{display:block}.row{display:grid;grid-template-columns:155px repeat(7,1fr);gap:10px;align-items:center;border-bottom:1px solid #e0d8e8;height:200px}.row h2{font-size:19px}.row article{text-align:center}.row svg{display:block;width:145px;height:145px;margin:auto}.row small{font-size:13px}footer{margin-top:28px;font-size:17px;color:#8e7aa3}</style><header><h1>${all?'20种伙伴 × 7阶段':'20种原创伙伴，等你来认识'}</h1><p>花伴课堂 1.3.0-rc.4 · ${all?'140种完整成长造型':'每种都有7段成长，合计140种造型'} · 使用应用内原创矢量图</p></header><main class="${all?'all':''}">${rows}</main><footer>全部为本应用原创设计展示；不包含真实学生资料或参考视频照片</footer>`;
+  const htmlPath=path.join(out,all?'140阶段总览.html':'20种宠物总览.html');fs.writeFileSync(htmlPath,html);const w=new BrowserWindow({width:all?1700:1600,height:all?4500:1680,show:false,webPreferences:{offscreen:true,nodeIntegration:false,contextIsolation:true}});await w.loadFile(htmlPath);w.show();w.setSize(all?1700:1600,all?4500:1680);w.webContents.startPainting();await shot(w,all?'05-140阶段总览-RC4':'04-20种宠物总览-RC4');w.destroy();
+ }
+ fs.writeFileSync(path.join(out,'provenance.json'),JSON.stringify({version:'1.3.0-rc.4',source:'exact final packaged ASAR',mainEntry,syntheticOnly:true,originalVideoFrames:false,presentationOnly:true,images:fs.readdirSync(out).filter(n=>n.endsWith('.png')).map(n=>({file:n,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(out,n))).digest('hex')}))},null,2));console.log('RC4_DELIVERY_IMAGES_OK',out);app.exit(0);
+ }catch(e){console.error(e);app.exit(1)}});setTimeout(()=>app.exit(3),60000);
