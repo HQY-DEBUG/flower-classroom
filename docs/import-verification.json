@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "snapshotVersion": "1.3.0-rc.19",
+  "importDateUtc": "2026-10-08",
+  "snapshotFreezeDateUtc": "2026-10-07",
+  "historyKind": "Reconstructed imports from release source archives; not original development commits.",
+  "sourceItems": 1400,
+  "sourceManifest": "docs/source-manifest.json",
+  "sourceItemSha256CheckAfterReset": "passed",
+  "runtimeSrcArchiveIdentical": true,
+  "runtimeSrcFileCount": 64,
+  "priorVerifiedRun": {
+    "observedAtUtc": "2026-10-08T03:04Z",
+    "timePrecision": "minute",
+    "environmentState": "before environment reset",
+    "installCommand": "npm ci --ignore-scripts",
+    "testCommand": "npm run check",
+    "tests": 834,
+    "passed": 834,
+    "failed": 0,
+    "electronInstallLifecycleScriptsExecuted": false,
+    "rerunAfterReset": false,
+    "provenance": "Previously verified execution result retained in the publication task conversation; original local run logs were lost in the reset."
+  },
+  "priorSrcSyntaxChecks": {
+    "rc17FilesPassed": 42,
+    "rc18FilesPassed": 45,
+    "rc19FilesPassed": 46,
+    "rerunAfterReset": false
+  },
+  "notExecutedForThisImport": [
+    "Electron UI regression",
+    "Windows native acceptance",
+    "Windows package build"
+  ],
+  "windowsUnverified": [
+    {
+      "id": "V033",
+      "title": "缩放、默认大小和全屏的原生菜单及快捷键"
+    },
+    {
+      "id": "V035",
+      "title": "红花悬浮入口覆盖全屏 PowerPoint/WPS"
+    },
+    {
+      "id": "V037",
+      "title": "积分窗拖移、窄栏化及名单滚动"
+    },
+    {
+      "id": "V038",
+      "title": "全屏课件切页时积分侧栏的可见性与焦点"
+    },
+    {
+      "id": "V052",
+      "title": "圆形透明悬浮计时器的透明、拖移和操作"
+    },
+    {
+      "id": "V054",
+      "title": "三种提示音的实际播放"
+    },
+    {
+      "id": "V067",
+      "title": "独立窄宠物窗覆盖全屏 PPT"
+    },
+    {
+      "id": "R14-W01",
+      "title": "Windows 目录版路径、搬移、副本及只读行为"
+    },
+    {
+      "id": "R14-W02",
+      "title": "资源管理器打开目录、Excel/WPS 打开与占用工作簿的实机行为"
+    }
+  ],
+  "windowsUnverifiedCount": 9,
+  "signingAndSmartScreenResolved": false,
+  "progression": {
+    "basis": "current score",
+    "configurationDisplayLevels": 25,
+    "numericLevelsContinueBeyond25": true,
+    "maximumVisualForms": 7,
+    "newGraduationEnabled": false
+  },
+  "privacy": {
+    "realRostersIncluded": false,
+    "runtimeClassroomDataIncluded": false,
+    "rawLogsScreenshotsAndReportOutputsIncluded": false,
+    "syntheticFixturesRetained": true,
+    "workspacePrefixSanitized": true
+  },
+  "license": "Existing MIT LICENSE preserved unchanged"
+}
