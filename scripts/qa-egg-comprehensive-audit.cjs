@@ -1,12 +1,20 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Independent audit of delivered RC11. Uses synthetic classroom data only.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.FLOWER_EGG_AUDIT_OUT||path.join(root,'artifacts/comprehensive-rc11-20261005/egg-audit/baseline'));
 fs.mkdirSync(out,{recursive:true});
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-independent-egg-'));
- const r=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:240000,maxBuffer:10*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,XDG_CACHE_HOME:'/tmp/flower-independent-egg-cache'}});
- fs.writeFileSync(path.join(out,'run.log'),(r.stdout||'')+(r.stderr||''));console.log((r.stdout||'').split('\n').filter(l=>/^(PASS|FAIL|FATAL|SUMMARY)_EA/.test(l)).join('\n'));const restarted=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:30000,maxBuffer:2*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,FLOWER_EA_RESTART:'1',XDG_CACHE_HOME:'/tmp/flower-independent-egg-cache'}});fs.writeFileSync(path.join(out,'restart.log'),(restarted.stdout||'')+(restarted.stderr||''));console.log((restarted.stdout||'').split('\n').filter(l=>/^(PASS|FAIL|FATAL|SUMMARY)_EA/.test(l)).join('\n'));process.exitCode=r.status===0&&restarted.status===0?0:1;
+ const fixtureLayout=qaChild.fixture('flower-independent-egg-'),data=fixtureLayout.data;
+ qaChild.prepare(out,['results.json','restart-result.json','child-processes.json','final-state.json','fatal.json']);
+ const runs=[];
+ for(const [phase,timeout,reportFile] of [['flows',240000,'results.json'],['restart',30000,'restart-result.json']]){
+  const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout,maxBuffer:10*1024*1024,env:{...process.env,...fixtureLayout.env,FLOWER_EA_RESTART:phase==='restart'?'1':'0',XDG_CACHE_HOME:'/tmp/flower-independent-egg-cache'}});
+  fs.writeFileSync(path.join(out,phase==='flows'?'run.log':'restart.log'),(run.stdout||'')+(run.stderr||''));console.log((run.stdout||'').split('\n').filter(l=>/^(PASS|FAIL|FATAL|SUMMARY)_EA/.test(l)).join('\n'));
+  const result=qaChild.capture(run,path.join(out,reportFile),phase);runs.push(result);if(result.exitCode!==0)break;
+ }
+ fs.writeFileSync(path.join(out,'child-processes.json'),JSON.stringify({runs},null,2));process.exitCode=runs.length!==2||runs.some(r=>r.exitCode!==0)?1:0;
+
 }else{
  const {app,BrowserWindow}=require('electron');app.disableHardwareAcceleration();
  const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs')),src=path.dirname(entry),Core=require(path.join(src,'core.cjs')),P=require(path.join(src,'pet-progress.js')),Art=require(path.join(src,'pet-art.js'));
@@ -29,10 +37,10 @@ if(!process.versions.electron){
  async function check(name,fn){try{const detail=await fn();checks.push({name,status:'passed',detail});console.log('PASS_EA',name);}catch(e){checks.push({name,status:'failed',error:e.stack});console.log('FAIL_EA',name,e.message);try{await shot('failure-'+checks.length);}catch{}}evidence('results',{entry,createdAt:new Date().toISOString(),checks,counters,errors});}
  if(process.env.FLOWER_EA_RESTART!=='1')fs.writeFileSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json'),JSON.stringify(fixture()));
  app.on('web-contents-created',(_e,w)=>w.on('console-message',(event,level,message)=>{if(event.level==='error'||level>=3)errors.push(event.message??message);}));
- require(entry);const deadline=setTimeout(()=>app.exit(3),230000);
+ if(!qaChild.load(entry,app))return;const deadline=setTimeout(()=>app.exit(3),230000);
  app.whenReady().then(async()=>{try{
   await until(()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();},'main');await until(()=>js('!!state'),'state');main.setContentSize(1280,900);await js('page="pets";render()');
-  if(process.env.FLOWER_EA_RESTART==='1'){const loaded=await get(),expected=JSON.parse(fs.readFileSync(path.join(out,'final-state.json'),'utf8'));assert.deepEqual(loaded,expected);await consistent(loaded);const renderer=await js('state.students.map(s=>PetProgress.profile(state,s))');assert.deepEqual(renderer,loaded.students.map(s=>prof(loaded,s)));evidence('restart-result',{passed:true,entry,revision:loaded.revision,students:loaded.students.length,diskSha256:hash(fs.readFileSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json')))});clearTimeout(deadline);console.log('PASS_EA Actual process restart restores exact state and renderer profiles');app.exit(0);return;}
+  if(process.env.FLOWER_EA_RESTART==='1'){const loaded=await get(),expected=JSON.parse(fs.readFileSync(path.join(out,'final-state.json'),'utf8'));assert.deepEqual(loaded,expected);await consistent(loaded);const renderer=await js('state.students.map(s=>PetProgress.profile(state,s))');assert.deepEqual(renderer,loaded.students.map(s=>prof(loaded,s)));evidence('restart-result',{passed:true,checks:[{name:'Fresh process preserves exact final state, disk and renderer profiles',status:'passed'}],entry,revision:loaded.revision,students:loaded.students.length,diskSha256:hash(fs.readFileSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json')))});clearTimeout(deadline);console.log('PASS_EA Actual process restart restores exact state and renderer profiles');app.exit(0);return;}
   const asar=entry.includes('.asar/')?entry.slice(0,entry.indexOf('.asar/')+5):null;
   evidence('target',{entry,asar,asarSha256:asar?hash(require("original-fs").readFileSync(asar)):null,sources:Object.fromEntries(['core.cjs','pet-ledger.cjs','pet-progress.js','pet-art.js','app.js'].map(n=>[n,hash(fs.readFileSync(path.join(src,n)))])),testSha256:hash(fs.readFileSync(__filename)),syntheticOnly:true});
   await check('Forty species across three unequal rule sets at exact boundaries and zero',async()=>{const sets=[[1,1,1,1,1,1],[2,9,1,17,3,31],[999999995,1,1,1,1,1]];for(const costs of sets){const s=fixture(costs),bounds=costs.map((_,i)=>costs.slice(0,i+1).reduce((a,b)=>a+b,0));for(const g of new Set([0,1,...bounds.flatMap(n=>[n-1,n,Math.min(1000000000,n+1)])]))for(const st of s.students){cyc(s,st.id).netGrowth=g;acc(s,st.id).lifetimeNetGrowth=g;const p=prof(s,st.id),expected=oracle(g,costs);for(const [k,v]of Object.entries(expected))assert.equal(p[k],v,`${st.pet}/${costs}/${g}/${k}`);counters.differentialProfiles++;}}return {species:40,ruleSets:sets,profiles:counters.differentialProfiles};});

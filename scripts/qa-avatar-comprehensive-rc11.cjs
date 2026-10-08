@@ -1,4 +1,5 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Independent feature audit. Uses the delivered ASAR, native renderer input,
 // isolated classroom fixtures, and bounded injected filesystem failures.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
@@ -11,17 +12,17 @@ const sha=v=>crypto.createHash('sha256').update(v).digest('hex');
 const write=(name,value)=>fs.writeFileSync(path.join(out,name),JSON.stringify(value,null,2));
 const read=name=>JSON.parse(fs.readFileSync(path.join(out,name)));
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-avatar-independent-'));const resourceDirectory=path.join(data,'program');fs.mkdirSync(resourceDirectory);
+ const fixtureLayout=qaChild.fixture('flower-avatar-independent-'),data=fixtureLayout.data,resourceDirectory=fixtureLayout.root;qaChild.prepare(out,['results.json','audit.json','restart.json','restart-expected.json']);
  const Core=require('../src/core.cjs');let fixture=Core.createInitialState();fixture.students=fixture.students.slice(0,4).map((s,i)=>({...s,name:'独立头像测试'+i,group:'合成组',photo:''}));fixture.logs=[];
  fs.writeFileSync(path.join(data,'classroom.json'),JSON.stringify(fixture));
  const results=[];
  for(const phase of ['audit','restart']){
-  const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename,phase],{cwd:root,encoding:'utf8',timeout:180000,maxBuffer:8*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,FLOWER_EXTERNAL_RESOURCE_DIR:resourceDirectory,XDG_CACHE_HOME:'/tmp/flower-avatar-independent-cache'}});
+  const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename,phase],{cwd:root,encoding:'utf8',timeout:180000,maxBuffer:8*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,FLOWER_EXTERNAL_RESOURCE_DIR:resourceDirectory,XDG_CACHE_HOME:'/tmp/flower-avatar-independent-cache',...fixtureLayout.env}});
   fs.writeFileSync(path.join(out,phase+'.log'),(run.stdout||'')+(run.stderr||''));
-  const report=fs.existsSync(path.join(out,phase+'.json'))?read(phase+'.json'):null;results.push({phase,status:run.status,report});console.log(run.stdout||'');if(run.error)console.error(run.error);
+  const result=qaChild.capture(run,path.join(out,phase+'.json'),phase);results.push(result);console.log(run.stdout||'');if(result.exitCode!==0){console.error(result.evidenceErrors);break;}
  }
  const checks=results.flatMap(x=>x.report?.checks||[]);write('results.json',{time:new Date().toISOString(),entry,archiveSha256:archive?sha(fs.readFileSync(archive)):null,syntheticData:data,realMainPreloadRenderer:true,nativeInput:true,mockedNativeChooserAndShell:true,windowsExecuted:false,passed:checks.filter(x=>x.status==='passed').length,failed:checks.filter(x=>x.status==='failed').length,results});
- process.exitCode=checks.some(x=>x.status==='failed')||results.some(x=>x.status)?1:0;
+ process.exitCode=results.length!==2||!checks.length||results.some(x=>x.exitCode!==0)?1:0;
 }else{
  const {app,BrowserWindow,dialog,shell,nativeImage}=require('electron');app.disableHardwareAcceleration();
  const phase=process.argv.at(-1),checks=[],errors=[],chooser=[],opened=[];let main,other,nextOpen=null,nextSave=null;
@@ -29,7 +30,7 @@ if(!process.versions.electron){
  dialog.showSaveDialog=async()=>{const p=nextSave;nextSave=null;return p?{canceled:false,filePath:p}:{canceled:true};};shell.openPath=async p=>{opened.push(p);return '';};
  const sourceHashes=()=>Object.fromEntries(['main.cjs','preload.cjs','app.js','avatar-ui.js','avatar-ui.css','avatar-library.cjs','photo-batch.cjs','io.cjs','storage.cjs'].map(name=>[name,sha(fs.readFileSync(path.join(path.dirname(entry),name)))]));
  const sourceHashesAtStart=sourceHashes();
- require('./package-boundary.cjs')(entry,path.join(out,phase+'-dependency-boundary.json'));require(entry);
+ require('./package-boundary.cjs')(entry,path.join(out,phase+'-dependency-boundary.json'));if(!qaChild.load(entry,app))return;
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const js=(code,win=main)=>win.webContents.executeJavaScript(code,true);
  const state=()=>js('classroom.get().then(x=>x.state)');

@@ -52,7 +52,7 @@ async function fixture(t) {
   const store = createStore(config.dataDirectory, { validate: Core.validateState, initial: () => initial });
   store.load(); store.save(initial);
   const workbook = await Workbook.buildBytes(initial);
-  save(path.join(root, '计分卡片.xlsx'), workbook);
+  save(path.join(root, '配置.xlsx'), workbook);
   const previewOptions = { allowPristineFiles: snapshot(config.dataDirectory), allowPristineWorkbookHash: digest(workbook) };
   const f = { home, source, root, config, state: Core.validateState(state), names, previewOptions, before: snapshot(root), sourceBefore: snapshot(source) };
   save(path.join(home, 'fixture.json'), { root, source, previewOptions });

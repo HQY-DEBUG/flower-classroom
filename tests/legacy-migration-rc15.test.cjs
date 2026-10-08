@@ -128,7 +128,7 @@ test('ordinary rename failure rolls back example data and resources, then retry 
   const f = fixture(t, { disk }); save(path.join(f.source, 'avatars', '自选.png'), Buffer.from(SYNTHETIC_PNG.split(',')[1], 'base64'));
   const store = createStore(f.dataDirectory, { validate: validateState, initial: createInitialState }); store.load(); store.save(createInitialState());
   const before = snapshot(f.dataDirectory), old = snapshot(f.source), preview = await prepared(f, { allowPristineFiles: before });
-  failAt = path.join(f.resourceDirectory, '计分卡片.xlsx');
+  failAt = path.join(f.resourceDirectory, '配置.xlsx');
   assert.throws(() => f.migration.commit(preview.token), /synthetic rename/);
   assert.deepEqual(snapshot(f.dataDirectory), before); assert.deepEqual(snapshot(f.source), old);
   assert.equal(fs.existsSync(path.join(f.resourceDirectory, '头像', '自选.png')), false);
@@ -139,7 +139,7 @@ test('ordinary rename failure rolls back example data and resources, then retry 
 
 test('restart restores interrupted transaction from its EXE-local journal before data is loaded', async t => {
   let failCommit = true, failRollback = true, f;
-  const disk = new Proxy(fs, { get(target, key) { if (key !== 'renameSync') return target[key]; return (from, to) => { if (failCommit && to === path.join(f.resourceDirectory, '计分卡片.xlsx')) { failCommit = false; throw Error('synthetic commit interruption'); } if (failRollback && from === path.join(f.dataDirectory, 'classroom.json')) { failRollback = false; throw Error('synthetic rollback interruption'); } return target.renameSync(from, to); }; } });
+  const disk = new Proxy(fs, { get(target, key) { if (key !== 'renameSync') return target[key]; return (from, to) => { if (failCommit && to === path.join(f.resourceDirectory, '配置.xlsx')) { failCommit = false; throw Error('synthetic commit interruption'); } if (failRollback && from === path.join(f.dataDirectory, 'classroom.json')) { failRollback = false; throw Error('synthetic rollback interruption'); } return target.renameSync(from, to); }; } });
   f = fixture(t, { disk }); const before = snapshot(f.source), preview = await prepared(f);
   assert.throws(() => f.migration.commit(preview.token), error => error.code === 'RECOVERY_REQUIRED');
   assert.equal(fs.existsSync(path.join(f.backupDirectory, JOURNAL)), true);
@@ -171,7 +171,7 @@ test('external avatar references are only read after exact displayed paths are a
   const png = Buffer.from(SYNTHETIC_PNG.split(',')[1], 'base64'); save(path.join(avatar, '自选.png'), png);
   save(path.join(f.source, 'avatar-location-v2.json'), { version: 2, directory: avatar, seededFiles: [] });
   const before = snapshot(f.root), preview = f.migration.preview(f.source);
-  assert.equal(preview.externalResources.length, 3); assert.deepEqual(snapshot(f.root), before);
+  assert.deepEqual(preview.externalResources.map(item=>item.kind).sort(),['avatars','avatar-marker','legacy-text','legacy-workbook','legacy-receipt','configuration'].sort()); assert.deepEqual(snapshot(f.root), before);
   await assert.rejects(f.migration.prepare(preview.token), error => error.code === 'RESOURCE_APPROVAL_REQUIRED');
   await f.migration.prepare(preview.token, { approvedResourcePaths: preview.externalResources.map(item => item.path) });
   f.migration.commit(preview.token);
@@ -194,16 +194,18 @@ test('avatar merge retains custom collisions and respects deleted untouched bund
   assert.ok(result.warnings.some(value => /同名资源/.test(value)));
 });
 
-test('exact pristine bound workbook is rebuilt from migrated rules and edited destination is retained', async t => {
-  const f = fixture(t), initial = await Workbook.buildBytes(createInitialState()); save(path.join(f.resourceDirectory, '计分卡片.xlsx'), initial);
+test('exact pristine bound workbook is rebuilt and an edited destination refuses migration without changes', async t => {
+  const f = fixture(t), initial = await Workbook.buildBytes(createInitialState()); save(path.join(f.resourceDirectory, '配置.xlsx'), initial);
   const preview = await prepared(f, { allowPristineWorkbookHash: digest(initial) }); f.migration.commit(preview.token);
-  const parsed = await Workbook.parseBytes(fs.readFileSync(path.join(f.resourceDirectory, '计分卡片.xlsx')), validateState(legacyState()));
+  const parsed = await Workbook.parseBytes(fs.readFileSync(path.join(f.resourceDirectory, '配置.xlsx')), validateState(legacyState()));
   assert.equal(parsed[0].name, legacyState().settings.className);
-  const other = fixture(t); save(path.join(other.resourceDirectory, '计分卡片.xlsx'), 'teacher edited workbook');
-  const second = await prepared(other); const result = other.migration.commit(second.token);
-  assert.equal(fs.readFileSync(path.join(other.resourceDirectory, '计分卡片.xlsx'), 'utf8'), 'teacher edited workbook');
-  assert.ok(fs.readdirSync(other.resourceDirectory).some(name => /^计分卡片-迁入-/.test(name)));
-  assert.ok(result.warnings.some(value => /计分卡片-迁入-/.test(value)));
+  const other = fixture(t); save(path.join(other.resourceDirectory, '配置.xlsx'), 'teacher edited workbook');
+  const before=snapshot(other.source);
+  await assert.rejects(prepared(other),error=>error.code==='CONFIGURATION_DESTINATION_CHANGED');
+  assert.equal(fs.readFileSync(path.join(other.resourceDirectory, '配置.xlsx'), 'utf8'), 'teacher edited workbook');
+  assert.equal(fs.readdirSync(other.resourceDirectory).some(name => /^配置-迁入-/.test(name)),false);
+  assert.deepEqual(snapshot(other.source),before);
+  assert.deepEqual(snapshot(other.dataDirectory),{});
 });
 
 test('browser cache is excluded while old photos, material files and custom rules are archived intact', async t => {

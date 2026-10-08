@@ -19,7 +19,7 @@ if(!process.versions.electron){
    if(fault.receipt){fault.receipt=false;throw Error('SYNTHETIC_RECEIPT_FAILURE');}
   }
   const result=handler(event,...args);
-  if((channel==='state:action'&&fault.response===true)||(channel==='file:command'&&fault.response==='file')){fault.response=false;throw Error('SYNTHETIC_ACTION_RESPONSE_LOSS');}
+  if((channel==='state:action'&&fault.response===true)||(channel==='file:command'&&fault.response==='file'&&args[0]?.command===fault.fileCommand&&typeof args[0]?._transportId==='string')){fault.response=false;throw Error('SYNTHETIC_ACTION_RESPONSE_LOSS');}
   return result;
  });};
  const checks=[],limits=[],data=process.env.FLOWER_DATA_DIR,files=['action-receipts.cjs','preload.cjs','main.cjs'];
@@ -77,12 +77,12 @@ if(!process.versions.electron){
     await reset();const s=await get(),request={command,panelId:Core.panelId(s),expectedRevision:s.revision};
     if(command==='import-apply')Object.assign(request,{rows:[{name:'合成回执导入',group:'合成组'}],mode:'append'});
     if(command==='restore-apply'){request.state=Core.createInitialState();request.state.settings.className='合成回执恢复';}
-    const n=fileSeen.length;fault.response='file';const result=await file(request);assert.equal(fileSeen.length,n+1);assert.equal(result.revision,s.revision+1);assert.deepEqual(result,await get());assert.deepEqual(result,JSON.parse(disk()));assert.equal(invoke('state:receipt',{transportId:fileSeen.at(-1).action._transportId}).committed,true);
+    const n=fileSeen.length;fault.response='file';fault.fileCommand=command;const result=await file(request);const mutationCalls=fileSeen.slice(n).filter(x=>x.action.command===command&&typeof x.action._transportId==='string');assert.equal(fault.response,false,'The selected committed mutation response must actually be lost');assert.equal(mutationCalls.length,1,'Preparation calls must not count as repeated mutations');assert.equal(result.revision,s.revision+1);assert.deepEqual(result,await get());assert.deepEqual(result,JSON.parse(disk()));assert.equal(invoke('state:receipt',{transportId:mutationCalls[0].action._transportId}).committed,true);
     if(command==='import-apply')assert.equal(result.students.length,s.students.length+1);
     if(command==='restore-apply')assert.equal(result.settings.className,'合成回执恢复');
     if(command==='archive')assert.deepEqual(result.logs,[]);
     if(command==='blank')assert.deepEqual(result.students,[]);
-    c.commands.push({command,revisionDelta:result.revision-s.revision});
+    c.commands.push({command,revisionDelta:result.revision-s.revision,mutationInvocations:mutationCalls.length,preparationCommands:fileSeen.slice(n).filter(x=>x.action.command!==command).map(x=>x.action.command),committedResponseLossInjected:fault.response===false});
    }
   });
   await check('Selected async file dispatcher records synchronous post-commit notification rejection',async()=>{
@@ -111,7 +111,7 @@ if(!process.versions.electron){
    await reset();const s=await get(),id=s.students[0].id,first={type:'score',ids:[id],delta:1,_transportId:'independent_eviction_000'};invoke('state:action',first);for(let i=1;i<=128;i++)invoke('state:action',{...first,_transportId:'independent_eviction_'+String(i).padStart(3,'0')});assert.equal(invoke('state:receipt',{transportId:first._transportId}).committed,false);c.savedScore=(await get()).students[0].score;assert.equal(c.savedScore,129);limits.push({kind:'bounded-retention',detail:'128 successful actions per webContents; oldest receipt returns committed:false after eviction. No timestamp or unresolved-action protection.'});
   });
   await check('Expired unresolved receipt blocks repeat and different mutations until explicit reload',async()=>{
-   await reset();const s=await get(),a={type:'score',ids:[s.students[0].id],delta:3};fault.response=true;fault.receipt=true;await assert.rejects(act(a),/暂时无法确认/);for(let i=0;i<128;i++)invoke('state:action',{type:'settings',className:'合成回执淘汰'+i,_transportId:'independent_expired_'+i});const n=seen.length,saved=await get();await assert.rejects(act(a),/暂时无法确认/);await assert.rejects(file({command:'archive'}),/暂时无法确认/);assert.equal(seen.length,n);assert.deepEqual(await get(),saved);main.webContents.reload();await until(()=>!main.webContents.isLoading());await until(()=>js('!!window.classroom'));assert.deepEqual(await get(),saved);limits.push({kind:'intent-lifetime',detail:'Unknown outcome remains blocked in the existing preload; reload intentionally loses the pending intent and requires checking the saved classroom before a new action.'});
+   await reset();const s=await get(),a={type:'score',ids:[s.students[0].id],delta:3};fault.response=true;fault.receipt=true;await assert.rejects(act(a),/暂时无法确认/);for(let i=0;i<128;i++){const eviction={type:'settings',className:'合成回执淘汰'+i,_transportId:'independent_expired_'+i};const prepared=await invoke('file:command',{command:'rules-workbook-prepare',action:eviction});invoke('state:action',{...eviction,...(prepared.token?{workbookToken:prepared.token}:{})});}const n=seen.length,saved=await get();await assert.rejects(act(a),/暂时无法确认/);await assert.rejects(file({command:'archive'}),/暂时无法确认/);assert.equal(seen.length,n);assert.deepEqual(await get(),saved);main.webContents.reload();await until(()=>!main.webContents.isLoading());await until(()=>js('!!window.classroom'));assert.deepEqual(await get(),saved);limits.push({kind:'intent-lifetime',detail:'Unknown outcome remains blocked in the existing preload; reload intentionally loses the pending intent and requires checking the saved classroom before a new action.'});
   });
   assert.deepEqual(hashes(),beforeHashes,'Product files changed while independent audit ran');
  }catch(e){checks.push({name:'harness setup',status:'failed',error:e.stack});console.error(e.stack);}finally{clearTimeout(timeout);fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report(),null,2));console.log('SUMMARY_RECEIPT '+checks.filter(c=>c.status==='passed').length+' passed, '+checks.filter(c=>c.status==='failed').length+' failed, '+limits.length+' characterized limits');app.exit(checks.some(c=>c.status==='failed')?1:0);}});

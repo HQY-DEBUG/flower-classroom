@@ -5,10 +5,12 @@ const {ensureToolControl,visibleControl,nativeClick}=require('./qa-tool-control.
 const { app, BrowserWindow, dialog, session } = require('electron');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict'), crypto = require('node:crypto');
 const { legacyState, legacyJSON } = require('../tests/pet-fixtures.cjs');
-const root = path.resolve(__dirname, '..'), out = path.join(root, 'artifacts', process.env.FLOWER_PACKAGE_MAIN?'qa-pets-packaged':'qa-pets'), data = path.join(root, process.env.FLOWER_PACKAGE_MAIN?'.qa-pets-packaged':'.qa-pets');
+const root = path.resolve(__dirname, '..'), out = process.env.FLOWER_PETS_OUT ? path.resolve(process.env.FLOWER_PETS_OUT) : path.join(root, 'artifacts', process.env.FLOWER_PACKAGE_MAIN?'qa-pets-packaged':'qa-pets'), data = path.join(root, process.env.FLOWER_PACKAGE_MAIN?'.qa-pets-packaged':'.qa-pets');
 const mainPath = process.env.FLOWER_PACKAGE_MAIN ? path.resolve(process.env.FLOWER_PACKAGE_MAIN) : path.join(root, 'src', 'main.cjs');
 const sourceDir = path.dirname(mainPath);
 const { validateState, createInitialState, importRows } = require(path.join(sourceDir, 'core.cjs'));
+const Rules = require(path.join(sourceDir, 'score-rules.js')), Config = require(path.join(sourceDir, 'configuration-model.js'));
+const configured = (input, current) => { const value = validateState(input); if (!value.appConfig && current?.appConfig) value.appConfig = JSON.parse(JSON.stringify(current.appConfig)); if (!value.sharedScoreRules) Rules.confirmShared(value, Rules.previewShared(value).expectedKey); Config.apply(value, Config.snapshot(value)); return value; };
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function manifest(dir, prefix = '') { return Object.fromEntries(fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? Object.entries(manifest(path.join(dir, d.name), prefix + d.name + '/')) : [[prefix + d.name, sha(fs.readFileSync(path.join(dir, d.name)))]])); }
 const testedSource = manifest(sourceDir);
@@ -43,7 +45,21 @@ async function shot(w, name) { await sleep(100); fs.writeFileSync(path.join(out,
 async function open(role) { await js(main, `classroom.window({command:'open',role:${JSON.stringify(role)}})`); const w = BrowserWindow.getAllWindows().find(w => w.flowerRole === role); assert.ok(w, 'missing ' + role); await ready(w); return w; }
 async function closeModal(w = main) { if (await exists(w, '#modal .dialog')) await click(w, '#modal [data-do="modal-close"]'); }
 async function closeFeedback(w = main) { if (await exists(w, '[data-do="pet-feedback-close"]')) await click(w, '[data-do="pet-feedback-close"]'); }
-async function restore(input = legacyState()) { await closeModal(); await file(main, { command: 'restore-apply', state: input }); await sleep(60); await closeFeedback(); }
+const applyRestorePreview = incoming => file(main,{command:'restore-apply',state:incoming,restoreToken:incoming.restoreToken,expectedRevision:incoming.expectedRevision});
+let fixtureNumber = 0;
+async function restoreFixture(input) {
+  const before = await state(main), previousPath = openPath, fixturePath = path.join(out, 'restore-fixture-' + (++fixtureNumber) + '.json');
+  const bytes = JSON.stringify(input); fs.writeFileSync(fixturePath, bytes); openPath = fixturePath;
+  try {
+    const preview = await file(main, {command:'restore-preview'});
+    assert.deepEqual(validateState(preview), validateState(input)); assert.equal(typeof preview.restoreToken,'string'); assert.equal(preview.expectedRevision,before.revision); assert.ok(preview.restoreConfiguration);
+    assert.deepEqual(await state(main),before); assert.equal(fs.readFileSync(fixturePath,'utf8'),bytes);
+    await applyRestorePreview(preview);
+    assert.deepEqual(snapshotWithoutRevision(await state(main)),snapshotWithoutRevision(configured(input,before)));
+    assert.equal(fs.readFileSync(fixturePath,'utf8'),bytes);
+  } finally { openPath = previousPath; }
+}
+async function restore(input = legacyState()) { await closeModal(); await restoreFixture(input); await sleep(60); await closeFeedback(); }
 async function goPets() { await closeModal(); await click(main, '[data-page="pets"]'); }
 async function detail(id = 's_legacy_owl') { await goPets(); await click(main, `[data-do="pet-detail"][data-id="${id}"]`); }
 const snapshotWithoutRevision = s => { const value = JSON.parse(JSON.stringify(s)); delete value.revision; return value; };
@@ -53,9 +69,12 @@ app.whenReady().then(async () => {
     session.defaultSession.webRequest.onCompleted(details => requests.push(details.url));
     await until(() => BrowserWindow.getAllWindows().some(w => w.flowerRole === 'main'));
     main = BrowserWindow.getAllWindows().find(w => w.flowerRole === 'main'); await ready(main); main.setSize(1440, 1000); await sleep(100);
-    await check('Raw v1.0 JSON boots unchanged with migration defaults, no data warning and no premature rewrite', async () => {
+    await check('Raw v1.0 bytes remain recoverable while startup adds only the declared v2 configuration cache', async () => {
       const loaded = await js(main, 'classroom.get()');
-      assert.equal(loaded.warning, ''); assert.deepEqual(loaded.state, validateState(legacyState()));
+      assert.equal(loaded.warning, ''); assert.equal(loaded.workbookWarning, ''); assert.deepEqual(loaded.state, configured(legacyState()));
+      assert.deepEqual(loaded.state.students, validateState(legacyState()).students); assert.deepEqual(loaded.state.logs, legacyState().logs);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'classroom-v2.json'))), loaded.state);
+      const backups=(await file(main,{command:'folder-info'})).backup; assert.ok(fs.readdirSync(backups).filter(n=>n.startsWith('before-v2-migration')).some(n=>fs.readFileSync(path.join(backups,n),'utf8')===legacyJSON()));
       assert.equal(fs.readFileSync(path.join(data, 'classroom.json'), 'utf8'), legacyJSON());
       assert.equal(await js(main, 'typeof require'), 'undefined'); assert.equal(await js(main, 'typeof process'), 'undefined');
       assert.equal(await js(main, 'document.querySelectorAll(".student-card").length'), 4);
@@ -182,21 +201,22 @@ app.whenReady().then(async () => {
       await closeFeedback(); const before = await state(main); savePath = path.join(out, 'synthetic-pet-backup.json');
       assert.equal(await file(main, { command: 'backup' }), true); assert.deepEqual(JSON.parse(fs.readFileSync(savePath)), before);
       await action(main, { type: 'pet.rules', step: 100 }); await action(main, { type: 'student.update', id: before.students[0].id, pet: 'cat', photo: '' });
-      openPath = savePath; const incoming = await file(main, { command: 'restore-preview' }); assert.deepEqual(incoming, before); await file(main, { command: 'restore-apply', state: incoming }); await sleep(100);
+      openPath = savePath; const incoming = await file(main, { command: 'restore-preview' }); assert.deepEqual(validateState(incoming), before); await applyRestorePreview(incoming); await sleep(100);
       assert.deepEqual(snapshotWithoutRevision(await state(main)), snapshotWithoutRevision(before)); assert.equal(await textOf(main, '#pet-feedback'), '');
+      const restored = await state(main); await action(main,{type:'pet.rules',step:99}); assert.deepEqual((await state(main)).students,restored.students); assert.deepEqual((await state(main)).logs,restored.logs);
       assert.ok(fs.readdirSync((await file(main,{command:'folder-info'})).backup).some(n => n.startsWith('before-restore-'))); openPath = null; savePath = null;
     });
     await check('Old-format backup import restores original defaults and data; cancelled import is non-mutating', async () => {
       const oldPath = path.join(out, 'synthetic-old-v1.json'); fs.writeFileSync(oldPath, legacyJSON()); openPath = oldPath;
-      const incoming = await file(main, { command: 'restore-preview' }); assert.deepEqual(incoming, validateState(legacyState()));
-      await closeFeedback(); await file(main, { command: 'restore-apply', state: incoming }); await sleep(100); assert.deepEqual(snapshotWithoutRevision(await state(main)), snapshotWithoutRevision({...incoming,version:2})); assert.equal(await textOf(main, '#pet-feedback'), '');
+      const incoming = await file(main, { command: 'restore-preview' }); assert.deepEqual(validateState(incoming), validateState(legacyState()));
+      await closeFeedback(); const prior=await state(main); await applyRestorePreview(incoming); await sleep(100); assert.deepEqual(snapshotWithoutRevision(await state(main)), snapshotWithoutRevision(configured(incoming,prior))); assert.equal(await textOf(main, '#pet-feedback'), '');
       openPath = null; const before = await state(main); assert.equal(await file(main, { command: 'restore-preview' }), null); assert.deepEqual(await state(main), before);
     });
     await check('A restore that resembles exactly one threshold-crossing award does not trigger any window celebration', async () => {
       await restore(); for (const w of [main, pet, pets]) await closeFeedback(w);
       const replacement = legacyState(); replacement.students[0].score = 20; replacement.students[0].growth = 20;
       replacement.logs.push({ id: 'l_old_backup_extra_award', timestamp: 1_004_000, delta: 1, reason: '纯合成备份中的旧记录', undone: false, changes: [{ id: 's_legacy_owl', name: '虚构兼容甲', beforeScore: 19, afterScore: 20, beforeGrowth: 19, afterGrowth: 20 }] });
-      await file(main, { command: 'restore-apply', state: replacement }); await sleep(120);
+      await restoreFixture(replacement); await sleep(120);
       for (const w of [main, pet, pets]) assert.equal(await textOf(w, '#pet-feedback'), '', w.flowerRole + ' must not celebrate a restore');
       assert.equal((await state(main)).students[0].growth, 20);
     });
@@ -239,7 +259,7 @@ app.whenReady().then(async () => {
         for (const w of [main, pet, pets]) await until(async () => (await textOf(w, '#pet-feedback')).includes('升级'), w.flowerRole + ' upgrade visible');
         if (change === 'rules') await action(main, { type: 'pet.rules', step: 5 });
         else if (change === 'profile') await action(main, { type: 'student.update', id: 's_legacy_owl', pet: 'cat' });
-        else await file(main, { command: 'restore-apply', state: legacyState() });
+        else await restoreFixture(legacyState());
         await sleep(80); for (const w of [main, pet, pets]) assert.equal(await textOf(w, '#pet-feedback'), '', `${change} must clear ${w.flowerRole} obsolete feedback`);
       }
     });
@@ -253,7 +273,7 @@ app.whenReady().then(async () => {
     });
     await check('A synthetic 300-student pet garden and classroom display stay bounded and responsive', async () => {
       const fixture = importRows(Array.from({ length: 300 }, (_, i) => ({ name: `纯合成宠物QA${String(i + 1).padStart(3, '0')}`, group: `纯合成组${i % 10}` })), createInitialState(), 'replace');
-      const started = Date.now(); await file(main, { command: 'restore-apply', state: fixture }); await goPets();
+      const started = Date.now(); await restoreFixture(fixture); await goPets();
       assert.equal(await js(main, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300);
       assert.equal(await js(pets, 'document.querySelectorAll("[data-do=pet-detail]").length'), 300);
       await action(panel, { type: 'score', ids: fixture.students.map(s => s.id), delta: 20, reason: '纯合成全班进化' }); await sleep(100);

@@ -12,6 +12,7 @@
   let audioContext;
   let activeSource;
   const pending = new Set();
+  const resetDrafts = new WeakMap();
   const doc = () => root.document;
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const timerKey = timer => [timer.durationMs, timer.remainingMs, timer.endsAt, !!timer.running].join('|');
@@ -37,6 +38,7 @@
   }
   function view(timer, options = {}) {
     const compact = !!options.compact;
+    const defaultSeconds=Number.isInteger(options.defaultSeconds)&&options.defaultSeconds>=1&&options.defaultSeconds<=LIMIT?options.defaultSeconds:Math.ceil(timer.durationMs/1000);
     const sound = Object.hasOwn(sounds, options.sound) ? options.sound : 'tick';
     const left = secondsLeft(timer), p = parts(left), key = timerKey(timer);
     const old = doc()?.querySelector('.tt-timer');
@@ -64,12 +66,12 @@
         <p class="tt-status" role="status" aria-live="polite">${status}</p>
         <div class="tt-actions">
           <button class="button primary" data-do="timer-toggle">${timer.running && left ? '暂停' : '开始'}</button>
-          <button class="button" data-do="timer-reset">重置</button>
+          <button class="button" data-do="timer-reset" title="重置为默认 ${label(defaultSeconds)}">重置为默认</button>
           <button class="button" data-do="tt-return">返回</button>
         </div>
         ${compact ? `<details class="tt-editor" ${editorOpen ? 'open' : ''}><summary>输入时长</summary>${editor}</details>` : '<span class="tt-disc-hint">点选分或秒，再用 − / ＋ 调整</span>'}
       </div>
-      ${compact ? '' : `<div class="tt-config">${editor}<div class="timer-presets">${[1, 3, 5, 10].map(m => `<button class="button" data-do="timer-preset" data-seconds="${m * 60}">${m} 分钟</button>`).join('')}</div><button class="text-button" data-do="open-timer">打开悬浮计时器 ↗</button><p class="tt-note">按实际时间倒计时，隐藏窗口后仍继续；暂停保留剩余时间，重置回到设定时长</p></div>`}
+      ${compact ? '' : `<div class="tt-config">${editor}<div class="timer-presets">${[1, 3, 5, 10].map(m => `<button class="button" data-do="timer-preset" data-seconds="${m * 60}">${m} 分钟</button>`).join('')}</div><button class="text-button" data-do="open-timer">打开悬浮计时器 ↗</button><p class="tt-note">按实际时间倒计时，隐藏窗口后仍继续；暂停保留剩余时间；重置使用已保存默认 ${label(defaultSeconds)}，设定时长会同步保存为默认</p></div>`}
     </section>`;
   }
   function selectUnit(unit) {
@@ -89,7 +91,7 @@
     // intentionally discards an unsaved duration draft. The existing handler
     // remains responsible for the actual timer action.
     if (action === 'timer-reset' || action === 'timer-preset') {
-      for (const widget of doc()?.querySelectorAll('.tt-timer') || []) widget.dataset.timerState = '';
+      for (const widget of doc()?.querySelectorAll('.tt-timer') || []){resetDrafts.set(widget,{key:widget.dataset.timerState,minutes:widget.querySelector('#timer-minutes')?.value,seconds:widget.querySelector('#timer-seconds')?.value});widget.dataset.timerState = '';}
       return false;
     }
     if (!action.startsWith('tt-')) return false;
@@ -124,6 +126,9 @@
     }
     if (action === 'tt-preview') { const result = await play(el.dataset.sound || state.settings?.timerSound || 'tick'); if (!result.ok) toast(result.error); return true; }
     return false;
+  }
+  function settleReset(ok){
+    for(const widget of doc()?.querySelectorAll('.tt-timer')||[]){const draft=resetDrafts.get(widget);if(!draft)continue;resetDrafts.delete(widget);if(ok!==false)continue;widget.dataset.timerState=draft.key;for(const [id,value]of [['timer-minutes',draft.minutes],['timer-seconds',draft.seconds]]){const field=widget.querySelector('#'+id);if(field&&value!==undefined)field.value=value;}}
   }
   function tick(timer, now = Date.now()) {
     const left = secondsLeft(timer, now), p = parts(left);
@@ -196,5 +201,5 @@
       return { ok: false, sound, error: error?.message || '响铃播放失败；时间到时仍会显示提示' };
     }
   }
-  return Object.freeze({ view, handle, tick, play, synthesize, sounds, validateInput, secondsLeft, adjustedSeconds });
+  return Object.freeze({ view, handle, settleReset, tick, play, synthesize, sounds, validateInput, secondsLeft, adjustedSeconds });
 });

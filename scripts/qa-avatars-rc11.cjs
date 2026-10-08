@@ -1,11 +1,12 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Synthetic end-to-end avatar QA through the actual Electron main/preload.
 // Only native file choosers and shell.openPath are replaced; renderer handlers,
 // state transactions, image decoding, persistence and backups remain real.
 // RC14: exercise 120 avatars in the isolated EXE-side 头像 folder. The original
 // 40 pet avatars remain required; folder location is now an always-visible input.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict'), crypto = require('node:crypto');
-const root = path.resolve(__dirname, '..'), variant = process.env.FLOWER_PACKAGE_MAIN ? 'packaged' : 'source';
+const root = path.resolve(__dirname, '..'), variant = /\.asar[\\/]/.test(process.env.FLOWER_PACKAGE_MAIN||'') ? 'packaged' : 'source';
 const out = process.env.FLOWER_AVATAR_OUT || path.join(root, 'artifacts/rc11/avatars-' + variant + (process.env.FLOWER_AVATAR_RUN_LABEL ? '-' + process.env.FLOWER_AVATAR_RUN_LABEL : ''));
 fs.mkdirSync(out, { recursive: true });
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -14,8 +15,8 @@ const read = name => JSON.parse(fs.readFileSync(path.join(out, name)));
 const manifest = () => Object.fromEntries(fs.readdirSync(path.join(root, 'src')).sort().filter(name => fs.statSync(path.join(root, 'src', name)).isFile()).map(name => [name, sha(fs.readFileSync(path.join(root, 'src', name)))]));
 if (!process.versions.electron) {
   (async () => {
-    const data = fs.mkdtempSync(path.join(os.tmpdir(), 'flower-rc11-avatars-'));
-    const resources=path.join(data,'synthetic-program');fs.mkdirSync(resources);
+    const fixtureLayout=qaChild.fixture('flower-rc11-avatars-'),data=fixtureLayout.data,resources=fixtureLayout.root;
+    qaChild.prepare(out,['results.json','flows.json','restart.json','expected-restart.json']);
     const Core = require('../src/core.cjs');
     let fixture = Core.createInitialState(); fixture.settings.className = '头像体验 · 合成课堂';
     fixture.students = fixture.students.slice(0, 6).map((s, i) => ({ ...s, name: ['合成小禾', '合成星野', '合成知夏', '合成若溪', '合成阿宁', '合成小满'][i], group: '向日葵组', score: 3 + i, growth: 2 + i, photo: '' }));
@@ -25,15 +26,13 @@ if (!process.versions.electron) {
     fs.writeFileSync(input, Buffer.from(require('../tests/pet-fixtures.cjs').SYNTHETIC_PNG.split(',')[1], 'base64'));
     const sourceAtStart = manifest(), results = [];
     for (const phase of ['flows', 'restart']) {
-      const run = require('node:child_process').spawnSync(require('electron'), ['--no-sandbox', '--ozone-platform=headless', '--disable-gpu', __filename, phase], { cwd: root, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || '/tmp/flower-rc11-cache', FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: data, FLOWER_EXTERNAL_RESOURCE_DIR: resources, FLOWER_AVATAR_INPUT: input } });
+      const run = require('node:child_process').spawnSync(require('electron'), ['--no-sandbox', '--ozone-platform=headless', '--disable-gpu', __filename, phase], { cwd: root, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || '/tmp/flower-rc11-cache', FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: data, FLOWER_EXTERNAL_RESOURCE_DIR: resources, FLOWER_AVATAR_INPUT: input, ...fixtureLayout.env } });
       fs.writeFileSync(path.join(out, phase + '.log'), (run.stdout || '') + (run.stderr || ''));
-      const report = fs.existsSync(path.join(out, phase + '.json')) ? read(phase + '.json') : null;
-      results.push({ phase, exitCode: run.status, report }); console.log(phase, run.status, report?.checks?.length);
-      if (run.status) break;
+      const result=qaChild.capture(run,path.join(out,phase+'.json'),phase);results.push(result);console.log(phase,result.exitCode,result.report?.checks?.length,result.evidenceErrors);if(result.exitCode!==0)break;
     }
     const checks = results.flatMap(result => result.report?.checks || []), sourceAtFinish = manifest();
     const result = { version: require('../package.json').version, variant, syntheticOnly: true, windowsExecuted: false, physicalTouchscreen: false, zoomIsDpiEquivalentOnly: true, realElectronMainAndPreload: true, nativeMouseAndKeyboardEvents: true, mockedNativeChoosersAndOpenFolder: true, sourceAtStart, sourceAtFinish, sourceChanged: JSON.stringify(sourceAtStart) !== JSON.stringify(sourceAtFinish), dataDirectory: data, results, passed: checks.filter(check => check.status === 'passed').length, failed: checks.filter(check => check.status === 'failed').length };
-    write('results.json', result); assert.ok(results.every(result => result.exitCode === 0)); assert.equal(result.failed, 0);
+    write('results.json', result); assert.equal(results.length,2,'Both feature phases must complete');assert.ok(results.every(result => result.exitCode === 0));assert.ok(checks.length>0,'No verified cases'); assert.equal(result.failed, 0);
     if (!process.env.FLOWER_AVATAR_ALLOW_EDIT) assert.equal(result.sourceChanged, false, 'Production sources changed during QA');
     console.log('AVATAR_RC11_PASS', result.passed);
   })().catch(error => { console.error(error); process.exitCode = 1; });
@@ -45,7 +44,7 @@ if (!process.versions.electron) {
   dialog.showSaveDialog = async (_window, options) => { calls.push(options); const target = nextSave; nextSave = null; return target ? { canceled: false, filePath: target } : { canceled: true }; };
   shell.openPath = async target => { openedFolders.push(target); return ''; };
   const entry = path.resolve(process.env.FLOWER_PACKAGE_MAIN || path.join(root, 'src/main.cjs'));
-  require('./package-boundary.cjs')(entry, path.join(out, phase + '-dependency-boundary.json')); require(entry);
+  require('./package-boundary.cjs')(entry, path.join(out, phase + '-dependency-boundary.json')); if(!qaChild.load(entry,app))return;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   const js = (code, win = main) => win.webContents.executeJavaScript(code, true);
   const state = () => js('classroom.get().then(result=>result.state)');

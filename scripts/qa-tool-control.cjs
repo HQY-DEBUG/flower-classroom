@@ -46,6 +46,11 @@ async function ensureToolControl(window, selector) {
   if(!generic) throw Error('Requested scoped tool is not visible: '+selector);
   const close=await visibleControl(window,'#modal [data-do=modal-close]');
   if(close) await nativeClick(window,close);
+  // RC18 rules/catalog moved into the visible secondary pet menu.
+  if(['pet-rules','pet-catalog'].includes(action)){
+    const more=await visibleControl(window,'[data-do=pet-more]');
+    if(more){await nativeClick(window,more);for(let n=0;n<120;n++){const entry=await visibleControl(window,'#modal '+requested);if(entry)return entry.selector;await delay(25);}throw Error('Pet secondary menu did not expose visible entry '+selector);}
+  }
   const petLauncher=petFeatures.has(action)&&await visibleControl(window,'[data-do=px-features]');
   if(petLauncher){
     await nativeClick(window,petLauncher);

@@ -42,7 +42,7 @@ if(!process.versions.electron){
     await check('Corrupt legacy chain opens read-only recovery instead of a writable example classroom',()=>assert.equal(loaded.readOnly,true));
     await check('A score cannot migrate example data over the unreadable legacy classroom',async()=>{const before=fs.readFileSync(legacy,'utf8');await assert.rejects(js('classroom.action('+JSON.stringify({type:'score',ids:[loaded.state.students[0].id],delta:1})+')'),/恢复|存档/);assert.equal(fs.existsSync(modern),false);assert.equal(fs.readFileSync(legacy,'utf8'),before);});
    }else{
-    await check('Last complete classroom is shown, including names and nonzero scores',()=>assert.deepEqual(loaded.state,expected));
+    await check('Last complete classroom is shown, including names and nonzero scores',()=>assert.deepEqual(loaded.state,phase==='legacy-previous-only'?require('./qa-rc18-inherited-contract.cjs').bootstrapExpected(expected,src):expected));
     await check('Recovery warning is displayed',()=>assert.ok(loaded.warning));
     if(phase.startsWith('preservation-')){
      await check('Preservation failure keeps mutation blocked and both input files unchanged',async()=>{assert.equal(loaded.readOnly,true);await assert.rejects(js('classroom.action('+JSON.stringify({type:'score',ids:[expected.students[0].id],delta:1})+')'),/恢复|存档/);assert.equal(fs.readFileSync(modern,'utf8'),'{SYNTHETIC_BAD_PRIMARY');assert.deepEqual(JSON.parse(fs.readFileSync(modern+'.previous')),expected);});

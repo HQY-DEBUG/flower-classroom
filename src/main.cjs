@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, screen, shell, session, nativeImage, Menu, clipboard } = require('electron');
 const fs = require('node:fs');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { isTrustedPage } = require('./trusted-page.cjs');
@@ -12,6 +12,10 @@ const { bootstrapFolderApp } = require('./folder-layout.cjs');
 const FolderPristine = require('./folder-pristine.cjs');
 const {createLegacyMigration}=require('./legacy-migration.cjs');
 const { createScoreRuleWorkbook, signature:ruleConfigurationSignature } = require('./score-rule-workbook.cjs');
+const ScoreRules = require('./score-rules.js');
+const Configuration = require('./configuration-model.js');
+const workbookActionTypes = new Set(Configuration.actionTypes);
+const workbookActionKey = action => {const value={...action};delete value.workbookToken;delete value._transportId;return JSON.stringify(value);};
 const { createStore } = require('./storage.cjs');
 const PetProgress = require('./pet-progress.js');
 const Rankings = require('./classroom-rankings.js');
@@ -23,7 +27,8 @@ app.setName('花伴课堂');
 const headlessTest = process.env.FLOWER_HEADLESS_TEST === '1';
 const startup = bootstrapFolderApp({app, developmentDirectory:path.resolve(__dirname,'..')});
 if(!startup.ok){if(headlessTest)console.error(JSON.stringify(startup.error));else dialog.showErrorBox(startup.error.title,startup.error.message);app.exit(1);return;}
-const {layout,config:startupConfig}=startup;
+const {layout}=startup;
+let startupConfig=startup.config;
 const resourceDirectory=layout.resourceDirectory;
 const legacySuggestedDirectory=process.env.APPDATA?path.join(process.env.APPDATA,'FlowerClassroom'):'';
 const singleInstanceLock=headlessTest || app.requestSingleInstanceLock();
@@ -33,12 +38,12 @@ let state, dataFile, store, classroomLock, mainWindow, savingError = '', workboo
 // Packaged resources already exist on extraction. Avatars are decoded only on
 // explicit listing/import; all application paths are under the program folder.
 const avatarLibrary = createAvatarLibrary({resourceDirectory,legacyDataDirectory:app.getPath('userData'),defaultsDirectory:path.join(__dirname,'../assets/avatar-defaults'),nativeImage});
-const scoreWorkbook=createScoreRuleWorkbook({resourceDirectory,backupDirectory:layout.backupDirectory});
+const scoreWorkbook=createScoreRuleWorkbook({resourceDirectory,backupDirectory:layout.backupDirectory,dataDirectory:layout.dataDirectory});
 const workbookContexts=new Map();
 const legacyMigration=createLegacyMigration({dataDirectory:layout.dataDirectory,backupDirectory:layout.backupDirectory,resourceDirectory,validate:validateState});
 const migrationContexts=new Map();let migrationCommitted=false;
 function migrationContext(token,owner){const context=migrationContexts.get(token);if(!context||context.owner!==owner)throw Error('旧版迁移预览已失效，请重新选择');assertUnlocked(context.lockRevision);if(context.restoreGeneration!==restoreGeneration||context.stateHash!==FolderPristine.stateHash(state))throw Error('课堂资料已变化，迁移确认已失效。请取消后重新查看');return context;}
-function rememberWorkbook(result,event,kind){workbookContexts.set(result.token,{owner:event.sender,kind,panelId:panelId(state),restoreGeneration,lockRevision});while(workbookContexts.size>24)workbookContexts.delete(workbookContexts.keys().next().value);return result;}
+function rememberWorkbook(result,event,kind,extra={}){workbookContexts.set(result.token,{owner:event.sender,kind,panelId:panelId(state),restoreGeneration,lockRevision,...extra});while(workbookContexts.size>24)workbookContexts.delete(workbookContexts.keys().next().value);return result;}
 function workbookContext(token,owner,kind){const context=workbookContexts.get(token);if(!context||context.owner!==owner||context.kind!==kind)throw new Error('计分卡片预览已失效，请重新打开');assertUnlocked(context.lockRevision);if(context.restoreGeneration!==restoreGeneration||context.panelId!==panelId(state))throw new Error('面板或备份已变化，请重新核对计分卡片');return context;}
 const actionReceipts=createActionReceipts({getState:()=>state});
 const windows = new Map();
@@ -53,10 +58,66 @@ function commit(next, change={type:'data'},options={}) { if(!store.blocked)score
 function protect(label) { fs.writeFileSync(path.join(layout.backupDirectory, `before-${label}-${Date.now()}-${randomUUID()}.json`), JSON.stringify(state)); }
 function dispatch(action,owner) {
   if(store.blocked)throw new Error('新版存档需要先恢复备份，当前未保存任何改动');
-  const next = applyAction(state, action);
-  if(action.type==='rules.save'){workbookContext(action.workbookToken,owner,'save');const saved=scoreWorkbook.commitPrepared(action.workbookToken,{currentState:state,nextState:next,saveState:value=>save(value),beforeCommit:()=>workbookContext(action.workbookToken,owner,'save')});workbookContexts.delete(action.workbookToken);state=saved;workbookNotice='';notify({type:'rules.save',readOnly:store.blocked});return state;}
+  let next;
+  if(action.workbookToken){
+    const context=workbookContext(action.workbookToken,owner,'save');
+    if(context.actionKey!==workbookActionKey(action)||context.baseRevision!==state.revision)throw Error('课堂资料或设置已在预览期间变化，请保留修改并重试保存');
+    next=context.nextState;
+  } else next=applyAction(state, action);
+  const changesWorkbook=ruleConfigurationSignature(next)!==ruleConfigurationSignature(state);
+  const pendingLegacyRename=action.type==='settings'&&!state.sharedScoreRules&&ScoreRules.previewShared(state).required;
+  if(changesWorkbook && !action.workbookToken && !pendingLegacyRename)throw Error('计分卡片或宠物进阶保存尚未准备，请重新操作');
   if (['panel.remove','panel.clear','points.clear','pet.graduate','classroom.attendance.reset','classroom.vote.start','toolbox.homework.reset','toolbox.homework.archive','toolbox.homework.remove','toolbox.link.remove'].includes(action.type)) protect(action.type.replace('.','-'));
+  if(action.workbookToken){
+    const saved=scoreWorkbook.commitPrepared(action.workbookToken,{currentState:state,nextState:next,saveState:value=>save(value),beforeCommit:()=>{const context=workbookContext(action.workbookToken,owner,'save');if(context.baseRevision!==state.revision)throw Error('课堂资料已变化，请重试保存');}});
+    workbookContexts.delete(action.workbookToken);state=saved;workbookNotice='';notify({type:action.type,readOnly:store.blocked});return state;
+  }
+  if(pendingLegacyRename)workbookNotice='班名已保存；旧版配置仍待迁移确认，原文件保留。请打开统一配置预览迁移';
   return commit(next, {type:action.type});
+}
+function blankState(current){
+  const next=createInitialState();next.version=current.version;next.students=[];next.settings.className='我的班级';next.settings.petStep=5;next.revision=current.revision;
+  if(current.panels)next.panels=JSON.parse(JSON.stringify(current.panels));
+  if(current.appConfig)next.appConfig=JSON.parse(JSON.stringify(current.appConfig));
+  if(current.sharedScoreRules){next.sharedScoreRules=JSON.parse(JSON.stringify(current.sharedScoreRules));ScoreRules.mirrorShared(next);}
+  else if(current.settings.scoreRules)next.settings.scoreRules=JSON.parse(JSON.stringify(current.settings.scoreRules));
+  return applyAction(next,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});
+}
+function restoreFileSnapshot(file) {
+  let stat;try{stat=fs.statSync(file);}catch(error){if(error.code==='ENOENT')return {path:file,hash:null,bytes:null};throw error;}
+  if(!stat.isFile()||stat.size>MAX_BACKUP)throw Error(`恢复预览无法读取「${path.basename(file)}」：文件类型或大小无效`);
+  const bytes=fs.readFileSync(file);if(bytes.length>MAX_BACKUP)throw Error('恢复文件超过100MB');
+  return {path:file,hash:createHash('sha256').update(bytes).digest('hex'),bytes};
+}
+function assertRestoreFiles(files) {
+  for(const item of files)if(restoreFileSnapshot(item.path).hash!==item.hash)throw Error(`「${path.basename(item.path)}」已在恢复预览后变化，请重新选择备份；本次未恢复`);
+}
+async function prepareRestorePreview(event,incoming,{direct=false,sourceSnapshot=null,started=null}={}) {
+  const baseline=started||{revision:state.revision,panel:panelId(state),generation:restoreGeneration,lockRevision};
+  const check=()=>{assertUnlocked(baseline.lockRevision);if(state.revision!==baseline.revision||panelId(state)!==baseline.panel||restoreGeneration!==baseline.generation)throw Error('课堂资料、面板或备份已在恢复预览期间变化，请重新选择备份');};
+  check();const recoveryRebuild=store.blocked;
+  if(direct&&(recoveryRebuild||ScoreRules.previewShared(incoming).required))throw Error('此备份需要明确核对恢复配置，请使用「恢复备份」重新选择文件并预览确认');
+  const targets=[store.legacyPath,store.legacyPath+'.previous',store.modernPath,store.modernPath+'.previous',store.markerPath];
+  const files=[...new Set(targets)].map(restoreFileSnapshot);if(sourceSnapshot&&!files.some(item=>item.path===sourceSnapshot.path))files.push(sourceSnapshot);
+  const primary=files.find(item=>item.path===dataFile),previous=files.find(item=>item.path===dataFile+'.previous');
+  const priorClassBytes=primary?.bytes||previous?.bytes||Buffer.from(JSON.stringify(state));
+  const result=await scoreWorkbook.prepareRestore(state,incoming,{recoveryRebuild});check();assertRestoreFiles(files);
+  const nextState=validateState(result.state);const stateBackupPath=path.join(layout.backupDirectory,`before-restore-${Date.now()}-${randomUUID()}.json`);
+  const {state:omitted,...configuration}=result;
+  rememberWorkbook(result,event,'restore',{nextState,baseRevision:baseline.revision,incomingKey:FolderPristine.stateHash(incoming),files:files.map(({path,hash})=>({path,hash})),priorClassBytes,stateBackupPath,stateBackupHash:null});
+  return {...incoming,expectedRevision:baseline.revision,restoreToken:result.token,restoreConfiguration:{...configuration,stateBackupPath}};
+}
+function restoreContext(token,owner,incoming) {
+  const context=workbookContext(token,owner,'restore');
+  if(context.baseRevision!==state.revision||context.incomingKey!==FolderPristine.stateHash(incoming))throw Error('课堂资料或备份内容已在恢复预览后变化，请重新选择备份');
+  assertRestoreFiles(context.files);
+  if(context.stateBackupHash!==null&&restoreFileSnapshot(context.stateBackupPath).hash!==context.stateBackupHash)throw Error('恢复前课堂备份已变化，请重新选择备份，现有资料未覆盖');
+  return context;
+}
+function protectRestoreState(context) {
+  const fd=fs.openSync(context.stateBackupPath,'wx',0o600);
+  try{fs.writeFileSync(fd,context.priorClassBytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+  context.stateBackupHash=createHash('sha256').update(context.priorClassBytes).digest('hex');
 }
 function assertUnlocked(revision = lockRevision) {
   if(migrationCommitted)throw Error('旧版数据已迁移，正在重新启动。请关闭并重新打开本程序后继续');
@@ -235,7 +296,7 @@ async function exportTemplate() {
 async function fileCommand(event, request = {}) {
   if(request.command==='legacy-migration-cancel'){const context=migrationContexts.get(request.token);if(context?.owner===event.sender){migrationContexts.delete(request.token);await legacyMigration.cancel(request.token);}return {canceled:true};}
   assertUnlocked();const lockAtStart=lockRevision;
-  if(store.blocked&&!['restore-preview','restore-apply','backup','data-folder','template'].includes(request.command))throw new Error('新版存档需要先恢复备份，当前未保存任何改动');
+  if(store.blocked&&!['restore-preview','restore-prepare','restore-apply','backup','data-folder','template'].includes(request.command))throw new Error('新版存档需要先恢复备份，当前未保存任何改动');
   if (request.panelId !== undefined && request.panelId !== panelId(state)) throw new Error('当前面板已切换，请重新操作');
   const destructive = ['restore-apply','archive','blank'].includes(request.command) || (request.command==='import-apply' && request.mode==='replace');
   if (destructive && request.expectedRevision !== undefined && request.expectedRevision !== state.revision) throw new Error('课堂资料在确认期间已变化，请取消后重新查看并确认');
@@ -243,11 +304,19 @@ async function fileCommand(event, request = {}) {
     const startPanel=panelId(state),startEpoch=restoreGeneration,startSignature=ruleConfigurationSignature(state);
     const check=()=>{assertUnlocked(lockAtStart);assertRestoreGeneration(request);if(startEpoch!==restoreGeneration||startPanel!==panelId(state)||startSignature!==ruleConfigurationSignature(state))throw new Error('面板、备份或计分卡片已变化，请重新核对');};
     check();
-    if(request.command==='rules-workbook-info'){try{return scoreWorkbook.info();}catch(error){return {path:scoreWorkbook.path,warning:error.message};}}
-    if(request.command==='rules-workbook-open'){const result=await scoreWorkbook.open(state,{beforeCommit:check});check();const error=await shell.openPath(result.path);check();if(error)throw new Error('无法打开计分卡片表格，请通过显示的路径打开，并检查是否安装 Excel 或 WPS');return {...result,opened:true};}
+    if(request.command==='rules-workbook-info'){try{return scoreWorkbook.info(state);}catch(error){return {path:scoreWorkbook.path,warning:error.message};}}
+    if(request.command==='rules-workbook-open'){const result=await scoreWorkbook.open(state,{beforeCommit:check});check();if(result.migrationAvailable)return result;if(!result.warning&&!result.externalChanged)workbookNotice='';const error=await shell.openPath(result.path);check();if(error)throw new Error('无法打开计分卡片表格，请通过显示的路径打开，并检查是否安装 Excel 或 WPS');return {...result,opened:true};}
     if(request.command==='rules-workbook-prepare'){
-      const action=request.action;if(!action||action.type!=='rules.save')throw new Error('计分规则保存请求无效');assertRestoreGeneration(action);
-      const next=applyAction(state,action),result=await scoreWorkbook.prepareSave(state,next);check();return rememberWorkbook(result,event,'save');
+      const action=request.action, fileAction=request.fileAction;
+      if(fileAction?.command!=='blank' && (!action||!workbookActionTypes.has(action.type)))throw new Error('计分卡片或宠物进阶保存请求无效');
+      const command=fileAction||action;assertRestoreGeneration(command);
+      if(action?.type==='settings'&&!state.sharedScoreRules&&ScoreRules.previewShared(state).required)return {unchanged:true,legacyDeferred:true};
+      const baseRevision=state.revision,next=fileAction?blankState(state):applyAction(state,action);
+      if(!next.sharedScoreRules)ScoreRules.promoteShared(next);
+      if(!next.appConfig)Configuration.apply(next,Configuration.snapshot(next));
+      if(ruleConfigurationSignature(next)===startSignature)return {unchanged:true};
+      const result=await scoreWorkbook.prepareSave(state,next);check();if(baseRevision!==state.revision)throw Error('课堂资料已在保存准备期间变化，请重试');
+      return rememberWorkbook(result,event,'save',{nextState:next,baseRevision,actionKey:workbookActionKey(command)});
     }
     if(request.command==='rules-workbook-refresh-preview'){const result=await scoreWorkbook.prepareRefresh(state);check();return rememberWorkbook(result,event,'refresh');}
     if(request.command==='rules-workbook-export-preview'){const result=await scoreWorkbook.prepareExport(state);check();return rememberWorkbook(result,event,'export');}
@@ -302,7 +371,14 @@ async function fileCommand(event, request = {}) {
   if (request.command === 'import-preview') return importList(request.mode);
   if (request.command === 'import-apply') { const next=importRows(request.rows,state,request.mode||'append');if(request.mode==='replace')fs.writeFileSync(path.join(layout.backupDirectory,`before-replace-${Date.now()}-${randomUUID()}.json`),JSON.stringify(state));return commit(next); }
   if (request.command === 'archive') { fs.writeFileSync(path.join(layout.backupDirectory,`before-archive-${Date.now()}-${randomUUID()}.json`),JSON.stringify(state));return commit(validateState({...state,logs:[],revision:state.revision+1})); }
-  if (request.command === 'blank') { protect('blank'); const next=createInitialState();next.version=state.version;next.students=[];next.settings.className='我的班级';next.settings.petStep=5;next.revision=state.revision;if(state.panels)next.panels=state.panels;return commit(applyAction(next,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]})); }
+  if (request.command === 'blank') {
+    protect('blank');
+    if(!request.workbookToken){const next=blankState(state);if(ruleConfigurationSignature(next)!==ruleConfigurationSignature(state))throw Error('新建课堂设置尚未准备，请重试');return commit(next);}
+    const context=workbookContext(request.workbookToken,event.sender,'save');
+    if(context.actionKey!==workbookActionKey(request)||context.baseRevision!==state.revision)throw Error('课堂资料已变化，请重新确认新建课堂');
+    const saved=scoreWorkbook.commitPrepared(request.workbookToken,{currentState:state,nextState:context.nextState,saveState:value=>save(value),beforeCommit:()=>workbookContext(request.workbookToken,event.sender,'save')});
+    workbookContexts.delete(request.workbookToken);state=saved;workbookNotice='';notify({type:'data',readOnly:store.blocked});return state;
+  }
   if (request.command === 'template') return exportTemplate();
   if (['avatar-folder-info','avatars-list','avatars-refresh','avatar-open-folder'].includes(request.command)) {
     const check=()=>{assertUnlocked(lockAtStart);assertRestoreGeneration(request);};
@@ -382,20 +458,35 @@ async function fileCommand(event, request = {}) {
     writeFileAtomic(target.filePath, JSON.stringify(state)); return true;
   }
   if (request.command === 'restore-preview') {
-    const chosen = await dialog.showOpenDialog(mainWindow, { title: '恢复课堂备份', defaultPath:layout.backupDirectory, properties: ['openFile'], filters: [{ name: '课堂备份', extensions: ['json'] }] });
-    if (chosen.canceled) return null;
-    assertUnlocked(lockAtStart);
-    if (fs.statSync(chosen.filePaths[0]).size > MAX_BACKUP) throw new Error('备份不能超过 100 MB');
-    const incoming = validateState(JSON.parse(fs.readFileSync(chosen.filePaths[0], 'utf8')));
-    return request.withRevision===true?{...incoming,expectedRevision:state.revision}:incoming;
+    const started={revision:state.revision,panel:panelId(state),generation:restoreGeneration,lockRevision:lockAtStart};
+    const chosen=await dialog.showOpenDialog(mainWindow,{title:'恢复课堂备份',defaultPath:layout.backupDirectory,properties:['openFile'],filters:[{name:'课堂备份',extensions:['json']}]});
+    if(chosen.canceled)return null;
+    assertUnlocked(lockAtStart);assertRestoreGeneration(request);
+    const sourceSnapshot=restoreFileSnapshot(chosen.filePaths[0]);if(sourceSnapshot.bytes===null)throw Error('所选备份文件已不存在，请重新选择');
+    const incoming=validateState(JSON.parse(sourceSnapshot.bytes.toString('utf8')));
+    return prepareRestorePreview(event,incoming,{sourceSnapshot,started});
+  }
+  if(request.command==='restore-prepare'){
+    assertRestoreGeneration(request);
+    if(request.expectedRevision!==undefined&&request.expectedRevision!==state.revision)throw Error('课堂资料已在确认期间变化，请重新预览备份');
+    return prepareRestorePreview(event,validateState(request.state),{direct:true});
   }
   if (request.command === 'restore-apply') {
-    const incoming = validateState(request.state);
-    fs.writeFileSync(path.join(layout.backupDirectory,`before-restore-${Date.now()}-${randomUUID()}.json`),JSON.stringify(state));
-    return commit({ ...incoming, revision: state.revision + 1 },{type:'data',restored:true},{restore:true});
+    const token=request.restoreToken||request.workbookToken||request.state?.restoreToken;
+    if(typeof token!=='string')throw Error('请先选择备份并预览课堂与整本配置，再确认恢复');
+    // The JSON backup is durable before either live file changes. Its exact
+    // original bytes include damaged input on the explicit recovery path.
+    let saved;
+    try{
+      const incoming=validateState(request.state),context=restoreContext(token,event.sender,incoming);
+      protectRestoreState(context);
+      saved=scoreWorkbook.commitRestore(token,{currentState:state,saveState:value=>save(value,{restore:true}),beforeCommit:()=>{assertRestoreGeneration(request);restoreContext(token,event.sender,incoming);}});
+    }catch(error){workbookContexts.delete(token);throw error;}
+    state=saved;savingError='';workbookNotice='';restoreGeneration++;scoreWorkbook.invalidate();workbookContexts.clear();
+    notify({type:'data',restored:true,readOnly:store.blocked});return state;
   }
   if (['data-folder','program-folder','backup-folder','config-open'].includes(request.command)) {const target=({ 'data-folder':layout.dataDirectory,'program-folder':resourceDirectory,'backup-folder':layout.backupDirectory,'config-open':layout.configFile })[request.command];const error=await shell.openPath(target);assertUnlocked(lockAtStart);if(error)throw Error('无法打开文件或文件夹，请通过显示的位置打开并检查默认应用');return {opened:true,path:target};}
-  if(request.command==='folder-info')return {root:resourceDirectory,data:layout.dataDirectory,backup:layout.backupDirectory,config:layout.configFile,avatars:avatarLibrary.directory,rules:scoreWorkbook.path,migrationEligible:!!FolderPristine.allowedPristineFiles(layout.dataDirectory,state)};
+  if(request.command==='folder-info')return {root:resourceDirectory,data:layout.dataDirectory,backup:layout.backupDirectory,config:layout.configFile,avatars:avatarLibrary.directory,rules:scoreWorkbook.path,configuration:scoreWorkbook.path,migrationEligible:!!FolderPristine.allowedPristineFiles(layout.dataDirectory,state)};
   throw new Error('未知文件操作');
 }
 app.whenReady().then(async () => {
@@ -408,10 +499,15 @@ app.whenReady().then(async () => {
   const firstRun=!FolderPristine.hasClassroomFiles(layout.dataDirectory);
   const loaded=store.load();state=loaded.state;savingError=loaded.warning;dataFile=store.path;
   if(!store.blocked){
-    try{const prepared=await scoreWorkbook.bootstrap(state,{saveState:value=>firstRun?save(value):value});state=prepared.state;workbookNotice='';}
-    catch(error){workbookNotice='外部计分表暂不可用，当前课堂继续使用已保存的规则。原表和事务记录已保留，请在计分卡片管理中核对或重建。'+error.message;}
+    try{
+      let prepared=await scoreWorkbook.bootstrap(state,{saveState:value=>save(value)});
+      if(prepared.requiresStateReload){const reloaded=store.load();state=reloaded.state;savingError=reloaded.warning;dataFile=store.path;prepared=store.blocked?{state,warning:'恢复前文件链已保留，请选择一份完整备份继续恢复'}:await scoreWorkbook.bootstrap(state,{saveState:value=>save(value)});}
+      state=prepared.state;workbookNotice=prepared.warning||'';
+    }
+    catch(error){workbookNotice='统一配置暂不可用，课堂继续使用最后有效设置。现有文件和事务记录已保留，请在统一配置中核对或重建。'+error.message;}
     if(firstRun){state=save(state);FolderPristine.recordInitialState(layout.dataDirectory,state,resourceDirectory);}
   }
+  startupConfig=Configuration.appConfig(state.appConfig);
   ipcMain.handle('state:get', event => { assertSender(event);if(migrationCommitted)throw Error('迁移已完成，请重新启动程序'); return { state, warning: savingError, workbookWarning:workbookNotice||scoreWorkbook.warning, readOnly:store.blocked, restoreGeneration, desktop: true, version: require('../package.json').version }; });
   ipcMain.handle('state:action', (event, action) => { assertSender(event); return actionReceipts.execute(event.sender,action,value=>dispatch(value,event.sender),()=>assertTransactionCurrent(action,event.sender)); });
   ipcMain.handle('state:receipt', (event, request={}) => { assertSender(event);if(migrationCommitted)throw Error('迁移已完成，请重新启动程序'); const receipt=actionReceipts.inspect(event.sender,request.transportId);return request.withContext===true?{...receipt,restoreGeneration,state,readOnly:store.blocked}:receipt; });

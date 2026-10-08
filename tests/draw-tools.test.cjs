@@ -187,6 +187,8 @@ test('late reward response does not clear another board or newer draw drafts', a
 
 test('count stepper moves 1 to 5, clamps roster/20, and emits input plus change', async () => {
   const h = harness();
+  // RC18 persists the last draw count (the harness drew 5). Start this stepper-only scenario at 1 explicitly.
+  h.field('draw-count').value = '1';
   for (let n = 0; n < 4; n++) await h.tools.handle('draw-count-plus', {}, h.context);
   assert.equal(h.field('draw-count').value, '5');
   assert.deepEqual(h.events.map(event => event.type), ['input', 'change', 'input', 'change', 'input', 'change', 'input', 'change']);

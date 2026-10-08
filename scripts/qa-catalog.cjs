@@ -9,7 +9,7 @@ const { spawnSync } = require('node:child_process');
 const electron = require('electron');
 const root = path.resolve(__dirname, '..');
 const variant = process.env.FLOWER_PACKAGE_MAIN ? 'packaged' : 'source';
-const out = path.join(root, 'artifacts', 'qa-catalog', variant), data = path.join(root, '.qa-catalog', variant);
+const out = process.env.FLOWER_CATALOG_OUT ? path.resolve(process.env.FLOWER_CATALOG_OUT) : path.join(root, 'artifacts', 'qa-catalog', variant), data = path.join(root, '.qa-catalog', variant);
 const CLASSIC = ['owl', 'fox', 'bunny', 'cat', 'penguin', 'panda', 'bear', 'dog', 'deer', 'squirrel', 'hedgehog', 'raccoon', 'koala', 'elephant', 'lion', 'tiger', 'dragon', 'unicorn', 'otter', 'seal'];
 const ADVENTURE = ['robot','rover','mechcrab','mechbeetle','mechdragonfly','rex','raptor','triceratops','stegosaurus','ankylosaurus','pteranodon','mammoth','rhino','gorilla','wolf','boar','eagle','shark','orca','phoenix'];
 const EXPECTED = [...CLASSIC,...ADVENTURE];
@@ -62,6 +62,8 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
     };
   }
   const { validateState, petLevel } = require(path.join(sourceDir, 'core.cjs'));
+  const Rules = require(path.join(sourceDir, 'score-rules.js')), Config = require(path.join(sourceDir, 'configuration-model.js'));
+  const configured = (input, current) => { const value = validateState(input); if (!value.appConfig && current?.appConfig) value.appConfig = JSON.parse(JSON.stringify(current.appConfig)); if (!value.sharedScoreRules) Rules.confirmShared(value, Rules.previewShared(value).expectedKey); Config.apply(value, Config.snapshot(value)); return value; };
   const art = require(path.join(sourceDir, 'pet-art.js'));
   const baselineFiles = ['tests/core.test.cjs', 'tests/io.test.cjs', 'tests/qa-io.test.cjs', 'tests/pet.test.cjs', 'scripts/qa-electron.cjs', 'scripts/qa-pets.cjs'];
   const originalTestHash = Object.fromEntries(baselineFiles.map(f => [f, sha(fs.readFileSync(path.join(root, f)))]));
@@ -104,7 +106,16 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
   async function close(w = main) { if (await exists('#modal .dialog', w)) await click('#modal [data-do="modal-close"]', w); }
   async function clearFeedback(w = main) { if (await exists('[data-do="pet-feedback-close"]', w)) await click('[data-do="pet-feedback-close"]', w); }
   async function go(page = 'pets') { await close(); await click(`[data-page="${page}"]`); }
-  async function restore(s = legacyState()) { await close(); await file({ command: 'restore-apply', state: s }); await sleep(80); await clearFeedback(); }
+  const applyRestorePreview = incoming => file({command:'restore-apply',state:incoming,restoreToken:incoming.restoreToken,expectedRevision:incoming.expectedRevision});
+  let fixtureNumber = 0;
+  async function restore(s = legacyState()) {
+    await close(); const before=await state(),previousPath=openPath,fixturePath=path.join(out,'restore-fixture-'+(++fixtureNumber)+'.json'),bytes=JSON.stringify(s);fs.writeFileSync(fixturePath,bytes);openPath=fixturePath;
+    try {
+      const preview=await file({command:'restore-preview'});assert.deepEqual(validateState(preview),validateState(s));assert.equal(typeof preview.restoreToken,'string');assert.equal(preview.expectedRevision,before.revision);assert.ok(preview.restoreConfiguration);assert.deepEqual(await state(),before);
+      await applyRestorePreview(preview);assert.deepEqual(noRevision(await state()),noRevision(configured(s,before)));assert.equal(fs.readFileSync(fixturePath,'utf8'),bytes);
+    } finally {openPath=previousPath;}
+    await sleep(80);await clearFeedback();
+  }
   async function detail(id) { await go(); await click(`[data-do="pet-detail"][data-id="${id}"]`); }
   async function edit(id) { await detail(id); await click(`[data-do="edit-student"][data-id="${id}"]`); }
   async function open(role) { await js(main, `classroom.window({command:'open',role:${JSON.stringify(role)}})`); const w = BrowserWindow.getAllWindows().find(w => w.flowerRole === role); assert.ok(w); await ready(w); return w; }
@@ -129,8 +140,10 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
           await shot('15-restarted-all-forty');
         });
       } else {
-        await check('Raw handwritten v1.0 starts without warning, mutation, premature save or loss of the original four pets', async () => {
-          const loaded = await js(main, 'classroom.get()'); assert.equal(loaded.warning, ''); assert.deepEqual(loaded.state, validateState(legacyState())); assert.equal(disk(), legacyJSON());
+        await check('Raw handwritten v1.0 retains exact legacy bytes and four pets alongside the declared v2 configuration cache', async () => {
+          const loaded = await js(main, 'classroom.get()'); assert.equal(loaded.warning, ''); assert.deepEqual(loaded.state, configured(legacyState())); assert.equal(loaded.workbookWarning, ''); assert.equal(fs.readFileSync(path.join(data,'classroom.json'),'utf8'), legacyJSON()); assert.deepEqual(JSON.parse(disk()), loaded.state);
+          assert.deepEqual(loaded.state.students, validateState(legacyState()).students); assert.deepEqual(loaded.state.logs, legacyState().logs);
+          const backups=(await file({command:'folder-info'})).backup; assert.ok(fs.readdirSync(backups).filter(n=>n.startsWith('before-v2-migration')).some(n=>fs.readFileSync(path.join(backups,n),'utf8')===legacyJSON()));
           assert.equal(await js(main, 'typeof require'), 'undefined'); assert.equal(await js(main, 'typeof process'), 'undefined');
           assert.deepEqual(Object.keys(art.names), EXPECTED);
         });
@@ -243,24 +256,25 @@ function runElectron({ app, BrowserWindow, dialog, session }) {
         });
         await check('Both handwritten v1.0 and v1.1 backups restore exact old pets, fields and correct rule defaults', async () => {
           for (const [name, input] of [['v1.0', legacyState()], ['v1.1', v11()]]) {
-            openPath = path.join(out, 'synthetic-' + name + '.json'); fs.writeFileSync(openPath, JSON.stringify(input)); const incoming = await file({ command: 'restore-preview' }); assert.deepEqual(incoming, validateState(input));
-            await file({ command: 'restore-apply', state: incoming }); assert.deepEqual(noRevision(await state()), noRevision({...validateState(input),version:2})); assert.equal(await content('#pet-feedback'), '');
+            openPath = path.join(out, 'synthetic-' + name + '.json'); fs.writeFileSync(openPath, JSON.stringify(input)); const incoming = await file({ command: 'restore-preview' }); assert.deepEqual(validateState(incoming), validateState(input));
+            const prior=await state();await applyRestorePreview(incoming); assert.deepEqual(noRevision(await state()), noRevision(configured(input,prior))); assert.equal(await content('#pet-feedback'), '');
           }
           openPath = null; const before = await state(); assert.equal(await file({ command: 'restore-preview' }), null); assert.deepEqual(await state(), before);
         });
         await check('Pre-adventure twenty-species backup restores exact classic IDs, fields, photographs and old rules', async () => {
           const old=catalogFixture(CLASSIC.length);assert.deepEqual(old.students.map(s=>s.pet),CLASSIC);
           openPath=path.join(out,'synthetic-classic-twenty-backup.json');fs.writeFileSync(openPath,JSON.stringify(old));
-          const bytes=fs.readFileSync(openPath),before=await state(),preview=await file({command:'restore-preview'});assert.deepEqual(preview,validateState(old));assert.deepEqual(await state(),before);
-          await file({command:'restore-apply',state:preview});assert.deepEqual(noRevision(await state()),noRevision({...validateState(old),version:2}));assert.deepEqual(fs.readFileSync(openPath),bytes);
+          const bytes=fs.readFileSync(openPath),before=await state(),preview=await file({command:'restore-preview'});assert.deepEqual(validateState(preview),validateState(old));assert.deepEqual(await state(),before);
+          await applyRestorePreview(preview);assert.deepEqual(noRevision(await state()),noRevision(configured(old,before)));assert.deepEqual(fs.readFileSync(openPath),bytes);
           assert.deepEqual((await state()).students.map(s=>s.pet),CLASSIC);openPath=null;return {originalSpecies:20,sourceBackupUnchanged:true};
         });
         await check('Native backup/restore round-trip all new species, synthetic photo, focus, scores, history and protected version=2', async () => {
           await restore(catalogFixture()); await action({ type: 'score', ids: (await state()).students.map(s => s.id), delta: 2, reason: '纯合成备份积分' }); await clearFeedback();
           const before = await state(); savePath = path.join(out, 'synthetic-forty-backup.json'); assert.equal(await file({ command: 'backup' }), true); assert.deepEqual(JSON.parse(fs.readFileSync(savePath)), before);
           await action({ type: 'student.update', id: before.students.at(-1).id, pet: 'owl' }); await action({ type: 'pet.rules', step: 100 });
-          openPath = savePath; const incoming = await file({ command: 'restore-preview' }); assert.deepEqual(incoming, before); await file({ command: 'restore-apply', state: incoming });
-          assert.deepEqual(noRevision(await state()), noRevision(before)); assert.equal((await state()).version, 2); assert.equal(await content('#pet-feedback'), ''); openPath = null; savePath = null;
+          openPath = savePath; const incoming = await file({ command: 'restore-preview' }); assert.deepEqual(validateState(incoming), before); await applyRestorePreview(incoming);
+          assert.deepEqual(noRevision(await state()), noRevision(before)); assert.equal((await state()).version, 2); assert.equal(await content('#pet-feedback'), '');
+          const restored=await state();await action({type:'pet.rules',step:99});assert.deepEqual((await state()).students,restored.students);assert.deepEqual((await state()).logs,restored.logs); openPath = null; savePath = null;
         });
         await check('Unknown species rejects in IPC add/update/backup restore without altering live data, disk or recovery files', async () => {
           const before = await state(), bytes = disk(), backups = (await file({ command: 'folder-info' })).backup;

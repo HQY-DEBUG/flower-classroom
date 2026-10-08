@@ -10,9 +10,10 @@ const RECEIPT = 'legacy-migration-receipt-v1.json';
 const JOURNAL = '.legacy-migration-journal-v1.json';
 const LIMITS = Object.freeze({ files: 10000, bytes: 512 * 1024 * 1024, fileBytes: 100 * 1024 * 1024 });
 const CORE = /^(?:classroom(?:-v2)?\.json(?:\.previous|\.damaged-[\w-]+)?|classroom-v2\.enabled|classroom-lock\.json)$/;
-const METADATA = new Set(['avatar-location-v2.json', 'avatars-seeded-v1.txt', '头像-初始化-v2.txt']);
+const METADATA = new Set(['avatar-location-v2.json', 'avatars-seeded-v1.txt', '头像-初始化-v2.txt',RECEIPT]);
 const FOLDERS = new Set(['avatars', '头像', 'photos', 'materials', 'customrules']);
-const meaningful = name => CORE.test(name) || METADATA.has(name) || FOLDERS.has(name) || /^before-[^/\\]+\.json$/.test(name) || /^计分卡片(?:-[^/\\]+)?\.xlsx$/.test(name);
+const CONFIG_INPUTS = {'配置.txt':'legacy-text','计分卡片.xlsx':'legacy-workbook','计分卡片.xlsx.flower-pending.json':'legacy-receipt','配置.xlsx':'configuration'};
+const meaningful = name => CORE.test(name) || METADATA.has(name) || FOLDERS.has(name) || Object.hasOwn(CONFIG_INPUTS,name) || /^before-[^/\\]+\.json$/.test(name) || /^计分卡片(?:-[^/\\]+)?\.xlsx$/.test(name);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const fail = (code, message) => { const error = new Error(message); error.code = code; throw error; };
 const inside = (root, value) => { const relative = path.relative(root, value); return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative)); };
@@ -109,15 +110,38 @@ function createLegacyMigration({ dataDirectory, backupDirectory, resourceDirecto
     return { state, primary, selected, lock, warning };
   }
   function resourceReferences(source, snapshot) {
-    if (!snapshot.has('avatar-location-v2.json')) return { externalResources: [], index: null };
-    const index = snapshot.json('avatar-location-v2.json', 64 * 1024);
-    const knownRelative = index?.directory === '头像' && path.basename(source) === '数据';
-    if (!isPlain(index) || index.version !== 2 || typeof index.directory !== 'string' || (!path.isAbsolute(index.directory) && !knownRelative) || !Array.isArray(index.seededFiles) || index.seededFiles.length > 1000 || index.seededFiles.some(name => typeof name !== 'string' || name !== path.basename(name) || !name)) fail('INVALID_AVATAR_INDEX', '旧版头像目录记录无效，未读取记录指向的文件夹。请保留旧目录并检查 avatar-location-v2.json');
+    let index=null,avatarPath;
+    if(snapshot.has('avatar-location-v2.json')){
+      index=snapshot.json('avatar-location-v2.json',64*1024);
+      const knownRelative=index?.directory==='头像'&&path.basename(source)==='数据';
+      if (!isPlain(index) || index.version !== 2 || typeof index.directory !== 'string' || (!path.isAbsolute(index.directory) && !knownRelative) || !Array.isArray(index.seededFiles) || index.seededFiles.length > 1000 || index.seededFiles.some(name => typeof name !== 'string' || name !== path.basename(name) || !name)) fail('INVALID_AVATAR_INDEX', '旧版头像目录记录无效，未读取记录指向的文件夹。请保留旧目录并检查 avatar-location-v2.json');
+      avatarPath=knownRelative?path.join(path.dirname(source),'头像'):path.resolve(index.directory);
+    }
     // Folder-edition indexes have one fixed sibling resource location. It is
     // displayed for approval just like RC14's absolute external resource path.
-    const avatarPath = knownRelative ? path.join(path.dirname(source), '头像') : path.resolve(index.directory);
-    const candidates = [{ kind: 'avatars', path: avatarPath }, { kind: 'avatar-marker', path: path.join(path.dirname(avatarPath), '头像-初始化-v2.txt') }, { kind: 'workbook', path: path.join(path.dirname(avatarPath), '计分卡片.xlsx') }];
-    return { externalResources: candidates.filter(item => !inside(source, item.path)), index: { ...index, directory: avatarPath } };
+    const root=path.basename(source)==='数据'?path.dirname(source):avatarPath?path.dirname(avatarPath):source;
+    const candidates=avatarPath?[{kind:'avatars',path:avatarPath},{kind:'avatar-marker',path:path.join(path.dirname(avatarPath),'头像-初始化-v2.txt')}]:[];
+    for(const [name,kind]of Object.entries(CONFIG_INPUTS))candidates.push({kind,path:path.join(root,name),optional:true});
+    // A folder may be copied again before the teacher has confirmed its old
+    // configuration. Carry that pending, already-local evidence forward too.
+    if(snapshot.has(RECEIPT)){
+      const receipt=snapshot.json(RECEIPT,64*1024),sources=receipt.configurationSources;
+      if(sources!==undefined){
+        if(!Array.isArray(sources)||sources.length>3)fail('INVALID_CONFIGURATION_RECEIPT','旧迁移配置来源记录无效，请保留原目录并核对');
+        if(sources.length){
+          const archive=typeof receipt.archiveRelativePath==='string'&&!path.isAbsolute(receipt.archiveRelativePath)?path.resolve(root,receipt.archiveRelativePath):typeof receipt.archiveDirectory==='string'?path.resolve(receipt.archiveDirectory):'';
+          if(!archive||!inside(path.join(root,'备份'),archive)||archive===path.join(root,'备份'))fail('INVALID_CONFIGURATION_RECEIPT','旧迁移配置备份不在所选程序文件夹中，请保留并完整复制原文件夹');
+          const kinds=new Set();
+          for(const source of sources){
+            if(!isPlain(source)||!['legacy-text','legacy-workbook','legacy-receipt'].includes(source.kind)||kinds.has(source.kind)||typeof source.relativePath!=='string'||path.isAbsolute(source.relativePath)||!/^[a-f0-9]{64}$/.test(source.sha256||'')||!Number.isSafeInteger(source.sizeBytes)||source.sizeBytes<0||source.sizeBytes>LIMITS.fileBytes)fail('INVALID_CONFIGURATION_RECEIPT','旧迁移配置来源记录无效，请保留原目录并核对');
+            const target=path.resolve(archive,source.relativePath);
+            if(!inside(archive,target)||target===archive)fail('INVALID_CONFIGURATION_RECEIPT','旧迁移配置来源位置无效，请保留原目录并核对');
+            kinds.add(source.kind);candidates.push({kind:source.kind,path:target,expectedConfiguration:{sha256:source.sha256,sizeBytes:source.sizeBytes}});
+          }
+        }
+      }
+    }
+    return {externalResources:candidates.filter(item=>!inside(source,item.path)),index:index?{...index,directory:avatarPath}:null};
   }
   function preview(sourceDirectory, options = {}) {
     if (typeof sourceDirectory !== 'string' || !path.isAbsolute(sourceDirectory)) fail('INVALID_SOURCE', '请通过文件夹选择窗口选择旧版数据目录');
@@ -175,10 +199,11 @@ function createLegacyMigration({ dataDirectory, backupDirectory, resourceDirecto
       const existing = bytes(destination), incoming = bytes(staged);
       if (hash(existing) === hash(incoming)) return;
       // Only the exact generated, never-edited template can be replaced.
-      if (relative === '计分卡片.xlsx' && (require('./score-rule-workbook.cjs').isInitialBytes(existing) || hash(existing) === session.pristineWorkbookHash)) {
+      if (relative === '配置.xlsx' && (require('./score-rule-workbook.cjs').isInitialBytes(existing) || hash(existing) === session.pristineWorkbookHash)) {
         addOperation(session, 'resource', relative, staged, hash(existing));
         return;
       }
+      if(relative==='配置.xlsx')fail('CONFIGURATION_DESTINATION_CHANGED','目标配置.xlsx已被修改，不能用迁入配置覆盖。原文件未改动，请把新版完整解压到全新目录后迁移');
       if (path.dirname(relative) === '头像' && require('../assets/avatar-defaults/manifest.json').files.some(item => item.fileName === path.basename(relative))) {
         const bundled = bytes(path.join(__dirname, '../assets/avatar-defaults', path.basename(relative)));
         if (hash(existing) === hash(bundled)) {
@@ -218,10 +243,11 @@ function createLegacyMigration({ dataDirectory, backupDirectory, resourceDirecto
       const resourceSources = [];
       for (let index = 0; index < session.externalResources.length; index++) {
         const item = session.externalResources[index];
-        if (!exists(item.path)) { session.externalInventories.push({ path: item.path, missing: true }); session.warnings.push(`旧版资源未找到，已保留其目录记录：${item.path}`); continue; }
+        if (!exists(item.path)) { if(item.expectedConfiguration)fail('SOURCE_CHANGED','待迁入的旧配置备份已缺失，请保留并完整复制原程序文件夹后重试');session.externalInventories.push({ path: item.path, missing: true }); if(!item.optional)session.warnings.push(`旧版资源未找到，已保留其目录记录：${item.path}`); continue; }
         if (inside(item.path, roots.data) || inside(item.path, roots.backup) || inside(roots.data, item.path) || inside(roots.backup, item.path)) fail('OVERLAPPING_DIRECTORIES', '旧版资源不能指向当前数据或备份目录');
         const directory = item.kind === 'avatars';
         const files = directory ? inventory(item.path) : [inspect(item.path, path.basename(item.path))];
+        if(item.expectedConfiguration&&(files[0].sha256!==item.expectedConfiguration.sha256||files[0].size!==item.expectedConfiguration.sizeBytes))fail('SOURCE_CHANGED','待迁入的旧配置备份已改变，请保留原件并重新核对后迁移');
         const previousBytes = session.files.reduce((n, file) => n + file.size, 0) + resourceSources.reduce((n, source) => n + source.files.reduce((total, file) => total + file.size, 0), 0);
         if (previousBytes + files.reduce((n, file) => n + file.size, 0) > LIMITS.bytes) fail('TOO_LARGE', '旧数据和关联资源超过迁移容量上限，请保留原目录并整理备份');
         session.externalInventories.push({ path: item.path, directory, stamp: stamp(files) });
@@ -252,18 +278,31 @@ function createLegacyMigration({ dataDirectory, backupDirectory, resourceDirecto
       for (const item of resourceSources) {
         if (item.kind === 'avatars') for (const file of item.files) if (!file.relative.includes(path.sep) && /\.(png|jpe?g|webp)$/i.test(file.relative)) addResource(session, path.join('头像', file.relative), path.join(item.directory, file.relative));
       }
-      const Workbook = require('./score-rule-workbook.cjs');
-      const externalWorkbook = resourceSources.find(item => item.kind === 'workbook');
-      let incomingWorkbook = externalWorkbook ? path.join(externalWorkbook.directory, externalWorkbook.files[0].relative) : (session.files.some(item => item.relative === '计分卡片.xlsx') ? path.join(archivedSource, '计分卡片.xlsx') : null);
-      if (incomingWorkbook) {
-        try { await Workbook.parseBytes(bytes(incomingWorkbook), session.state, undefined, { allowInitialTemplate: true }); }
-        catch { session.warnings.push('旧版计分卡片工作簿无法对应迁入课堂，原文件已保留在迁移备份；已按迁入课堂的规则生成可用工作簿'); incomingWorkbook = null; }
+      // Original legacy parameters are archived byte-for-byte. They are not
+      // applied during classroom copy and never become active separate files.
+      // The unified-workbook preview consumes only these local archived copies.
+      session.configurationSources=[];let copiedUnified=false;
+      for(const [name,kind]of Object.entries(CONFIG_INPUTS)){
+        const matches=resourceSources.filter(item=>item.kind===kind);
+        if(new Set(matches.map(item=>item.files[0].sha256)).size>1)fail('SOURCE_CONFIGURATION_CONFLICT','旧程序目录与待迁入备份中的配置不一致，请先在旧程序核对并完成配置确认，再迁移；原件未改动');
+        const external=matches[0];
+        const copied=external?path.join(external.directory,external.files[0].relative):session.files.some(item=>item.relative===name)?path.join(archivedSource,name):null;
+        if(!copied)continue;
+        const captured=bytes(copied);
+        if(kind==='configuration'){addResource(session,'配置.xlsx',copied);copiedUnified=true;continue;}
+        if(kind!=='configuration')session.configurationSources.push({kind,relativePath:path.relative(archive,copied),sha256:hash(captured),sizeBytes:captured.length});
       }
-      if (!incomingWorkbook) {
-        incomingWorkbook = path.join(active, 'migrated-rules.xlsx');
-        await io.writeFile(incomingWorkbook, await Workbook.buildBytes(session.state), { flag: 'wx' });
+      if(session.configurationSources.length)session.warnings.push('旧配置原件已复制到迁移备份；重启后请在统一配置表中预览并确认迁入设置。当前课堂记录不会在复制时被配置文件改写');
+      const sharingPending=require('./score-rules.js').previewShared(session.state).required;
+      if(!copiedUnified&&(session.configurationSources.length||sharingPending)){
+        const initial=path.join(active,'pending-unified-configuration.xlsx');
+        await io.writeFile(initial,await require('./score-rule-workbook.cjs').buildInitialBytes(),{flag:'wx'});
+        addResource(session,'配置.xlsx',initial);
+      }else if(!copiedUnified){
+        const generated=path.join(active,'migrated-configuration.xlsx');
+        await io.writeFile(generated,await require('./score-rule-workbook.cjs').buildBytes(session.state),{flag:'wx'});
+        addResource(session,'配置.xlsx',generated);
       }
-      addResource(session, '计分卡片.xlsx', incomingWorkbook);
       // Prior deletion records apply only to untouched bundled destinations.
       // A teacher's replacement of the same name is always retained.
       const associatedAvatars = resourceSources.find(item => item.kind === 'avatars');
@@ -354,7 +393,7 @@ function createLegacyMigration({ dataDirectory, backupDirectory, resourceDirecto
       const target = targetFor(operation);
       if (operation.expected ? !exists(target) || hash(bytes(target)) !== operation.expected : exists(target)) fail('TARGET_CHANGED', '当前资源在迁移准备后发生变化，请重新预览，已有文件未覆盖');
     }
-    const receipt = { version: 1, token, sourceDirectory: session.source, sourceFingerprint: session.sourceStamp, migratedAt: new Date().toISOString(), archiveDirectory: path.join(roots.backup, session.archiveName), summary: session.summary, warnings: [...session.warnings] };
+    const receipt = { version: 1, token, sourceDirectory: session.source, sourceFingerprint: session.sourceStamp, migratedAt: new Date().toISOString(), archiveDirectory: path.join(roots.backup, session.archiveName), archiveRelativePath:path.relative(roots.resource,path.join(roots.backup,session.archiveName)), summary: session.summary, warnings: [...session.warnings],configurationSources:session.configurationSources||[] };
     const stagedReceipt = path.join(session.stage, 'receipt.json'); writeDurable(stagedReceipt, receipt);
     addOperation(session, 'data', RECEIPT, stagedReceipt);
     const record = { version: 2, token, stage: path.basename(session.stage), operations: session.operations };

@@ -52,9 +52,9 @@ test('distribution template is reproducible across clocks and time zones with an
   await book.xlsx.load(bytes);
   const sheet = book.getWorksheet('计分卡片');
   assert.equal(sheet.actualRowCount, Rules.defaults.length + 1);
-  assert.equal(sheet.getCell('A2').value, INITIAL_PANEL_ID);
-  assert.equal(sheet.getCell('C2').value, Rules.defaults[0].id);
-  assert.equal(sheet.getCell('F2').value, null);
+  assert.equal(book.getWorksheet('宠物进阶').getCell('A2').value, INITIAL_PANEL_ID);
+  assert.equal(sheet.getCell('A2').value, Rules.defaults[0].id);
+  assert.equal(sheet.getCell('D2').value, null);
   const markers = [];
   book.getWorksheet('填写说明').eachRow(row => {if (row.getCell(1).value === INITIAL_MARKER) markers.push(row.getCell(2).value);});
   assert.deepEqual(markers, [INITIAL_VERSION]);
@@ -72,15 +72,15 @@ test('blank first launch binds random panel IDs and durably saves once; restart 
   let writes = 0;
   const first = await service.bootstrap(state, {saveState: value => {writes++; return value;}});
   assert.equal(first.bound, true); assert.equal(first.created, false); assert.equal(first.needsReview, false);
-  assert.equal(first.state, state); assert.deepEqual(state, prior); assert.equal(writes, 1);
+  assert.deepEqual(first.state.students, state.students); assert.deepEqual(first.state.logs, state.logs); assert.ok(first.state.appConfig); assert.ok(first.state.sharedScoreRules); assert.deepEqual(state, prior); assert.equal(writes, 1);
   const bytes = fs.readFileSync(file);
   assert.equal(isInitialBytes(bytes), false);
   const panels = await parseBytes(bytes, state);
   assert.equal(panels[0].id, state.panels.activeId); assert.deepEqual(panels[0].rules, Rules.defaults);
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory, backupDirectory});
-  const second = await restarted.bootstrap(state, {saveState: () => assert.fail('restart must not rewrite valid JSON')});
+  const second = await restarted.bootstrap(first.state, {saveState: () => assert.fail('restart must not rewrite valid JSON')});
   assert.equal(second.bound, false); assert.equal(second.needsReview, false);
-  assert.equal(second.validationDeferred, true); assert.equal(restarted.status().observedHash, undefined);
+  assert.equal(second.validated, true); assert.equal(restarted.status().observedHash, second.hash);
   assert.deepEqual(fs.readFileSync(file), bytes);
 });
 
@@ -105,6 +105,10 @@ test('missing workbook is created at startup with local receipts and without rea
 
 test('untouched shipped template uses migrated custom JSON and every panel instead of default rules', async t => {
   const {service, file} = await setup(t), state = classroom({custom: true, multiple: true, blank: false});
+  const legacy = structuredClone(state);
+  await assert.rejects(service.bootstrap(state, {saveState: saved}), /先预览并确认合并/);
+  assert.deepEqual(state, legacy);
+  Rules.confirmShared(state, Rules.previewShared(state).expectedKey);
   const before = structuredClone(state);
   await service.bootstrap(state, {saveState: saved});
   const panels = await parseBytes(fs.readFileSync(file), state);
@@ -116,7 +120,7 @@ test('untouched shipped template uses migrated custom JSON and every panel inste
 
 test('edited placeholder is retained at startup and binds only after explicit single-panel refresh', async t => {
   const {service, file, backupDirectory} = await setup(t), state = classroom();
-  await edit(file, sheet => {sheet.getCell('D2').value = '解压后先修改的卡片'; sheet.getCell('E2').value = -5; sheet.getCell('F2').value = 0;});
+  await edit(file, sheet => {sheet.getCell('B2').value = '解压后先修改的卡片'; sheet.getCell('C2').value = -5; sheet.getCell('D2').value = 0;});
   const external = fs.readFileSync(file), prior = structuredClone(state);
   const result = await service.bootstrap(state, {saveState: () => assert.fail('edited template must not silently import')});
   assert.equal(result.validationDeferred, true);
@@ -137,12 +141,13 @@ test('edited placeholder is retained at startup and binds only after explicit si
 
 test('an edited multi-panel placeholder stays intact until an explicit rebuild preserves the original', async t => {
   const {service, file, backupDirectory} = await setup(t), state = classroom({custom: true, multiple: true});
-  await edit(file, sheet => sheet.getCell('D2').value = '无法猜测所属面板');
+  await edit(file, sheet => sheet.getCell('B2').value = '无法猜测所属面板');
   const external = fs.readFileSync(file);
   const result = await service.bootstrap(state, {saveState: () => assert.fail('must not save')});
   assert.equal(result.validationDeferred, true);
   await assert.rejects(service.prepareRefresh(state), /多个面板/);
   assert.deepEqual(fs.readFileSync(file), external);
+  Rules.confirmShared(state, Rules.previewShared(state).expectedKey);
   const preview = await service.prepareExport(state, {expectedHash: result.hash});
   assert.equal(path.dirname(preview.backupPath), backupDirectory);
   const next = service.commitExport(preview, {currentState: state, saveState: saved});
@@ -152,7 +157,7 @@ test('an edited multi-panel placeholder stays intact until an explicit rebuild p
 
 test('format-only template edits are never automatically overwritten', async t => {
   const {service, file} = await setup(t);
-  await edit(file, sheet => sheet.getCell('D2').font = {bold: true});
+  await edit(file, sheet => sheet.getCell('B2').font = {bold: true});
   const external = fs.readFileSync(file);
   assert.equal(isInitialBytes(external), false);
   const result = await service.bootstrap(classroom(), {saveState: () => assert.fail('must not save')});
@@ -177,14 +182,15 @@ test('panel rename on restart keeps file and ownership, then explicit save updat
   renamed.settings.className = '改名后的班级';
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory, backupDirectory});
   const result = await restarted.bootstrap(renamed, {saveState: () => assert.fail('rename must not force startup write')});
-  assert.equal(result.needsReview, false); assert.equal(result.validationDeferred, true);
-  assert.match((await restarted.open(renamed)).warning, /当前课堂/);
+  assert.equal(result.needsReview, true); assert.equal(result.validationDeferred, true);
+  assert.match((await restarted.open(renamed)).warning, /不同|当前课堂/);
   assert.deepEqual(fs.readFileSync(file), bytes);
   const next = structuredClone(renamed); next.settings.scoreRules = [...Rules.defaults]; next.revision++;
-  const token = await restarted.prepareSave(renamed, next);
-  restarted.commitPrepared(token, {currentState: renamed, nextState: next, saveState: saved});
+  await assert.rejects(restarted.prepareSave(renamed,next), /外部更改/);
+  const token = await restarted.prepareExport(renamed);
+  restarted.commitExport(token, {currentState: renamed, saveState: saved});
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(file);
-  assert.equal(book.getWorksheet('计分卡片').getCell('B2').value, '改名后的班级');
+  assert.equal(book.getWorksheet('宠物进阶').getCell('B2').value, '改名后的班级');
 });
 
 test('failed first JSON save restores the exact template or absence and allows retry', async t => {
@@ -211,7 +217,7 @@ test('failed workbook replacement and stale startup guard never invoke JSON save
     let guards = 0;
     await assert.rejects(service.bootstrap(state, {saveState: () => assert.fail('must not save'), beforeCommit: () => {
       if (++guards > 1 && failure === 'guard') throw new Error('startup epoch changed');
-    }}), failure === 'rename' ? /关闭 Excel/ : /epoch changed/);
+    }}), failure === 'rename' ? /关闭可能占用/ : /epoch changed/);
     assert.deepEqual(fs.readFileSync(file), initial);
     assert.equal(fs.readdirSync(directory).some(name => name.endsWith('.tmp') || name.endsWith('.flower-pending.json')), false);
   }
@@ -245,7 +251,7 @@ test('interrupted bootstrap recovers both sides of JSON save, including regenera
 
 test('failed edited-template refresh rolls back external bytes and preserves its backup', async t => {
   const {service, file} = await setup(t), state = classroom();
-  await edit(file, sheet => sheet.getCell('D2').value = '需要保留的编辑');
+  await edit(file, sheet => sheet.getCell('B2').value = '需要保留的编辑');
   const external = fs.readFileSync(file), preview = await service.prepareRefresh(state);
   assert.throws(() => service.commitRefresh(preview, {currentState: state, saveState: () => {throw new Error('JSON rejected');}}), /JSON rejected/);
   assert.deepEqual(fs.readFileSync(file), external); assert.deepEqual(fs.readFileSync(preview.backupPath), external);
@@ -254,15 +260,15 @@ test('failed edited-template refresh rolls back external bytes and preserves its
 
 test('marked initial table cannot mix real IDs, invalid edits, or lose optimistic conflict guards', async t => {
   const {service, file, initial} = await setup(t), state = classroom();
-  await edit(file, sheet => sheet.getCell('A3').value = state.panels.activeId);
-  await assert.rejects(service.prepareRefresh(state), /混用/);
+  await edit(file, (_sheet, book) => {const stages=book.getWorksheet('宠物进阶'); stages.addRow([state.panels.activeId, state.settings.className, '旧版每级成长',20,40,60,80,100,120]);});
+  await assert.rejects(service.prepareRefresh(state), /重复/);
   fs.writeFileSync(file, initial);
-  await edit(file, sheet => sheet.getCell('E2').value = {formula: '1+1', result: 2});
+  await edit(file, sheet => sheet.getCell('C2').value = {formula: '1+1', result: 2});
   await assert.rejects(service.prepareRefresh(state), /公式/);
   fs.writeFileSync(file, initial);
-  await edit(file, sheet => sheet.getCell('D2').value = '确认前编辑');
+  await edit(file, sheet => sheet.getCell('B2').value = '确认前编辑');
   const preview = await service.prepareRefresh(state);
-  await edit(file, sheet => sheet.getCell('D2').value = '确认后又修改');
+  await edit(file, sheet => sheet.getCell('B2').value = '确认后又修改');
   const external = fs.readFileSync(file);
   assert.throws(() => service.commitRefresh(preview, {currentState: state, saveState: () => assert.fail('must not save')}), /外部更改/);
   assert.deepEqual(fs.readFileSync(file), external);

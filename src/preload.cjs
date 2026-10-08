@@ -53,11 +53,20 @@ async function resolveAndInvoke(channel,request,signature){
   // Resolve an earlier uncertain result before preparing another workbook.
   // The retry signature remains the teacher's original rules request; the
   // one-use workbook token is transport detail and must not change that key.
-  if(channel==='state:action'&&request.type==='rules.save'){
+  if((channel==='state:action'&&['settings','photos.visibility','score.step','students.sort','students.order','timer.sound','timer.set','tools.defaults','draw.select','draw','pet.draw','pet.visibility','wheel.prizes','wheel.challenges','toolbox.link.add','toolbox.link.update','toolbox.link.remove','toolbox.link.move','toolbox.homework.subjects','rules.save','rules.share','pet.rules','pet.stage-rules','pet.growth-policy','panel.create','panel.remove','points.clear'].includes(request.type))||(channel==='file:command'&&request.command==='blank')){
     const started=request._restoreGeneration;
-    const prepared=await ipcRenderer.invoke('file:command',{command:'rules-workbook-prepare',action:request,panelId:request.panelId,_restoreGeneration:started,expectedRestoreGeneration:request.expectedRestoreGeneration??started});
+    const prepared=await ipcRenderer.invoke('file:command',{command:'rules-workbook-prepare',...(channel==='state:action'?{action:request}:{fileAction:request}),panelId:request.panelId,_restoreGeneration:started,expectedRestoreGeneration:request.expectedRestoreGeneration??started});
     if(started!==restoreGeneration)throw Error('备份已恢复，原操作已过期。请重新打开计分卡片');
-    request={...request,workbookToken:prepared.token};
+    if(prepared.token)request={...request,workbookToken:prepared.token};
+  }
+  if(channel==='file:command'&&request.command==='restore-apply'){
+    const started=request._restoreGeneration,token=request.restoreToken||request.state?.restoreToken;
+    if(token)request={...request,restoreToken:token};
+    else{
+      const prepared=await ipcRenderer.invoke('file:command',{command:'restore-prepare',state:request.state,expectedRevision:request.expectedRevision,_restoreGeneration:started,expectedRestoreGeneration:request.expectedRestoreGeneration??started});
+      if(started!==restoreGeneration)throw Error('备份已恢复，原恢复请求已过期，请重新预览');
+      request={...request,restoreToken:prepared.restoreToken,expectedRevision:prepared.expectedRevision};
+    }
   }
   const transportId=globalThis.crypto.randomUUID();
   try{return observeState(await ipcRenderer.invoke(channel,{...request,_transportId:transportId}));}
@@ -87,7 +96,7 @@ contextBridge.exposeInMainWorld('classroom', {
   },
   action: action=>invokeWithReceipt('state:action',action),
   window: request => ipcRenderer.invoke('window:command', request),
-  file: request => ['import-apply','restore-apply','archive','blank','rules-workbook-refresh-apply','rules-workbook-export-apply'].includes(request?.command)?invokeWithReceipt('file:command',request):ipcRenderer.invoke('file:command', (['photos-batch','avatar-folder-info','avatars-list','avatars-refresh','avatar-open-folder'].includes(request?.command)||request?.command?.startsWith('rules-workbook-')||request?.command?.startsWith('legacy-migration-'))?{...request,_restoreGeneration:restoreGeneration}:request),
+  file: request => ['import-apply','restore-apply','archive','blank','rules-workbook-refresh-apply','rules-workbook-export-apply'].includes(request?.command)?invokeWithReceipt('file:command',request):ipcRenderer.invoke('file:command', (['photos-batch','avatar-folder-info','avatars-list','avatars-refresh','avatar-open-folder'].includes(request?.command)||['restore-preview','restore-prepare'].includes(request?.command)||request?.command?.startsWith('rules-workbook-')||request?.command?.startsWith('legacy-migration-'))?{...request,_restoreGeneration:restoreGeneration}:request),
   subscribe: callback => { const listener = (_event, state, change) => callback(state, change); stateListeners.add(listener);ipcRenderer.on('state:changed', listener); return () => {stateListeners.delete(listener);ipcRenderer.removeListener('state:changed', listener);}; },
   onSidebarNarrow: callback => { const listener = (_event, value) => callback(value); ipcRenderer.on('sidebar:narrow', listener); return () => ipcRenderer.removeListener('sidebar:narrow', listener); },
   onCommand: callback => { const listener = (_event, command) => callback(command); ipcRenderer.on('ui:command', listener); return () => ipcRenderer.removeListener('ui:command', listener); },

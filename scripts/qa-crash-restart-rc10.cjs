@@ -24,6 +24,9 @@ if(!process.versions.electron){
   initial=C.createInitialState();initial.students=initial.students.slice(0,3).map((s,i)=>({...s,name:'合成重启同学'+(i+1)}));initial.settings.className='合成重启原班';initial=C.applyAction(initial,{type:'score',ids:[initial.students[0].id],delta:7});initial=C.applyAction(initial,{type:'panel.create',mode:'full',name:'合成重启副班'});initial=C.applyAction(initial,{type:'pet.stage-rules',thresholds:[5,5,5,5,5,5]});initial.version=2;
   fs.writeFileSync(file,JSON.stringify(initial));fs.writeFileSync(fixture,JSON.stringify(initial));
  }else initial=JSON.parse(fs.readFileSync(fixture));
+ // Initialization happens before the injection is armed. Keep the raw fixture
+ // and compare against only the declared configuration migration additions.
+ initial=require('./qa-rc18-inherited-contract.cjs').bootstrapExpected(initial,src);
  const snapshot=()=>fs.writeFileSync(path.join(out,boundary+'-'+phase+'.json'),JSON.stringify({entry,boundary,phase,checks,syntheticOnly:true,windowsExecuted:false},null,2));
  const stop=()=>{snapshot();process.kill(process.pid,'SIGKILL');throw Error('Unreachable after self-termination');};let armed=false;
  if(phase==='terminate'){
@@ -38,6 +41,7 @@ if(!process.versions.electron){
  app.whenReady().then(async()=>{try{
   for(let i=0;i<250;i++){main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');if(main&&!main.webContents.isLoading()){try{if(await js('!!state'))break;}catch{}}await wait(20);}
   if(phase==='terminate'){
+   assert.deepEqual(await get(),initial,'The complete initialized classroom must match before the crash fault is armed');
    if(boundary==='before-notify'){const send=main.webContents.send.bind(main.webContents);main.webContents.send=(channel,...args)=>{if(armed&&channel==='state:changed')stop();return send(channel,...args);};}
    armed=true;await act({type:'score',panelId:C.panelId(initial),ids:[initial.students[0].id],delta:3,reason:'合成崩溃边界'});throw Error('Termination injection did not run');
   }

@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
+const Rules = require('../src/score-rules.js');
+const Config = require('../src/configuration-model.js');
 const {createScoreRuleWorkbook, buildBytes, parseBytes, signature, FILE_NAME, MAX_BYTES} = require('../src/score-rule-workbook.cjs');
 
 const clone = value => structuredClone(value);
@@ -64,7 +66,7 @@ test('ordinary startup still handles missing, current and malformed workbooks wi
     const prior = type === 'missing' ? null : type === 'current' ? await buildBytes(current) : Buffer.from('malformed workbook preserved');
     if (prior) fs.writeFileSync(f.file, prior);
     const result = await f.service.bootstrap(current, {saveState: saved});
-    assert.deepEqual(result.state, original); assert.deepEqual(current, original);
+    if(type==='missing'){assert.deepEqual(result.state.students,original.students);assert.deepEqual(result.state.logs,original.logs);assert.ok(result.state.appConfig);}else assert.deepEqual(result.state,original); assert.deepEqual(current, original);
     if (prior) assert.deepEqual(fs.readFileSync(f.file), prior);
     else assert.deepEqual((await parseBytes(fs.readFileSync(f.file), current))[0].rules, current.settings.scoreRules);
   }
@@ -126,7 +128,7 @@ test('explicit rebuild safely resolves stale RC15 receipts after rename or resto
     assert.deepEqual(fs.readFileSync(preview.backupPath), pending.bytes);
     assert.deepEqual(fs.readFileSync(preview.receiptBackupPath), pending.receiptBytes);
     assert.equal(fs.existsSync(f.receipt), false);
-    assert.deepEqual(result, {...original, revision: original.revision + 1});
+    const expected=clone(original);Rules.promoteShared(expected);Config.apply(expected,Config.snapshot(original));expected.revision++;assert.deepEqual(result,expected);
     assert.deepEqual((await parseBytes(fs.readFileSync(f.file), result))[0].rules, current.settings.scoreRules);
     assert.equal((await f.create().bootstrap(result, {saveState: saved})).state, result);
   }
@@ -168,8 +170,8 @@ test('rebuild backup, receipt, workbook and JSON failures preserve the old workb
     const fileSystem = new Proxy(fs, {get(target, key) {
       if (key === 'renameSync') return (...args) => {
         const targetPath = args[1], base = path.basename(targetPath);
-        if (fail && ((point === 'workbook-backup' && base.startsWith('计分卡片-备份-')) ||
-          (point === 'receipt-backup' && base.startsWith('计分卡片-事务备份-')) ||
+        if (fail && ((point === 'workbook-backup' && base.startsWith('配置-备份-')) ||
+          (point === 'receipt-backup' && base.startsWith('配置-事务备份-')) ||
           (point === 'receipt-write' && targetPath === f.receipt) || (point === 'workbook-write' && targetPath === f.file))) throw ioError(`synthetic ${point}`, 'ENOSPC');
         return fs.renameSync(...args);
       };
@@ -224,7 +226,7 @@ test('rebuild crash at each durable boundary recovers current rules or restores 
     if (point === 'before-receipt') {
       unchanged(f, pending.bytes, pending.receiptBytes);
       assert.throws(() => restarted.recover(durable), /尚未完成/);
-    } else if (point === 'after-receipt') {
+    } else if (point === 'after-receipt' || point === 'before-json') {
       assert.throws(() => restarted.recover(durable), /原表格和事务记录已恢复/);
       unchanged(f, pending.bytes, pending.receiptBytes);
     } else {
@@ -232,7 +234,7 @@ test('rebuild crash at each durable boundary recovers current rules or restores 
       assert.equal(fs.existsSync(f.receipt), false);
       assert.deepEqual((await parseBytes(fs.readFileSync(f.file), durable))[0].rules, current.settings.scoreRules);
     }
-    const receiptBackups = fs.readdirSync(f.backupDirectory).filter(name => name.startsWith('计分卡片-事务备份-'));
+    const receiptBackups = fs.readdirSync(f.backupDirectory).filter(name => name.startsWith('配置-事务备份-'));
     assert.equal(receiptBackups.length, 1); assert.deepEqual(fs.readFileSync(path.join(f.backupDirectory, receiptBackups[0])), pending.receiptBytes);
   }
 });

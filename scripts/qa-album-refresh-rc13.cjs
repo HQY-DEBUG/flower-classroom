@@ -5,10 +5,14 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),asse
 const root=path.resolve(__dirname,'..'),entry=process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs');
 const out=path.resolve(process.env.ALBUM_AUDIT_OUT||path.join(root,'artifacts/rc13-album-refresh'));
 fs.mkdirSync(out,{recursive:true});
+const qaChild=require(path.join(root,'scripts/qa-feature-child.cjs')),casePlan=require(path.join(root,'scripts/qa-extension-cases.json'))["album-refresh"];
+let completed=false;
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-album-refresh-'));
- const r=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,XDG_CACHE_HOME:'/tmp/flower-album-refresh-cache'},encoding:'utf8',timeout:150000,maxBuffer:8*1024*1024});
- fs.writeFileSync(path.join(out,'run.log'),(r.stdout||'')+(r.stderr||'')+(r.error?'\n'+r.error.stack:''));console.log((r.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|FATAL|SUMMARY)/.test(line)).join('\n'));process.exitCode=r.status===0?0:1;
+ const layout=qaChild.fixture('flower-extension-album-refresh-'),data=layout.data;qaChild.prepare(out,['results.json','execution.json','provenance.json']);
+ const expectedCaseNames=casePlan.flows;
+ const result=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:150000,maxBuffer:16*1024*1024,env:{...process.env,...layout.env}});
+ fs.writeFileSync(path.join(out,'run.log'),(result.stdout||'')+(result.stderr||''));const record=qaChild.capture(result,path.join(out,'results.json'),'flows',{expectedCaseNames,requireCompleted:true});
+ const provenance={entry,data,syntheticOnly:true,windowsExecuted:false,requiredPhases:['flows'],actualPhases:['flows'],...record};fs.writeFileSync(path.join(out,'execution.json'),JSON.stringify(provenance,null,2));fs.writeFileSync(path.join(out,'provenance.json'),JSON.stringify(provenance,null,2));console.log((result.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|FATAL|SUMMARY)/.test(line)).join('\n'));process.exitCode=record.exitCode;
 }else{
  const {app,BrowserWindow}=require('electron');app.disableHardwareAcceleration();
  require('./package-boundary.cjs')(entry,path.join(out,'dependency-boundary.json'));
@@ -20,7 +24,7 @@ if(!process.versions.electron){
  fs.writeFileSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json'),JSON.stringify(base));
  const checks=[],errors=[],wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));let main,other;
  const js=(text,w=main)=>w.webContents.executeJavaScript(text,true),get=()=>js('classroom.get().then(result=>result.state)');
- const report=()=>fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({entry,syntheticOnly:true,platform:process.platform,windowsExecuted:false,beforeHashes,afterHashes:hashes(),checks,errors},null,2));
+ const report=()=>fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({entry,completed,syntheticOnly:true,platform:process.platform,windowsExecuted:false,beforeHashes,afterHashes:hashes(),checks,errors},null,2));
  async function until(fn){for(let i=0;i<250;i++){if(await fn())return;await wait(20);}throw Error('Timed out waiting for app state');}
  async function key(keyCode){main.focus();main.webContents.focus();for(const type of ['keyDown',...(keyCode==='Enter'?['char']:[]),'keyUp'])main.webContents.sendInputEvent({type,keyCode:type==='char'?'\r':keyCode});await wait(100);}
  async function click(selector){selector=await require('./qa-tool-control.cjs').ensureToolControl(main,selector);const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)return null;e.scrollIntoView({block:'center',inline:'nearest'});const r=e.getBoundingClientRect(),x=(r.left+r.right)/2,y=(r.top+r.bottom)/2,h=document.elementFromPoint(x,y);return h===e||e.contains(h)?{x,y}:null;})()`);assert.ok(p,'Visible clickable target: '+selector);main.focus();main.webContents.focus();const scale=main.webContents.getZoomFactor();for(const type of ['mouseDown','mouseUp'])main.webContents.sendInputEvent({type,x:Math.floor(p.x*scale),y:Math.floor(p.y*scale),button:'left',clickCount:1});await wait(100);}
@@ -37,7 +41,7 @@ if(!process.versions.electron){
  const stats=()=>js('[...document.querySelectorAll(".honor-stats strong")].map(e=>e.innerText)');
  async function check(name,fn){try{await fn();checks.push({name,status:'passed'});console.log('PASS_ALBUM',name);}catch(e){checks.push({name,status:'failed',error:e.stack});console.log('FAIL_ALBUM',name,e.message);fs.writeFileSync(path.join(out,'failure-'+checks.length+'.png'),(await main.webContents.capturePage()).toPNG());}report();}
  app.on('web-contents-created',(_e,w)=>w.on('console-message',event=>{if(event.level==='error')errors.push(event.message);}));
- require(entry);const deadline=setTimeout(()=>{report();app.exit(3);},140000);
+ if(!qaChild.load(entry,app))return;const deadline=setTimeout(()=>{report();app.exit(3);},140000);
  app.whenReady().then(async()=>{try{
   await until(()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();});await until(()=>js('typeof state!=="undefined"&&!!state'));
   await js('classroom.window({command:"open",role:"pets"})');await until(()=>{other=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='pets');return other&&!other.webContents.isLoading();});await until(()=>js('typeof state!=="undefined"&&!!state',other));
@@ -72,6 +76,6 @@ if(!process.versions.electron){
    await reset(graduated());await click('[data-page=students]');await click('[data-do=edit-student][data-id=album_1]');await js('document.querySelector("#student-form [name=name]").value="合成未保存草稿"');await focus('#student-form [name=name]');await act({type:'student.update',id:'album_0',name:'合成其他改名'});assert.equal(await js('document.activeElement===document.querySelector("#student-form [name=name]")'),true);assert.equal(await js('document.querySelector("#student-form [name=name]").value'),'合成未保存草稿');
   });
   await check('Renderer errors absent and read-only tested source files unchanged during run',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(hashes(),beforeHashes);});
-  report();clearTimeout(deadline);console.log('SUMMARY_ALBUM',checks.filter(c=>c.status==='passed').length,'passed',checks.filter(c=>c.status==='failed').length,'failed');app.exit(checks.some(c=>c.status==='failed')?1:0);
+  completed=true;report();clearTimeout(deadline);console.log('SUMMARY_ALBUM',checks.filter(c=>c.status==='passed').length,'passed',checks.filter(c=>c.status==='failed').length,'failed');app.exit(checks.some(c=>c.status==='failed')?1:0);
  }catch(e){checks.push({name:'harness',status:'failed',error:e.stack});report();console.log('FATAL_ALBUM',e.stack);clearTimeout(deadline);app.exit(2);}});
 }

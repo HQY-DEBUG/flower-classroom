@@ -1,4 +1,5 @@
 'use strict';
+const {mirroredLegacyPanel} = require('./shared-rule-fixtures.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createInitialState, validateState, applyAction, panelId, panelList } = require('../src/core.cjs');
@@ -17,11 +18,12 @@ test('Parity panels: creating blank preserves every original field and switching
   original = run(original, {type:'student.update',id:original.students[0].id,photo:PNG});
   const next = run(original, {type:'panel.create',mode:'blank',name:'第二面板'});
   assert.equal(next.students.length, 0); assert.equal(next.settings.petStep, 5);
-  assert.deepEqual(next.panels.others[0].data, original);
+  assert.deepEqual(next.panels.others[0].data, mirroredLegacyPanel(original));
+  assert.deepEqual(next.sharedScoreRules.rules, next.panels.others[0].data.settings.scoreRules);
   assert.equal(original.panels, undefined);
   const newId = panelId(next);
   const back = run(next, {type:'panel.switch',id:'panel_default'});
-  for (const key of ['students','settings','logs','timer','draw']) assert.deepEqual(back[key],original[key]);
+  for (const key of ['students','settings','logs','timer','draw']) assert.deepEqual(back[key],mirroredLegacyPanel(original)[key]);
   assert.equal(back.panels.others[0].id,newId);
   assert.equal(back.revision,original.revision+2);
   assert.deepEqual(validateState(clone(back)),back);
@@ -35,7 +37,8 @@ test('Parity panels: copy is expressly a fresh roster and leaves source scores/p
   assert.ok(next.students.every(s=>s.score===0&&s.growth===0&&s.photo===''));
   assert.ok(next.students.every(s=>!original.students.some(o=>o.id===s.id)));
   assert.equal(next.logs.length,0);
-  assert.deepEqual(next.panels.others[0].data,original);
+  assert.deepEqual(next.panels.others[0].data,mirroredLegacyPanel(original));
+  assert.deepEqual(next.sharedScoreRules.rules,next.panels.others[0].data.settings.scoreRules);
 });
 test('Parity panels: edits and scoring do not leak across panels; stale window commands reject', () => {
   const original=createInitialState(),oldId=original.students[0].id;

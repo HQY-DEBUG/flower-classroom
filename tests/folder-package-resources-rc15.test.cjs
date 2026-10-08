@@ -9,7 +9,7 @@ const { createHash } = require('node:crypto');
 const { prepareFolderResources, verifyFolderResources } = require('../scripts/prepare-folder-resources.cjs');
 const { createAvatarLibrary, SEED_MARKER } = require('../src/avatar-library.cjs');
 const { parsePortableConfig, DEFAULT_CONFIG } = require('../src/portable-config.cjs');
-const { isInitialBytes, SHEET_NAME } = require('../src/score-rule-workbook.cjs');
+const { isInitialBytes, SHEET_NAME, PROGRESSION_SHEET, HEADERS, PROGRESSION_HEADERS, INITIAL_SHA256 } = require('../src/score-rule-workbook.cjs');
 const manifest = require('../assets/avatar-defaults/manifest.json');
 const defaultsDirectory = path.resolve(__dirname, '../assets/avatar-defaults');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -24,7 +24,7 @@ function fixture(t) {
 test('fresh extraction resources contain all originals, real editable defaults and empty data/backup folders before launch', async t => {
   const f = fixture(t), result = await prepareFolderResources(f);
   assert.equal(result.avatarCount, 120);
-  assert.deepEqual(fs.readdirSync(f.appOutDir).sort(), ['头像', SEED_MARKER, '备份', '数据', '计分卡片.xlsx', '配置.txt'].sort());
+  assert.deepEqual(fs.readdirSync(f.appOutDir).sort(), ['头像', SEED_MARKER, '备份', '数据', '配置.xlsx'].sort());
   assert.deepEqual(fs.readdirSync(path.join(f.appOutDir, '数据')), []);
   assert.deepEqual(fs.readdirSync(path.join(f.appOutDir, '备份')), []);
   for (const file of manifest.files) {
@@ -32,14 +32,20 @@ test('fresh extraction resources contain all originals, real editable defaults a
     assert.equal(sha256(actual), file.sha256);
     assert.equal(actual.length, file.bytes);
   }
-  assert.deepEqual(parsePortableConfig(fs.readFileSync(path.join(f.appOutDir, '配置.txt'), 'utf8')), DEFAULT_CONFIG);
-  const workbookBytes = fs.readFileSync(path.join(f.appOutDir, '计分卡片.xlsx'));
+  assert.equal(fs.existsSync(path.join(f.appOutDir,'配置.txt')),false);assert.equal(fs.existsSync(path.join(f.appOutDir,'计分卡片.xlsx')),false);
+  const workbookBytes = fs.readFileSync(path.join(f.appOutDir, '配置.xlsx'));
   assert.equal(isInitialBytes(workbookBytes), true);
   const workbook = new (require('exceljs').Workbook)();
   await workbook.xlsx.load(workbookBytes);
   const rules = workbook.getWorksheet(SHEET_NAME);
   assert.ok(rules && rules.rowCount > 1);
-  assert.ok(workbook.worksheets.length >= 2);
+  assert.deepEqual(new Set(workbook.worksheets.map(sheet=>sheet.name)),new Set([SHEET_NAME,PROGRESSION_SHEET,'启动显示','面板设置','轮盘奖品','趣味挑战','课堂网址','作业科目','工具默认','填写说明']));
+  const app={};workbook.getWorksheet('启动显示').eachRow((row,index)=>{if(index>1)app[row.getCell(1).value]=row.getCell(1).value==='startMinimized'?row.getCell(2).value==='true':row.getCell(2).value;});assert.deepEqual(app,DEFAULT_CONFIG);
+  assert.deepEqual(rules.getRow(1).values.slice(1), HEADERS);
+  const progression=workbook.getWorksheet(PROGRESSION_SHEET);
+  assert.deepEqual(progression.getRow(1).values.slice(1), PROGRESSION_HEADERS);
+  assert.deepEqual(progression.getRow(2).values.slice(4), [20,40,60,80,100,120,'不适用']);
+  assert.equal(result.workbookSha256, INITIAL_SHA256);
   const again = await prepareFolderResources(f);
   assert.equal(again.workbookSha256, result.workbookSha256);
   assert.deepEqual(verifyFolderResources(f.appOutDir), result);
@@ -62,7 +68,7 @@ test('packaged seed record preserves a prelaunch deletion and relocation without
 
 test('preparation never overwrites a used classroom folder or changed sibling resource', async t => {
   const f = fixture(t); await prepareFolderResources(f);
-  const config = path.join(f.appOutDir, '配置.txt');
+  const config = path.join(f.appOutDir, '配置.xlsx');
   const edited = 'initialZoom=1.2\n'; fs.writeFileSync(config, edited);
   await assert.rejects(prepareFolderResources(f), /已修改.*干净输出目录/);
   assert.equal(fs.readFileSync(config, 'utf8'), edited);

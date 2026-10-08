@@ -11,7 +11,7 @@ if(!process.versions.electron){
  const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'flower-rc15-directory-independent-')),folder=path.join(fixture,'folder A 中文'),moved=path.join(fixture,'folder B relocated'),cwd1=path.join(fixture,'cwd-one'),cwd2=path.join(fixture,'cwd-two');
  fs.mkdirSync(folder);fs.mkdirSync(cwd1);fs.mkdirSync(cwd2);
  const payload=process.env.FLOWER_FOLDER_PAYLOAD;
- function seed(target){fs.mkdirSync(target,{recursive:true});if(payload){for(const name of ['头像','配置.txt','计分卡片.xlsx','头像-初始化-v2.txt','数据','备份']){const from=path.join(payload,name);if(fs.existsSync(from))fs.cpSync(from,path.join(target,name),{recursive:true});}}}
+ function seed(target){fs.mkdirSync(target,{recursive:true});if(payload){for(const name of ['头像','配置.xlsx','头像-初始化-v2.txt','数据','备份']){const from=path.join(payload,name);if(fs.existsSync(from))fs.cpSync(from,path.join(target,name),{recursive:true});}}}
  seed(folder);
  const results=[];
  function run(scenario,root,cwd){const result=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd,encoding:'utf8',timeout:90000,maxBuffer:8*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_EXTERNAL_RESOURCE_DIR:root,FLOWER_FOLDER_REVIEW_OUT:out,FLOWER_FOLDER_SCENARIO:scenario,FLOWER_FOLDER_FIXTURE:fixture,FLOWER_PACKAGE_MAIN:entry,FLOWER_DATA_DIR:'',XDG_CACHE_HOME:path.join(root,'数据','运行','xdg-cache')}});fs.writeFileSync(path.join(out,scenario+'.log'),(result.stdout||'')+(result.stderr||''));const report=path.join(out,scenario+'.json');results.push({scenario,exitCode:result.status,error:result.error?.message,report:fs.existsSync(report)?JSON.parse(fs.readFileSync(report)):null});console.log('FOLDER_INDEPENDENT',scenario,result.status);}
@@ -52,7 +52,7 @@ if(!process.versions.electron){
   const first=await get();
   await check('Electron writable paths resolve under current folder',()=>{for(const [name,target]of Object.entries(paths()))assert.ok(inside(root,target),name+': '+target);});
   await check('No old AppData fixture was read',()=>assert.deepEqual(legacyAccess,[]));
-  await check('Required visible sidecars exist after initialization',()=>{for(const name of ['头像','配置.txt','计分卡片.xlsx','数据','备份'])assert.ok(fs.existsSync(path.join(root,name)),name);});
+  await check('Required visible sidecars exist after initialization',()=>{for(const name of ['头像','配置.xlsx','数据','备份'])assert.ok(fs.existsSync(path.join(root,name)),name);});
   const avatars=await file({command:'avatars-list'});
   await check('Avatar library resolves exclusively in current folder',()=>{assert.equal(avatars.directory,path.join(root,'头像'));assert.equal(avatars.items.length,scenario==='initial'?120:119);});
   const workbook=await file({command:'rules-workbook-refresh-preview'});

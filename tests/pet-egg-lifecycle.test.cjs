@@ -1,4 +1,5 @@
 'use strict';
+const {mirroredLegacyPanel} = require('./shared-rule-fixtures.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -133,7 +134,8 @@ test('RC11 eggs: new additions, append/replace imports, blank panels and fresh r
     if (state.settings.petRules) assert.equal(cycle(state).startFromEgg, true);
     const copied = act(base, { type: 'panel.create', mode: 'copy', name: '纯合成名单副本' });
     assert.ok(copied.students.every(student => profile(copied, student.id).isEgg));
-    assert.deepEqual(copied.panels.others[0].data, base);
+    assert.deepEqual(copied.panels.others[0].data, mirroredLegacyPanel(base));
+    assert.deepEqual(copied.sharedScoreRules.rules, copied.panels.others[0].data.settings.scoreRules);
     const complete = act(base, { type: 'panel.create', mode: 'full', name: '纯合成完整副本' });
     assert.ok(complete.students.every(student => !profile(complete, student.id).isEgg));
     let blank = act(base, { type: 'panel.create', mode: 'blank', name: '纯合成空白' });

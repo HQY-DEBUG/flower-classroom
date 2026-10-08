@@ -28,6 +28,7 @@ if(!process.versions.electron){
   fs.writeFileSync(path.join(dir,'classroom-v2.json'),JSON.stringify(state));fs.writeFileSync(path.join(out,'baseline.json'),JSON.stringify(state));
  }
  const mainEntry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'));require('./package-boundary.cjs')(mainEntry,path.join(out,'dependency-boundary-'+phase+'.json'));require(mainEntry);
+ const appRequire=require('node:module').createRequire(mainEntry),configuration=appRequire('./configuration-model.js'),rules=appRequire('./score-rules.js'),workbook=appRequire('./score-rule-workbook.cjs'),{assertRestoredState,verifyRestoredWorkbook}=require('./qa-restore-fixture.cjs');
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));let main;const checks=[],errors=[];
  const js=async(code,win=main)=>{try{return await win.webContents.executeJavaScript(code,true);}catch(error){throw Error(error.message+' Script: '+code);}},get=()=>js('classroom.get().then(result=>result.state)'),act=action=>js(`classroom.action(${JSON.stringify(action)})`);
  const click=async selector=>{selector=await ensureToolControl(main,selector);return js(`(()=>{const node=document.querySelector(${JSON.stringify(selector)});if(!node)throw Error('Missing control '+${JSON.stringify(selector)});node.click();})()`);};
@@ -39,6 +40,12 @@ if(!process.versions.electron){
  async function manage(){await click('[data-page=groups]');await click('[data-do=gt-manage]');}
  async function check(name,fn){try{await fn();checks.push({name,status:'passed'});console.log('PASS_GROUP',name);}catch(error){checks.push({name,status:'failed',error:error.stack});console.error('FAIL_GROUP',name,error.stack);try{await shot('failure-'+checks.length);await js('document.querySelector("#modal [data-do=modal-close]")?.click()');}catch{}}}
  const immutableStudent=student=>{const copy={...student};delete copy.group;return copy;};
+ function assertBootstrapState(actual,original){
+  const value=structuredClone(actual),keys=['scoreRules','showAvatars','scoreStep','studentSort','hideLateForms','timerSound','toolDefaults','wheelPrizes','challengeOptions'];
+  for(const key of keys){assert.ok(Object.hasOwn(actual.settings,key));if(!Object.hasOwn(original.settings,key))delete value.settings[key];}
+  delete value.appConfig;delete value.sharedScoreRules;assert.deepEqual(value,{...original,version:2});assert.deepEqual(configuration.snapshot(actual),configuration.snapshot(original));
+  const shared=rules.previewShared(original);assert.equal(shared.required,false);assert.deepEqual(actual.sharedScoreRules,{version:1,revision:0,rules:shared.rules,migration:{panels:shared.panels,mappings:shared.mappings}});assert.deepEqual(actual.settings.scoreRules,actual.sharedScoreRules.rules);
+ }
  app.whenReady().then(async()=>{
   await until(async()=>{main=BrowserWindow.getAllWindows().find(win=>win.flowerRole==='main');return main&&!main.webContents.isLoading();},'main window');
   main.webContents.on('console-message',event=>{if(event.level==='error')errors.push(event.message);});
@@ -46,8 +53,8 @@ if(!process.versions.electron){
   if(phase==='flows'){
    const baseline=JSON.parse(fs.readFileSync(path.join(out,'baseline.json'))),student=baseline.students[0],oldPanel=Core.panelId(baseline);
    await check('Opening legacy order/group UI and cancelling writes no fields and preserves every student record',async()=>{
-    assert.equal((await get()).settings.groupOrder,undefined);await manage();assert.match(await js('document.querySelector("#modal").innerText'),/添加新小组.*小组排序.*批量分配学生/s);
-    await click('[data-do=gt-create]');await fill('#gt-create-form [name=group]','取消的合成小组');await close();assert.deepEqual(await get(),baseline);
+    const opened=await get();assertBootstrapState(opened,baseline);await verifyRestoredWorkbook(opened,r=>js('classroom.file('+JSON.stringify(r)+')'),workbook,configuration);assert.equal(opened.settings.groupOrder,undefined);await manage();assert.match(await js('document.querySelector("#modal").innerText'),/添加新小组.*小组排序.*批量分配学生/s);
+    await click('[data-do=gt-create]');await fill('#gt-create-form [name=group]','取消的合成小组');await close();assert.deepEqual(await get(),opened);
    });
    await check('Double submitting empty-group creation writes one zero-base group and preserves IDs/photos/scores/graduation',async()=>{
     await manage();await click('[data-do=gt-create]');await fill('#gt-create-form [name=group]','合成空组');
@@ -114,8 +121,8 @@ if(!process.versions.electron){
    });
    await check('Full native backup/restore retains every panel order, empty group and individual graduation snapshot',async()=>{
     const filename=path.join(out,'synthetic-group-backup.json');dialog.showSaveDialog=async()=>({canceled:false,filePath:filename});await js('classroom.file({command:"backup"})');const saved=JSON.parse(fs.readFileSync(filename));
-    await act({type:'group.create',group:'恢复前临时空组',panelId:oldPanel});await js(`classroom.file({command:'restore-apply',state:${JSON.stringify(saved)}})`);const restored=await get();
-    assert.deepEqual(restored.students,saved.students);assert.deepEqual(restored.groupBases,saved.groupBases);assert.deepEqual(restored.settings.groupOrder,saved.settings.groupOrder);assert.deepEqual(restored.petAccounts,saved.petAccounts);assert.deepEqual(restored.panels,saved.panels);
+    await act({type:'group.create',group:'恢复前临时空组',panelId:oldPanel});const beforeRestore=await js('classroom.get()');await js(`classroom.file({command:'restore-apply',state:${JSON.stringify(saved)}})`);const restored=await get();assertRestoredState(restored,saved,beforeRestore.state,{configuration,rules});assert.equal((await js('classroom.get()')).restoreGeneration,beforeRestore.restoreGeneration+1);await verifyRestoredWorkbook(restored,r=>js('classroom.file('+JSON.stringify(r)+')'),workbook,configuration);
+    assert.deepEqual(restored.students,saved.students);assert.deepEqual(restored.groupBases,saved.groupBases);assert.deepEqual(restored.settings.groupOrder,saved.settings.groupOrder);assert.deepEqual(restored.petAccounts,saved.petAccounts);// Complete panels, records and existing settings are compared by assertRestoredState above.
    });
    await check('Replace import preserves empty names at zero base, removes member-only old groups and archives original full data',async()=>{
     const original=await get();

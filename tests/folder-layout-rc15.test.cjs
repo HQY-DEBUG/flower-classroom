@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { resolveFolderLayout, bootstrapFolderApp } = require('../src/folder-layout.cjs');
-const { DEFAULT_CONFIG_TEXT } = require('../src/portable-config.cjs');
+const { DEFAULT_CONFIG } = require('../src/portable-config.cjs');
 
 function fixture(t, suffix = '课堂 with spaces') {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'flower-folder-rc15-')), root = path.join(base, suffix);
@@ -50,7 +50,8 @@ test('legacy synthetic data override remains direct and all default resources st
   const layout = resolveFolderLayout({ execPath: '/runtime/electron', env: { FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: '/fixtures/classroom' } });
   assert.equal(layout.dataDirectory, '/fixtures/classroom');
   assert.equal(layout.root, '/fixtures/classroom');
-  assert.equal(layout.configFile, '/fixtures/classroom/配置.txt');
+  assert.equal(layout.configFile, '/fixtures/classroom/配置.xlsx');
+  assert.equal(layout.legacyConfigFile, '/fixtures/classroom/配置.txt');
   assert.equal(layout.backupDirectory, '/fixtures/classroom/备份');
   assert.equal(layout.sessionDirectory, '/fixtures/classroom/运行缓存/会话');
   const separate = resolveFolderLayout({ execPath: '/runtime/electron', env: { FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: '/fixtures/classroom', FLOWER_EXTERNAL_RESOURCE_DIR: '/fixtures/resources' } });
@@ -58,14 +59,14 @@ test('legacy synthetic data override remains direct and all default resources st
   assert.equal(separate.dataDirectory, '/fixtures/classroom');
 });
 
-test('bootstrap creates local paths, parses real config and configures Electron before ready', t => {
+test('bootstrap creates local paths before ready and reserves legacy parameters for explicit workbook migration', t => {
   const { root, execPath } = fixture(t), app = fakeApp(), env = { APPDATA: '/unused/legacy/appdata', TEMP: '/unused/temp' };
   fs.writeFileSync(path.join(root, '配置.txt'), 'initialZoom=1.25\nwindowWidth=1440\nwindowHeight=900\nstartMinimized=true');
   const result = bootstrapFolderApp({ app, execPath, env });
   assert.equal(result.ok, true);
   const { layout } = result;
-  assert.equal(result.config.initialZoom, 1.25);
-  assert.equal(result.config.startMinimized, true);
+  assert.deepEqual(result.config, DEFAULT_CONFIG);
+  assert.equal(fs.readFileSync(path.join(root, '配置.txt'),'utf8'),'initialZoom=1.25\nwindowWidth=1440\nwindowHeight=900\nstartMinimized=true');
   assert.deepEqual([...app.paths.keys()], ['appData', 'userData', 'sessionData', 'temp', 'logs', 'crashDumps']);
   assert.equal(app.paths.get('userData'), path.join(root, '数据'));
   assert.equal(app.paths.get('sessionData'), layout.sessionDirectory);
@@ -79,30 +80,29 @@ test('bootstrap creates local paths, parses real config and configures Electron 
   assert.deepEqual(fs.readdirSync(root).sort(), ['备份', '数据', '配置.txt'].sort());
 });
 
-test('bootstrap creates one editable default template when missing and keeps user edits on restart', t => {
+test('path bootstrap leaves workbook creation and parsing to the async configuration service', t => {
   const { root, execPath } = fixture(t);
   const first = bootstrapFolderApp({ app: fakeApp(), execPath, env: {} });
   assert.equal(first.ok, true);
-  assert.equal(fs.readFileSync(path.join(root, '配置.txt'), 'utf8'), DEFAULT_CONFIG_TEXT);
-  fs.writeFileSync(first.layout.configFile, 'initialZoom=1.5\n# 教师自己的说明\n');
+  assert.equal(fs.existsSync(path.join(root, '配置.txt')),false);
+  assert.equal(fs.existsSync(first.layout.configFile),false);
+  const workbook=Buffer.from('synthetic workbook bytes inspected only by async service');
+  fs.writeFileSync(first.layout.configFile, workbook);
   const second = bootstrapFolderApp({ app: fakeApp(), execPath, env: {} });
   assert.equal(second.ok, true);
-  assert.equal(second.config.initialZoom, 1.5);
-  assert.equal(fs.readFileSync(first.layout.configFile, 'utf8'), 'initialZoom=1.5\n# 教师自己的说明\n');
+  assert.deepEqual(second.config, DEFAULT_CONFIG);
+  assert.deepEqual(fs.readFileSync(first.layout.configFile), workbook);
 });
 
-test('malformed config returns actionable startup error without creating data or changing config', t => {
+test('malformed legacy text is preserved and never treated as active startup configuration', t => {
   const { root, execPath } = fixture(t), app = fakeApp(), text = '# keep this file\ninitialZoom=oops\n';
   fs.writeFileSync(path.join(root, '配置.txt'), text);
   const result = bootstrapFolderApp({ app, execPath, env: {} });
-  assert.equal(result.ok, false);
-  assert.equal(result.error.code, 'CONFIG_INVALID');
-  assert.equal(result.error.line, 2);
-  assert.equal(result.error.path, path.join(root, '配置.txt'));
-  assert.match(result.error.message, /没有被重置/);
-  assert.deepEqual(fs.readdirSync(root), ['配置.txt']);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.config,DEFAULT_CONFIG);
+  assert.deepEqual(fs.readdirSync(root).sort(), ['备份','数据','配置.txt'].sort());
   assert.equal(fs.readFileSync(path.join(root, '配置.txt'), 'utf8'), text);
-  assert.deepEqual(app.calls, []);
+  assert.equal(app.paths.get('userData'),path.join(root,'数据'));
 });
 
 test('unwritable root is a terminal startup error with no AppData fallback or classroom changes', t => {
@@ -129,7 +129,7 @@ test('unwritable existing session directory stops before Electron path setup', t
   assert.equal(result.error.code, 'FOLDER_UNWRITABLE');
   assert.equal(result.error.path, first.layout.sessionDirectory);
   assert.deepEqual(app.calls, []);
-  assert.equal(fs.readFileSync(path.join(root, '配置.txt'), 'utf8'), DEFAULT_CONFIG_TEXT);
+  assert.equal(fs.existsSync(path.join(root, '配置.txt')),false);
 });
 
 test('moved and independently copied folders preserve all existing classroom and lock bytes', t => {
@@ -141,7 +141,7 @@ test('moved and independently copied folders preserve all existing classroom and
   const moved = path.join(base, '已移动 new folder'), copied = path.join(base, '独立副本');
   fs.renameSync(root, moved);
   fs.cpSync(moved, copied, { recursive: true });
-  const noClassroomReads = { ...fs, readFileSync(file, ...args) { assert.equal(path.basename(file), '配置.txt', 'bootstrap must not read classroom or lock'); return fs.readFileSync(file, ...args); } };
+  const noClassroomReads = { ...fs, readFileSync() { throw Error('Path bootstrap must not read classroom, lock, or configuration contents'); } };
   for (const folder of [moved, copied]) {
     const result = bootstrapFolderApp({ app: fakeApp(), execPath: path.join(folder, '花伴课堂.exe'), env: {}, fs: noClassroomReads });
     assert.equal(result.ok, true);

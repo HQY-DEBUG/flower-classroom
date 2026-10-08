@@ -9,6 +9,7 @@ const ClassroomTools = require('./classroom-tools.js');
 const GroupTools = require('./group-tools.js');
 const OrganizationTools = require('./organization-tools.js');
 const ToolboxExtra = require('./toolbox-extra.js');
+const Configuration = require('./configuration-model.js');
 const MAX_STUDENTS = 300;
 const MAX_VALUE = 1_000_000_000;
 const MAX_TIMER = 180 * 60 * 1000;
@@ -81,11 +82,17 @@ function idList(value, label, allowed, { empty = true } = {}) {
 }
 function timestamp(value) { return integer(value, 0, Number.MAX_SAFE_INTEGER - MAX_TIMER, '时间'); }
 
-function validateState(input, nestedPanel = false) {
+function validateState(input, nestedPanel = false, sharedRules = undefined) {
   const s = record(input, '备份');
+  if (nestedPanel && s.sharedScoreRules !== undefined) fail('共享计分卡片只能保存在完整存档根部');
+  if (nestedPanel && s.appConfig !== undefined) fail('启动显示设置只能保存在完整存档根部');
+  const shared = !nestedPanel && s.sharedScoreRules !== undefined ? ScoreRules.validateShared(s.sharedScoreRules) : undefined;
+  const canonicalRules = shared?.rules || sharedRules;
+  if (canonicalRules && s.version !== 2) fail('共享计分卡片须使用新版存档格式');
   if (![1, 2].includes(s.version)) fail('不支持此备份版本');
   const revision = integer(s.revision, 0, Number.MAX_SAFE_INTEGER - 1, '数据版本');
   const rawSettings = record(s.settings, '班级设置');
+  if ((s.appConfig !== undefined || rawSettings.toolDefaults !== undefined) && s.version !== 2) fail('统一配置需要新版存档格式');
   // Additive v1 migration: old classrooms keep the original 20-point rule.
   const settings = { className: text(rawSettings.className, 80, '班级名称'),
     petStep: rawSettings.petStep === undefined ? 20 : integer(rawSettings.petStep, 1, 100, '每级成长值'),
@@ -100,7 +107,9 @@ function validateState(input, nestedPanel = false) {
   }
   if(rawSettings.groupOrder!==undefined){if(s.version!==2)fail('小组排序数据需要新版存档格式');settings.groupOrder=GroupTools.validateOrder(rawSettings.groupOrder);}
   if (rawSettings.scoreStep !== undefined) settings.scoreStep = integer(rawSettings.scoreStep, 1, 100, '快捷加减分值');
-  if (rawSettings.scoreRules !== undefined) settings.scoreRules = ScoreRules.validateRules(rawSettings.scoreRules);
+  if (rawSettings.toolDefaults !== undefined) settings.toolDefaults = Configuration.validateToolDefaults(rawSettings.toolDefaults);
+  if (rawSettings.scoreRules !== undefined) settings.scoreRules = canonicalRules ? ScoreRules.validateSharedRules(rawSettings.scoreRules) : ScoreRules.validateRules(rawSettings.scoreRules);
+  if (canonicalRules && (!settings.scoreRules || !ScoreRules.same(settings.scoreRules, canonicalRules))) fail('共享计分卡片与面板镜像不一致，请使用完整备份恢复');
   if(rawSettings.wheelPrizes!==undefined)settings.wheelPrizes=ClassroomWheels.prizes(rawSettings.wheelPrizes);
   if(rawSettings.challengeOptions!==undefined)settings.challengeOptions=ClassroomWheels.options(rawSettings.challengeOptions);
   if (!Array.isArray(s.students) || s.students.length > MAX_STUDENTS) fail('学生人数不能超过 300');
@@ -163,6 +172,7 @@ function validateState(input, nestedPanel = false) {
     if (!timer.remainingMs) fail('运行中的计时器需有剩余时间');
   } else if (timer.endsAt !== null) fail('暂停的计时器不能包含结束时间');
   const result = { version: s.version, revision, settings, students, logs, draw, timer };
+  if (!nestedPanel && s.appConfig !== undefined) result.appConfig = Configuration.appConfig(s.appConfig);
   PetLedger.validateExtensions(s, result);
   ClassroomTools.validateExtensions(s, result);
   OrganizationTools.validateExtensions(s, result);
@@ -198,7 +208,7 @@ function validateState(input, nestedPanel = false) {
       const id = identifier(item.id, '面板编号');
       if (seen.has(id)) fail('面板编号不能重复');
       seen.add(id);
-      const data = validateState(item.data, true);
+      const data = validateState(item.data, true, canonicalRules);
       photoBytes += data.students.reduce((n, item) => n + item.photo.length, 0);
       if (photoBytes > 50 * 1024 * 1024) fail('全部面板照片不能超过50MB');
       return { id, data };
@@ -206,6 +216,7 @@ function validateState(input, nestedPanel = false) {
     result.panels = { activeId, others };
     if (s.version !== 2 && others.some(p => p.data.version === 2)) fail('包含新版宠物数据的面板集合必须使用 version 2');
   }
+  if (shared) result.sharedScoreRules = shared;
   if (!nestedPanel) assertStateCapacity(result);
   return result;
 }
@@ -247,11 +258,11 @@ function finish(s) {
   OrganizationTools.reconcile(s);
   ToolboxExtra.reconcile(s);
   if(s.settings.groupOrder!==undefined)s.settings.groupOrder=GroupTools.reconcileOrder(s);
-  if (OrganizationTools.hasNewFields(s) || ToolboxExtra.hasNewFields(s) || s.settings.groupOrder!==undefined || ClassroomTools.hasNewFields(s) || s.settings.wheelPrizes || s.settings.challengeOptions || s.settings.scoreRules?.some(rule => Object.hasOwn(rule, 'growthDelta')) || s.logs.some(l=>l.kind==='redemption' || Object.hasOwn(l, 'growthDelta')) || PetLedger.hasNewFields(s) || s.panels?.others.some(p => p.data.version === 2)) s.version = 2;
+  if (s.appConfig !== undefined || s.settings.toolDefaults !== undefined || OrganizationTools.hasNewFields(s) || ToolboxExtra.hasNewFields(s) || s.settings.groupOrder!==undefined || ClassroomTools.hasNewFields(s) || s.settings.wheelPrizes || s.settings.challengeOptions || s.settings.scoreRules?.some(rule => Object.hasOwn(rule, 'growthDelta')) || s.logs.some(l=>l.kind==='redemption' || Object.hasOwn(l, 'growthDelta')) || PetLedger.hasNewFields(s) || s.panels?.others.some(p => p.data.version === 2)) s.version = 2;
   s.revision += 1; return validateState(s);
 }
 function panelId(s) { return s.panels?.activeId || 'panel_default'; }
-function withoutPanels(s) { const result = { ...s }; delete result.panels; return result; }
+function withoutPanels(s) { const result = { ...s }; delete result.panels; delete result.sharedScoreRules; delete result.appConfig; return result; }
 function panelList(s) { return [{ id: panelId(s), name: s.settings.className, count: s.students.length }, ...(s.panels?.others || []).map(p => ({ id: p.id, name: p.data.settings.className, count: p.data.students.length }))]; }
 function writeScore(s, ids, delta, reason, now, customGrowth) {
   integer(delta, -100, 100, '分值');
@@ -286,6 +297,8 @@ function applyAction(state, action, now = Date.now()) {
   const a = record(action, '操作');
   timestamp(now);
   if (a.panelId !== undefined && a.panelId !== panelId(s)) fail('当前面板已切换，请重新选择学生');
+  for (const field of ['expectedKey', 'expectedRulesKey']) if (a[field] !== undefined && a[field] !== ScoreRules.key(s)) fail('共享规则或面板已在另一窗口修改，请重新打开并核对');
+  if (a.sharedRevision !== undefined && a.sharedRevision !== s.sharedScoreRules?.revision) fail('共享规则已在另一窗口修改，请重新打开');
   if(a.expectedDraw!==undefined&&a.expectedDraw!==OrganizationTools.drawKey(s))fail('点名结果已变化，请重新确认奖励');
   if(a.expectedPetDraw!==undefined&&a.expectedPetDraw!==OrganizationTools.petDrawKey(s))fail('宠物抽取结果已变化，请重新确认成长奖励');
   if(['panel.remove','panel.clear'].includes(a.type)&&a.expectedRevision!==undefined&&a.expectedRevision!==s.revision)fail('面板资料已更新，请重新核对后确认清理');
@@ -296,7 +309,11 @@ function applyAction(state, action, now = Date.now()) {
       if (!['blank', 'copy', 'full'].includes(a.mode)) fail('新面板方式无效');
       const others = s.panels?.others || [];
       if (others.length >= 19) fail('最多保留20个面板，请先备份并整理');
-      const next = a.mode === 'full' ? OrganizationTools.copyPanel(s,()=>`copy_${randomUUID()}`) : createInitialState();
+      ScoreRules.promoteShared(s);
+      // Roster/history IDs belong to each panel; shared card IDs never do.
+      const copySource = withoutPanels(s);
+      copySource.settings = { ...copySource.settings }; delete copySource.settings.scoreRules;
+      const next = a.mode === 'full' ? OrganizationTools.copyPanel(copySource,()=>`copy_${randomUUID()}`) : createInitialState();
       next.settings.className = text(a.name, 80, '面板名称');
       if(a.mode!=='full'){
        next.settings.petStep = a.mode === 'copy' ? s.settings.petStep : 5;
@@ -305,18 +322,25 @@ function applyAction(state, action, now = Date.now()) {
       }
       next.revision = s.revision;
       next.panels = { activeId: `p_${randomUUID()}`, others: [...others, { id: panelId(s), data: withoutPanels(s) }] };
+      next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next);
+      if (s.appConfig !== undefined) next.appConfig = s.appConfig;
       return finish(next);
     }
     case 'panel.switch': {
       const target = (s.panels?.others || []).find(p => p.id === a.id);
       if (!target) fail('找不到要切换的面板');
       const next = { ...target.data, revision: s.revision, panels: { activeId: target.id, others: [...s.panels.others.filter(p => p.id !== a.id), { id: panelId(s), data: withoutPanels(s) }] } };
+      if (s.sharedScoreRules) { next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next); }
+      if (s.appConfig !== undefined) next.appConfig = s.appConfig;
       return finish(next);
     }
     case 'panel.remove': {
       const target = s.panels?.others[0];
       if (!target) fail('至少需要保留一个面板');
-      return finish({ ...target.data, revision: s.revision, panels: { activeId: target.id, others: s.panels.others.slice(1) } });
+      const next = { ...target.data, revision: s.revision, panels: { activeId: target.id, others: s.panels.others.slice(1) } };
+      if (s.sharedScoreRules) { next.sharedScoreRules = s.sharedScoreRules; ScoreRules.mirrorShared(next); }
+      if (s.appConfig !== undefined) next.appConfig = s.appConfig;
+      return finish(next);
     }
     case 'panel.clear':
       s.students=[];s.logs=[];delete s.groupBases;delete s.groupLogs;
@@ -350,10 +374,14 @@ function applyAction(state, action, now = Date.now()) {
     case 'timer.sound':
       if (!['tick', 'applause', 'laser'].includes(a.sound)) fail('计时器响铃无效');
       s.settings.timerSound = a.sound; break;
+    case 'tools.defaults': Configuration.setToolDefaults(s, a.toolDefaults, a.expectedToolDefaults); break;
     case 'score.step': s.settings.scoreStep = integer(a.value, 1, 100, '快捷加减分值'); break;
     case 'rules.save':
       if (a.expectedRules !== undefined && !ScoreRules.same(a.expectedRules, ScoreRules.list(s))) fail('规则已在另一窗口修改，请重新打开');
-      s.settings.scoreRules = ScoreRules.validateRules(a.rules); break;
+      ScoreRules.setShared(s, a.rules); break;
+    case 'rules.share':
+      if (a.confirmed !== true) fail('请先预览并明确确认合并共享计分卡片');
+      ScoreRules.confirmShared(s, a.expectedKey ?? a.expectedRulesKey); break;
     case 'group.create': {
       if(typeof a.panelId!=='string'||a.panelId!==panelId(s))fail('请在当前面板重新创建小组');
       const patch=GroupTools.createGroupPatch(s,a.group);s.groupBases=patch.groupBases;if(patch.groupOrder!==undefined)s.settings.groupOrder=patch.groupOrder;s.version=2;break;
@@ -452,7 +480,9 @@ function applyAction(state, action, now = Date.now()) {
     }
     case 'pet.stage-rules': case 'pet.growth': case 'pet.growth.mixed': case 'pet.undo': case 'pet.graduate': case 'pet.adopt': case 'pet.visibility': case 'pet.draw': case 'pet.draw.reset': case 'pet.batch': case 'pet.growth-policy': case 'pet.badge.redeem': case 'pet.badge.undo':
       if (a.type === 'pet.growth') selectedRule(s, a);
-      PetLedger.apply(s, a, now); break;
+      PetLedger.apply(s, a, now);
+      if (a.type === 'pet.draw') Configuration.setToolDefaults(s, {petDrawScope: s.petDraw.scope, petDrawMode: s.petDraw.mode, petDrawCount: a.count ?? 1});
+      break;
     case 'pet.focus': {
       const id = identifier(a.id, '展示宠物的学生编号');
       if (!s.students.some(item => item.id === id)) fail('找不到这位学生');
@@ -517,11 +547,16 @@ function applyAction(state, action, now = Date.now()) {
       log.undone = true;
       break;
     }
-    case 'draw': OrganizationTools.draw(s,a,shuffled);break;
-    case 'draw.select': OrganizationTools.selectDraw(s,a.scope??s.draw.scope??'students',a.mode??s.draw.mode);break;
+    case 'draw':
+      OrganizationTools.draw(s,a,shuffled);
+      Configuration.setToolDefaults(s, {drawScope: s.draw.scope || 'students', drawMode: s.draw.mode, drawCount: a.count ?? 1}); break;
+    case 'draw.select':
+      OrganizationTools.selectDraw(s,a.scope??s.draw.scope??'students',a.mode??s.draw.mode);
+      Configuration.setToolDefaults(s, {drawScope: s.draw.scope || 'students', drawMode: s.draw.mode}); break;
     case 'draw.reset': OrganizationTools.resetDraw(s);break;
     case 'timer.set': {
       const durationMs = integer(a.seconds, 1, MAX_TIMER / 1000, '计时秒数') * 1000;
+      Configuration.setToolDefaults(s, {timerDurationSeconds: a.seconds});
       s.timer = { durationMs, remainingMs: durationMs, endsAt: null, running: false }; break;
     }
     case 'timer.start':
@@ -534,6 +569,7 @@ function applyAction(state, action, now = Date.now()) {
       s.timer.remainingMs = remainingMs(s.timer, now); s.timer.endsAt = null; s.timer.running = false;
       break;
     case 'timer.reset':
+      if (s.settings.toolDefaults !== undefined) s.timer.durationMs = Configuration.toolDefaults(s).timerDurationSeconds * 1000;
       s.timer.remainingMs = s.timer.durationMs; s.timer.endsAt = null; s.timer.running = false;
       break;
     default: fail('未知操作');

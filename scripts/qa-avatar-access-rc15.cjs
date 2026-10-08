@@ -1,27 +1,32 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
+const expectedCaseNames=["A delayed refresh from a closed chooser cannot overwrite the newly opened student preview","An unavailable real avatar directory reports failure at its original path without opening a fallback","Avatar interactions produce no renderer errors","Closed quick chooser ignores a delayed open failure after a newer student dialog replaces it","Explicit refresh sees add/remove files while the selected snapshot and full backup stay intact","Folder controls, path and close remain usable at 1024x640 / 150%","Folder controls, path and close remain usable at 1280x720 / 125%","Folder controls, path and close remain usable at 900x640 / 100%","Folder controls, path and close remain usable at 900x640 / 200%","Full student editor keeps edited text and keyboard focus, and Enter on the path cannot submit","OS open failures and exceptions remain visible without a false success notification","Quick chooser exposes the same path above search and saves an embedded selected snapshot","Restore invalidates a quick draft and suppresses its pending folder result","Settings delayed success cannot alter a newer dialog after navigation","Settings exposes an immediately selectable actual path plus open and refresh without scanning","Settings manager uses its own folder controls while background settings stay unchanged","Settings opens exactly the displayed directory; refresh explicitly loads all 120 bundled avatars","Startup and folder-info only resolve the persistent avatar path without creating or scanning it"];
+let completed=false;
 // Synthetic end-to-end checks against the actual Electron main and preload.
 // Native shell/chooser calls are mocked; directory IO, decoding and persistence are real.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-const variant = process.env.FLOWER_PACKAGE_MAIN ? 'packaged' : 'source';
+const variant = /\.asar[\\/]/.test(process.env.FLOWER_PACKAGE_MAIN||'') ? 'packaged' : 'source';
 const out = process.env.FLOWER_AVATAR_ACCESS_OUT || path.join(root, 'artifacts/rc15/avatar-access-' + variant);
 fs.mkdirSync(out, { recursive: true });
 const write = (name, value) => fs.writeFileSync(path.join(out, name), JSON.stringify(value, null, 2));
 if (!process.versions.electron) {
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'flower-rc15-avatar-access-'));
-  const data = path.join(temporary, 'data'), resources = path.join(temporary, 'portable');
-  fs.mkdirSync(data); fs.mkdirSync(resources);
+  const fixtureLayout=qaChild.fixture('flower-rc18-avatar-access-'),temporary=fixtureLayout.root,data=fixtureLayout.data,resources=fixtureLayout.root;
+  qaChild.prepare(out,['results.json','execution.json','failure.json']);
+  const startedAt=new Date().toISOString();
   const fixture = require('../src/core.cjs').createInitialState();
   fixture.settings.className = '合成课堂 · 头像文件夹'; fixture.logs = [];
   fixture.students = fixture.students.slice(0, 3).map((student, index) => ({ ...student, name: ['合成小禾', '合成星野', '合成小满'][index], group: '向日葵组', photo: '' }));
   fs.writeFileSync(path.join(data, 'classroom.json'), JSON.stringify(fixture));
   const run = require('node:child_process').spawnSync(require('electron'), ['--no-sandbox', '--ozone-platform=headless', '--disable-gpu', __filename], {
     cwd: root, encoding: 'utf8', timeout: 150000, maxBuffer: 5 * 1024 * 1024,
-    env: { ...process.env, FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: data, FLOWER_EXTERNAL_RESOURCE_DIR: resources, FLOWER_AVATAR_ACCESS_TEMP: temporary, XDG_CACHE_HOME: '/tmp/flower-rc15-avatar-cache' }
+    env: { ...process.env, FLOWER_HEADLESS_TEST: '1', FLOWER_DATA_DIR: data, FLOWER_EXTERNAL_RESOURCE_DIR: resources, FLOWER_AVATAR_ACCESS_TEMP: temporary, XDG_CACHE_HOME: '/tmp/flower-rc15-avatar-cache',...fixtureLayout.env }
   });
   fs.writeFileSync(path.join(out, 'run.log'), (run.stdout || '') + (run.stderr || ''));
   console.log(run.stdout || '');
-  assert.equal(run.status, 0, run.stderr || 'Electron verification failed');
+  const record=qaChild.capture(run,path.join(out,'results.json'),'avatar-access',{expectedCaseNames,requireCompleted:true});
+  if(record.report&&JSON.stringify(record.report.sourceAtStart)!==JSON.stringify(record.report.sourceAtFinish)){record.exitCode=1;record.evidenceErrors.push('Runtime source changed during execution');}
+  write('execution.json',{startedAt,completedAt:new Date().toISOString(),requiredPhases:['avatar-access'],actualPhases:['avatar-access'],...record});process.exitCode=record.exitCode;
 } else {
   const { app, BrowserWindow, shell, dialog } = require('electron'); app.disableHardwareAcceleration();
   const checks = [], rendererErrors = [], opened = [], scans = [];
@@ -41,7 +46,7 @@ if (!process.versions.electron) {
   const entry = path.resolve(process.env.FLOWER_PACKAGE_MAIN || path.join(root, 'src/main.cjs'));
   const sourceHashes=()=>Object.fromEntries(['main.cjs','preload.cjs','app.js','avatar-ui.js','avatar-ui.css','avatar-library.cjs'].map(name=>[name,require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(path.dirname(entry),name))).digest('hex')]));
   const sourceAtStart=sourceHashes();
-  require('./package-boundary.cjs')(entry, path.join(out, 'dependency-boundary.json')); require(entry);
+  require('./package-boundary.cjs')(entry, path.join(out, 'dependency-boundary.json'));if(!qaChild.load(entry,app))return;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   const js = code => main.webContents.executeJavaScript(code, true);
   const exists = selector => js('!!document.querySelector(' + JSON.stringify(selector) + ')');
@@ -56,7 +61,7 @@ if (!process.versions.electron) {
   async function close() { if (await exists('#modal .dialog')) await click('#modal .dialog-header [data-do=modal-close]'); await until(() => exists('#modal .dialog').then(value => !value), 'close modal'); }
   async function page(name) { await close(); await js(`document.querySelector('#nav-${name}').focus()`); await key('Enter'); }
   async function quick(index = 0) { await page('students'); const id = (await state()).students[index].id; await click(`[data-do=quick-avatar][data-id="${id}"]`); await until(() => exists('#quick-avatar-editor'), 'quick avatar'); await until(() => js('!document.querySelector("#quick-avatar-editor [data-do=avatars-refresh]").disabled'), 'quick list'); }
-  async function check(name, body) { try { const detail = await body(); checks.push({ name, status: 'passed', detail }); console.log('PASS', name); } catch (error) { checks.push({ name, status: 'failed', error: error.stack }); try { await shot('failure-' + checks.length); } catch {} throw error; } finally { write('results.json', { variant, entry, syntheticOnly: true, windowsExecuted: false, nativeShellMocked: true, actualMainPreload: true, sourceAtStart, sourceAtFinish:sourceHashes(), checks, rendererErrors }); } }
+  async function check(name, body) { try { const detail = await body(); checks.push({ name, status: 'passed', detail }); console.log('PASS', name); } catch (error) { checks.push({ name, status: 'failed', error: error.stack }); try { await shot('failure-' + checks.length); } catch {} throw error; } finally { write('results.json', { completed,variant,entry,syntheticOnly:true,windowsExecuted:false,nativeShellMocked:true,actualMainPreload:true,sourceAtStart,sourceAtFinish:sourceHashes(),checks,rendererErrors }); } }
   const timeout = setTimeout(() => app.exit(3), 140000);
   app.whenReady().then(async () => { try {
     await until(async () => { main = BrowserWindow.getAllWindows().find(win => win.flowerRole === 'main'); return main && !main.webContents.isLoading(); }, 'main');
@@ -172,6 +177,6 @@ if (!process.versions.electron) {
       assert.ok((await point('#modal .dialog-header [data-do=modal-close]', false)).visible); await close();
     });
     await check('Avatar interactions produce no renderer errors', async () => assert.deepEqual(rendererErrors, []));
-    clearTimeout(timeout); console.log('AVATAR_ACCESS_RC14_PASS', checks.length); app.exit(0);
+    completed=true;write('results.json', { completed,variant,entry,syntheticOnly:true,windowsExecuted:false,nativeShellMocked:true,actualMainPreload:true,sourceAtStart,sourceAtFinish:sourceHashes(),checks,rendererErrors });clearTimeout(timeout); console.log('AVATAR_ACCESS_RC14_PASS', checks.length); app.exit(0);
   } catch (error) { console.error(error.stack); clearTimeout(timeout); write('failure.json', { error: error.stack, checks, rendererErrors }); app.exit(1); } });
 }

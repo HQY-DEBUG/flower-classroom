@@ -8,7 +8,7 @@ test('missing damaged or malformed marker never authorizes replacing data',t=>{c
 test('whole-folder relocation preserves unused-state proof without absolute references',t=>{const dir=temporary(t),dest=temporary(t),s={revision:0};fs.writeFileSync(path.join(dir,'classroom-v2.json'),'synthetic');P.recordInitialState(dir,s);fs.cpSync(dir,dest,{recursive:true});assert.deepEqual(P.allowedPristineFiles(dest,s),P.allowedPristineFiles(dir,s));});
 
 for(const kind of ['missing','directory','oversize','read-failure'])test('unavailable ancillary workbook preserves first-run data marker: '+kind,t=>{
- const dir=temporary(t),resources=temporary(t),file=path.join(resources,'计分卡片.xlsx'),state={revision:0,students:[{id:'synthetic'}]};
+ const dir=temporary(t),resources=temporary(t),file=path.join(resources,'配置.xlsx'),state={revision:0,students:[{id:'synthetic'}]};
  fs.writeFileSync(path.join(dir,'classroom-v2.json'),JSON.stringify(state));
  if(kind==='directory')fs.mkdirSync(file);if(kind==='oversize')fs.writeFileSync(file,Buffer.alloc(5*1024*1024+1));if(kind==='read-failure')fs.writeFileSync(file,'synthetic');
  const original=fs.readFileSync;if(kind==='read-failure')fs.readFileSync=function(target,...args){if(target===file)throw Object.assign(new Error('synthetic EIO'),{code:'EIO'});return original.call(this,target,...args);};
@@ -16,7 +16,7 @@ for(const kind of ['missing','directory','oversize','read-failure'])test('unavai
  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir,'classroom-v2.json'),'utf8')),state);
 });
 test('pristine workbook proof is exact and invalidates after later changes',t=>{
- const dir=temporary(t),resources=temporary(t),file=path.join(resources,'计分卡片.xlsx'),state={revision:0};fs.writeFileSync(file,'synthetic');
+ const dir=temporary(t),resources=temporary(t),file=path.join(resources,'配置.xlsx'),state={revision:0};fs.writeFileSync(file,'synthetic');
  const marker=P.recordInitialState(dir,state,resources);assert.equal(P.allowedPristineWorkbookHash(dir,state,resources),marker.workbookHash);
  fs.writeFileSync(file,'different');assert.equal(P.allowedPristineWorkbookHash(dir,state,resources),null);
 });

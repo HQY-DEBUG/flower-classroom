@@ -55,6 +55,7 @@ if(!process.versions.electron){
  })().catch(e=>{console.error(e.stack);process.exitCode=2;});
 }else{
  const {app,BrowserWindow,dialog,session}=require('electron');app.disableHardwareAcceleration();
+ const Config=require(path.join(path.dirname(mainEntry),'configuration-model.js'));
  const initialHashes=hashes(path.dirname(mainEntry)),checks=[],errors=[],requests=[],shots=[];let main,pet,pets;
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const js=(code,w=main)=>w.webContents.executeJavaScript(code,true);
@@ -126,7 +127,15 @@ if(!process.versions.electron){
     pet.setSize(300,590);pets.setSize(700,680);await switchDialog(id,pet);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth',pet),true);await fill('#pet-choice-search','海豹',pet);assert.equal(await js('document.querySelectorAll(".pet-choice:not([hidden])").length',pet),1);await select('seal',pet);await until(()=>js('!document.querySelector("#toast").classList.contains("show")',pet),'floating toast naturally expires');await shot('11-floating300-picker',pet);const before=await state();await save(pet);await saved(before,'seal',pet);await switchDialog(id,pets);assert.equal(await js('document.documentElement.scrollWidth<=innerWidth',pets),true);await shot('12-classroom700-picker',pets);const canceled=await state();await close(pets);assert.deepEqual(await state(),canceled);
    });
    await check('真实完整备份与恢复保持所有换宠数据，准备新进程重启且原旧档字节不变',async()=>{
-    await go();const before=await state(),backup=path.join(out,'complete-backup.json');dialog.showSaveDialog=async()=>({canceled:false,filePath:backup});await file({command:'backup'});assert.deepEqual(read('complete-backup.json'),before);await switchDialog();await select('unicorn');await save();await saved(before,'unicorn');dialog.showOpenDialog=async()=>({canceled:false,filePaths:[backup]});const preview=await file({command:'restore-preview'});assert.deepEqual(preview,before);const result=await file({command:'restore-apply',state:preview});const expected=clone(before);expected.revision=result.revision;assert.deepEqual(result,expected);assert.deepEqual(await state(),result);assert.equal(sha(fs.readFileSync(path.join(dataDir,'classroom.json'))),read('legacy-original-sha.json').sha256);write('expected-restart.json',result);write('expected-restart-profile.json',await profile(id));await cardShot('13-backup-restored');return {backup:'complete-backup.json',panels:1+(result.panels?.others.length||0),pet:(await profile(id)).pet,growth:(await profile(id)).growth,medals:(await profile(id)).medalTotal};
+    await go();const before=await state(),backup=path.join(out,'complete-backup.json');dialog.showSaveDialog=async()=>({canceled:false,filePath:backup});await file({command:'backup'});assert.deepEqual(read('complete-backup.json'),before);await switchDialog();await select('unicorn');await save();await saved(before,'unicorn');dialog.showOpenDialog=async()=>({canceled:false,filePaths:[backup]});
+    const current=await state(),backupBytes=fs.readFileSync(backup),diskBytes=fs.readFileSync(path.join(dataDir,'classroom-v2.json'));
+    const preview=await file({command:'restore-preview'}),{restoreToken,restoreConfiguration,expectedRevision,...incoming}=preview;
+    assert.deepEqual(incoming,before);assert.equal(typeof restoreToken,'string');assert.ok(restoreToken.length);assert.equal(restoreConfiguration.kind,'restore');assert.equal(expectedRevision,current.revision);
+    assert.deepEqual(await state(),current);assert.deepEqual(fs.readFileSync(path.join(dataDir,'classroom-v2.json')),diskBytes);assert.deepEqual(fs.readFileSync(backup),backupBytes);
+    const result=await file({command:'restore-apply',state:incoming,restoreToken,expectedRevision});
+    // RC18 materializes only effective configuration defaults on copied panels.
+    // Full-state equality below still covers every student, photo, ledger and history field.
+    const expected=Config.apply(clone(before),Config.snapshot(before));expected.revision=current.revision+1;assert.deepEqual(result,expected);assert.deepEqual(fs.readFileSync(backup),backupBytes);assert.deepEqual(await state(),result);assert.equal(sha(fs.readFileSync(path.join(dataDir,'classroom.json'))),read('legacy-original-sha.json').sha256);write('expected-restart.json',result);write('expected-restart-profile.json',await profile(id));await cardShot('13-backup-restored');return {backup:'complete-backup.json',panels:1+(result.panels?.others.length||0),pet:(await profile(id)).pet,growth:(await profile(id)).growth,medals:(await profile(id)).medalTotal};
    });
   }
   await check('无renderer错误、无远程资源请求，应用源码起止哈希一致',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(requests.filter(u=>!u.startsWith('file:')&&!u.startsWith('data:')),[]);assert.deepEqual(hashes(path.dirname(mainEntry)),initialHashes);return {sourceTreeSha256:treeHash(initialHashes)};});

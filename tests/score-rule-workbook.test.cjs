@@ -6,19 +6,22 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const ExcelJS = require('exceljs');
+const Rules = require('../src/score-rules.js');
 const {createScoreRuleWorkbook, buildBytes, parseBytes, signature, FILE_NAME} = require('../src/score-rule-workbook.cjs');
 
 function classroom() {
-  return {version: 2, revision: 10, settings: {className: '一班', scoreRules: [
+  const state = {version: 2, revision: 10, settings: {className: '一班', scoreRules: [
     {id: 'rule_a', label: '认真听讲', delta: 3}, {id: 'rule_b', label: '整理书桌', delta: -2}]},
   students: [{id: 's_a', name: '示例甲', score: 11}], logs: [{id: 'log_old', delta: 5}], petLogs: [{id: 'pet_old', delta: 2}],
   panels: {activeId: 'panel_a', others: [{id: 'panel_b', data: {version: 2, revision: 3,
     settings: {className: '二班', scoreRules: [{id: 'rule_a', label: '同编号不同规则', delta: 7}]},
     students: [{id: 's_b', name: '示例乙', score: 9}], logs: [{id: 'log_b', delta: 1}]}}]}};
+  Rules.confirmShared(state, Rules.previewShared(state).expectedKey);
+  return state;
 }
 function changed(state, label = '修改后的卡片') {
   const next = structuredClone(state);
-  next.settings.scoreRules[0].label = label;
+  const rules = Rules.list(next); rules[0].label = label; Rules.setShared(next, rules);
   next.revision++;
   return next;
 }
@@ -53,11 +56,11 @@ test('explicit first open creates workbook with every panel, preserved IDs, and 
   assert.equal(result.created, true); assert.equal(result.externalChanged, false);
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(file);
   const sheet = book.getWorksheet('计分卡片');
-  assert.deepEqual(sheet.getRow(1).values.slice(1), ['面板ID', '面板名称', '规则ID', '卡片名称', '积分变化', '成长值变化']);
-  assert.equal(sheet.getRow(2).getCell(3).value, 'rule_a');
-  assert.equal(sheet.getRow(4).getCell(1).value, 'panel_b');
-  assert.equal(sheet.getRow(4).getCell(4).value, '同编号不同规则');
-  assert.equal(sheet.getRow(2).getCell(6).value, null);
+  assert.deepEqual(sheet.getRow(1).values.slice(1), ['规则ID', '卡片名称', '积分变化', '成长值变化']);
+  assert.equal(sheet.getRow(2).getCell(1).value, 'rule_a');
+  assert.equal(book.getWorksheet('宠物进阶').getRow(3).getCell(1).value, 'panel_b');
+  assert.equal(sheet.getRow(4).getCell(2).value, '同编号不同规则');
+  assert.equal(sheet.getRow(2).getCell(4).value, null);
   const before = fs.readFileSync(file);
   assert.equal((await service.open(state)).created, false);
   assert.deepEqual(fs.readFileSync(file), before);
@@ -91,26 +94,26 @@ test('saving the first UI rule change can create the workbook transactionally', 
 test('external changes before prepare, after prepare, and invalid cells never silently overwrite', async t => {
   const {service, file} = setup(t), state = classroom();
   await service.open(state);
-  await edit(file, sheet => sheet.getCell('D2').value = 'Excel中的新卡片');
+  await edit(file, sheet => sheet.getCell('B2').value = 'Excel中的新卡片');
   const external = fs.readFileSync(file);
   await assert.rejects(service.prepareSave(state, changed(state)), /外部更改/);
   assert.deepEqual(fs.readFileSync(file), external);
   const refresh = await service.prepareRefresh(state);
   const imported = service.commitRefresh(refresh, {currentState: state, saveState: saved});
   const prep = await service.prepareSave(imported, changed(imported));
-  await edit(file, sheet => sheet.getCell('E2').value = 8);
+  await edit(file, sheet => sheet.getCell('C2').value = 8);
   assert.throws(() => service.commitPrepared(prep, {currentState: imported, nextState: changed(imported), saveState: saved}), /外部更改/);
-  await edit(file, sheet => sheet.getCell('E2').value = {formula: '1+1', result: 2});
+  await edit(file, sheet => sheet.getCell('C2').value = {formula: '1+1', result: 2});
   await assert.rejects(service.prepareSave(imported, changed(imported)), /不能使用公式/);
 });
 
 test('opening changed or invalid workbook reports it without importing or accepting an overwrite', async t => {
   const {service, file} = setup(t), state = classroom(), original = structuredClone(state);
   await service.open(state);
-  await edit(file, sheet => sheet.getCell('D2').value = '外部编辑');
+  await edit(file, sheet => sheet.getCell('B2').value = '外部编辑');
   assert.equal((await service.open(state)).externalChanged, true);
   assert.deepEqual(state, original);
-  await edit(file, sheet => sheet.getCell('E2').value = {error: '#DIV/0!'});
+  await edit(file, sheet => sheet.getCell('C2').value = {error: '#DIV/0!'});
   const result = await service.open(state);
   assert.equal(result.externalChanged, true); assert.match(result.warning, /Excel 错误/);
   assert.deepEqual(state, original);
@@ -119,14 +122,15 @@ test('opening changed or invalid workbook reports it without importing or accept
 test('refresh is a preview, imports all panels by IDs, and leaves every historical object unchanged', async t => {
   const {service, file} = setup(t), state = classroom(), original = structuredClone(state);
   await service.open(state);
-  await edit(file, sheet => {sheet.getCell('D2').value = '一班外部修改'; sheet.getCell('E4').value = 9;});
+  await edit(file, sheet => {sheet.getCell('B2').value = '一班外部修改'; sheet.getCell('C4').value = 9;});
   const prepared = await service.prepareRefresh(state);
   assert.equal(prepared.panelCount, 2); assert.equal(prepared.ruleCount, 3);
   assert.deepEqual(state, original);
   const current = structuredClone(state); current.students[0].score = 14; current.revision++;
   const next = service.commitRefresh(prepared, {currentState: current, saveState: saved});
   assert.equal(next.settings.scoreRules[0].label, '一班外部修改');
-  assert.equal(next.panels.others[0].data.settings.scoreRules[0].delta, 9);
+  assert.equal(next.panels.others[0].data.settings.scoreRules[2].delta, 9);
+  assert.deepEqual(next.panels.others[0].data.settings.scoreRules,next.settings.scoreRules);
   assert.equal(next.students[0].score, 14); assert.deepEqual(next.logs, current.logs);
   assert.deepEqual(next.panels.others[0].data.logs, state.panels.others[0].data.logs);
   assert.deepEqual(next.petLogs, state.petLogs); assert.equal(next.revision, current.revision + 1);
@@ -136,18 +140,18 @@ test('refresh rejects unknown/missing panels, duplicate IDs, partial rows, extra
   const {service, file} = setup(t), state = classroom();
   await service.open(state); const baseline = fs.readFileSync(file);
   const variants = [
-    [sheet => sheet.getCell('A2').value = 'unknown_panel', /面板ID不存在/],
-    [sheet => sheet.spliceRows(4, 1), /二班.*1–100/],
-    [sheet => sheet.getCell('C3').value = 'rule_a', /重复/],
-    [sheet => sheet.getCell('C2').value = '', /编号无效/],
-    [sheet => sheet.getCell('D2').value = '', /1–120/],
-    [sheet => sheet.getCell('E2').value = 0, /非零整数/],
-    [sheet => sheet.getCell('E2').value = 101, /非零整数/],
-    [sheet => sheet.getCell('F2').value = -101, /可填0/],
-    [sheet => sheet.getCell('E2').value = '1e1', /非零整数/],
-    [sheet => sheet.getCell('G2').value = 'not ignored', /表头之外/],
-    [sheet => sheet.getCell('G1').value = '未知列', /未知表头/],
-    [sheet => sheet.getCell('A1').value = '规则ID', /面板ID/],
+    [(_sheet, book) => book.getWorksheet('宠物进阶').getCell('A2').value = 'unknown_panel', /面板ID不存在/],
+    [(_sheet, book) => book.getWorksheet('宠物进阶').spliceRows(3, 1), /不得遗漏/],
+    [sheet => sheet.getCell('A3').value = 'rule_a', /重复/],
+    [sheet => sheet.getCell('A2').value = '', /编号无效/],
+    [sheet => sheet.getCell('B2').value = '', /1–120/],
+    [sheet => sheet.getCell('C2').value = 0, /非零整数/],
+    [sheet => sheet.getCell('C2').value = 101, /非零整数/],
+    [sheet => sheet.getCell('D2').value = -101, /可填0/],
+    [sheet => sheet.getCell('C2').value = '1e1', /非零整数/],
+    [sheet => sheet.getCell('E2').value = 'not ignored', /表头之外/],
+    [sheet => sheet.getCell('E1').value = '未知列', /未知表头/],
+    [sheet => sheet.getCell('B1').value = '规则ID', /规则ID/],
     [(_sheet, book) => book.addWorksheet('隐藏的数据').getCell('A1').value = 'must reject', /无法应用的数据/]
   ];
   for (const [modify, message] of variants) {
@@ -165,7 +169,7 @@ test('rows and columns can be reordered without crossing panels; hidden rows are
   });
   const prepared = await service.prepareRefresh(state);
   const next = service.commitRefresh(prepared, {currentState: state, saveState: saved});
-  assert.equal(next.settings.scoreRules.length, 2);
+  assert.equal(next.settings.scoreRules.length, 3);
   assert.equal(next.panels.others[0].data.settings.scoreRules[0].label, '同编号不同规则');
 });
 
@@ -191,7 +195,7 @@ test('write and rename failures never call the JSON writer or modify prior workb
   await service.open(state); const baseline = fs.readFileSync(file);
   const prepared = await service.prepareSave(state, next); fail = true;
   let called = false;
-  assert.throws(() => service.commitPrepared(prepared, {currentState: state, nextState: next, saveState: () => {called = true;}}), /关闭 Excel/);
+  assert.throws(() => service.commitPrepared(prepared, {currentState: state, nextState: next, saveState: () => {called = true;}}), /关闭可能占用/);
   assert.equal(called, false); assert.deepEqual(fs.readFileSync(file), baseline);
   assert.equal(fs.readdirSync(path.dirname(file)).some(name => name.endsWith('.tmp')), false);
 });
@@ -239,7 +243,7 @@ test('recovery will not overwrite an externally edited file after an interrupted
   const {service, directory, file} = setup(t, {fileSystem}), state = classroom(), next = changed(state);
   await service.open(state); const prepared = await service.prepareSave(state, next);
   assert.throws(() => service.commitPrepared(prepared, {currentState: state, nextState: next, saveState: () => {rejectRollback = true; throw new Error('JSON rejected');}}));
-  await edit(file, sheet => sheet.getCell('D2').value = '外部另存的修改'); const external = fs.readFileSync(file);
+  await edit(file, sheet => sheet.getCell('B2').value = '外部另存的修改'); const external = fs.readFileSync(file);
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory});
   assert.throws(() => restarted.recover(state), /尚未完成/);
   assert.deepEqual(fs.readFileSync(file), external);
@@ -250,14 +254,14 @@ test('restart accepts unchanged external file and rejects edited external file b
   const {directory, service, file} = setup(t), state = classroom(); await service.open(state);
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory});
   await restarted.prepareSave(state, changed(state));
-  await edit(file, sheet => sheet.getCell('D2').value = '重启前的Excel修改');
+  await edit(file, sheet => sheet.getCell('B2').value = '重启前的Excel修改');
   const restartedAgain = createScoreRuleWorkbook({resourceDirectory: directory});
   await assert.rejects(restartedAgain.prepareSave(state, changed(state)), /外部更改/);
 });
 
 test('confirmed rebuild preserves previous file and supports changed panel structure', async t => {
   const {service, file} = setup(t), state = classroom(); await service.open(state);
-  await edit(file, sheet => sheet.getCell('D2').value = '需要留存的外部编辑'); const external = fs.readFileSync(file);
+  await edit(file, sheet => sheet.getCell('B2').value = '需要留存的外部编辑'); const external = fs.readFileSync(file);
   const current = structuredClone(state); current.panels.others[0].id = 'panel_new';
   const info = service.info();
   await assert.rejects(service.prepareExport(current, {expectedHash: 'old'}), /外部更改/);
@@ -271,7 +275,7 @@ test('confirmed rebuild preserves previous file and supports changed panel struc
 
 test('changed rules/panel name invalidates preparation while normal scoring does not', async t => {
   const {service} = setup(t), state = classroom(); await service.open(state);
-  for (const mutate of [state => {state.settings.className = '改名';}, state => {state.settings.scoreRules[1].delta = -4;}]) {
+  for (const mutate of [state => {state.settings.className = '改名';}, state => {const rules=Rules.list(state);rules[1].delta=-4;Rules.setShared(state,rules);}]) {
     const prep = await service.prepareSave(state, changed(state));
     const current = structuredClone(state); mutate(current);
     assert.throws(() => service.commitPrepared(prep, {currentState: current, nextState: changed(current), saveState: saved}), /已变化/);
@@ -288,39 +292,39 @@ test('lock/epoch guard rejects after async preparation before any durable write'
 
 test('refresh failure and stale preview keep state and external file unchanged', async t => {
   const {service, file} = setup(t), state = classroom(); await service.open(state);
-  await edit(file, sheet => sheet.getCell('D2').value = '待应用'); const bytes = fs.readFileSync(file);
+  await edit(file, sheet => sheet.getCell('B2').value = '待应用'); const bytes = fs.readFileSync(file);
   const prepared = await service.prepareRefresh(state);
   assert.throws(() => service.commitRefresh(prepared, {currentState: state, saveState: () => {throw new Error('state writer unavailable');}}), /unavailable/);
   assert.equal(state.settings.scoreRules[0].label, '认真听讲'); assert.deepEqual(fs.readFileSync(file), bytes);
   const second = await service.prepareRefresh(state);
-  await edit(file, sheet => sheet.getCell('D2').value = '预览后更改');
+  await edit(file, sheet => sheet.getCell('B2').value = '预览后更改');
   assert.throws(() => service.commitRefresh(second, {currentState: state, saveState: saved}), /外部更改/);
 });
 
 test('configuration fingerprint is independent of active-panel position but preserves rule order', () => {
   const state = classroom(), other = state.panels.others[0];
   const {panels: ignored, ...prior} = structuredClone(state);
-  const switched = {...other.data, panels: {activeId: other.id, others: [{id: state.panels.activeId, data: prior}]}};
+  const switched = {...other.data, sharedScoreRules:structuredClone(state.sharedScoreRules), panels: {activeId: other.id, others: [{id: state.panels.activeId, data: prior}]}};
   assert.equal(signature(switched), signature(state));
-  switched.panels.others[0].data.settings.scoreRules.reverse();
+  Rules.setShared(switched,Rules.list(switched).reverse());
   assert.notEqual(signature(switched), signature(state));
 });
 
-test('signed growth and zero round-trip distinctly from blank and upgrade only imported v1 panels as needed', async t => {
+test('signed growth and zero round-trip distinctly from blank and upgrade every shared mirror', async t => {
   const {service, file} = setup(t), state = classroom();
   state.version = 1; state.panels.others[0].data.version = 1;
   await service.open(state);
-  await edit(file, sheet => {sheet.getCell('F2').value = -4; sheet.getCell('F3').value = 0;});
+  await edit(file, sheet => {sheet.getCell('D2').value = -4; sheet.getCell('D3').value = 0;});
   const preview = await service.prepareRefresh(state);
   const next = service.commitRefresh(preview, {currentState: state, saveState: saved});
-  assert.equal(next.version, 2); assert.equal(next.panels.others[0].data.version, 1);
+  assert.equal(next.version, 2); assert.equal(next.panels.others[0].data.version, 2);
   assert.equal(next.settings.scoreRules[0].growthDelta, -4);
   assert.equal(next.settings.scoreRules[1].growthDelta, 0);
-  assert.equal(Object.hasOwn(next.panels.others[0].data.settings.scoreRules[0], 'growthDelta'), false);
+  assert.equal(Object.hasOwn(next.panels.others[0].data.settings.scoreRules[2], 'growthDelta'), false);
   const roundTrip = await parseBytes(await buildBytes(next), next);
   assert.equal(roundTrip[0].rules[0].growthDelta, -4); assert.equal(roundTrip[0].rules[1].growthDelta, 0);
-  assert.equal(Object.hasOwn(roundTrip[1].rules[0], 'growthDelta'), false);
-  await edit(file, sheet => {sheet.getCell('F2').value = ''; sheet.getCell('F3').value = ''; sheet.getCell('F4').value = 8;});
+  assert.equal(Object.hasOwn(roundTrip[1].rules[2], 'growthDelta'), false);
+  await edit(file, sheet => {sheet.getCell('D2').value = ''; sheet.getCell('D3').value = ''; sheet.getCell('D4').value = 8;});
   const second = await service.prepareRefresh(state);
   const upgradedOther = service.commitRefresh(second, {currentState: state, saveState: saved});
   assert.equal(upgradedOther.version, 2); assert.equal(upgradedOther.panels.others[0].data.version, 2);
@@ -359,7 +363,7 @@ test('unwritable program directory gets a useful error without fallback, mkdir, 
     return target[key];
   }});
   const service = createScoreRuleWorkbook({resourceDirectory: directory, fileSystem});
-  await assert.rejects(service.open(classroom()), /可写文件夹/);
+  await assert.rejects(service.open(classroom()), /写入权限/);
   assert.deepEqual(fs.readdirSync(directory), []);
 });
 
@@ -368,7 +372,7 @@ test('failed first save removes the newly created workbook and failed refresh ne
   const token = await service.prepareSave(state, next);
   assert.throws(() => service.commitPrepared(token, {currentState: state, nextState: next, saveState: () => {throw new Error('no space');}}), /no space/);
   assert.equal(fs.existsSync(file), false); assert.equal(fs.existsSync(file + '.flower-pending.json'), false);
-  await service.open(state); await edit(file, sheet => sheet.getCell('E2').value = 4);
+  await service.open(state); await edit(file, sheet => sheet.getCell('C2').value = 4);
   const refresh = await service.prepareRefresh(state);
   assert.throws(() => service.commitRefresh(refresh, {currentState: state, saveState: () => {throw new Error('no space');}}), /no space/);
   await assert.rejects(service.prepareSave(state, next), /外部更改/);
@@ -377,12 +381,12 @@ test('failed first save removes the newly created workbook and failed refresh ne
 test('confirmed rebuild checks latest hash again and backup failure leaves both stores unchanged', async t => {
   let failBackup = false;
   const fileSystem = new Proxy(fs, {get(target, key) {
-    if (key === 'renameSync') return (...args) => {if (failBackup && path.basename(args[1]).startsWith('计分卡片-备份-')) throw new Error('backup write denied'); return target.renameSync(...args);};
+    if (key === 'renameSync') return (...args) => {if (failBackup && path.basename(args[1]).startsWith('配置-备份-')) throw new Error('backup write denied'); return target.renameSync(...args);};
     return target[key];
   }});
   const {service, file} = setup(t, {fileSystem}), state = classroom(); await service.open(state);
   const first = await service.prepareExport(state, {expectedHash: service.info().hash});
-  await edit(file, sheet => sheet.getCell('D2').value = '确认期间更改');
+  await edit(file, sheet => sheet.getCell('B2').value = '确认期间更改');
   assert.throws(() => service.commitExport(first, {currentState: state, saveState: saved}), /外部更改/);
   const baseline = fs.readFileSync(file);
   const second = await service.prepareExport(state, {expectedHash: service.info().hash}); failBackup = true;
@@ -408,7 +412,7 @@ test('real core validation accepts custom growth imported into a legacy classroo
   state.version = 1;
   const {service, file} = setup(t);
   await service.open(state);
-  await edit(file, sheet => {sheet.getCell('F2').value = -3; sheet.getCell('F3').value = 0;});
+  await edit(file, sheet => {sheet.getCell('D2').value = -3; sheet.getCell('D3').value = 0;});
   const preview = await service.prepareRefresh(state);
   const result = service.commitRefresh(preview, {currentState: state, saveState: Core.validateState});
   assert.equal(result.version, 2);
@@ -427,32 +431,32 @@ test('renamed classroom after restart uses stable panel IDs and refreshes displa
   renamed.revision++;
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory});
   const opened = await restarted.open(renamed);
-  assert.equal(opened.externalChanged, false); assert.match(opened.warning, /当前课堂/);
+  assert.equal(opened.externalChanged, true); assert.match(opened.warning, /不同|当前课堂/);
   const preview = await restarted.prepareRefresh(renamed);
   assert.match(preview.warning, /当前课堂/);
   const refreshed = restarted.commitRefresh(preview, {currentState: renamed, saveState: saved});
-  assert.equal(refreshed.settings.className, '一年级新班名');
-  assert.equal(refreshed.panels.others[0].data.settings.className, '二年级新班名');
+  assert.equal(refreshed.settings.className, '一班');
+  assert.equal(refreshed.panels.others[0].data.settings.className, '二班');
   assert.deepEqual(refreshed.settings.scoreRules, state.settings.scoreRules);
   assert.deepEqual(refreshed.panels.others[0].data.settings.scoreRules, state.panels.others[0].data.settings.scoreRules);
   const freshProcess = createScoreRuleWorkbook({resourceDirectory: directory});
   const next = changed(refreshed), prepared = await freshProcess.prepareSave(refreshed, next);
   freshProcess.commitPrepared(prepared, {currentState: refreshed, nextState: next, saveState: saved});
   const book = new ExcelJS.Workbook(); await book.xlsx.readFile(file);
-  assert.equal(book.getWorksheet('计分卡片').getCell('B2').value, '一年级新班名');
-  assert.equal(book.getWorksheet('计分卡片').getCell('B4').value, '二年级新班名');
+  assert.equal(book.getWorksheet('宠物进阶').getCell('B2').value, '一班');
+  assert.equal(book.getWorksheet('宠物进阶').getCell('B3').value, '二班');
 });
 
 test('renamed display names never hide real external rule changes or unknown/missing panel IDs', async t => {
   const {directory, service, file} = setup(t), state = classroom(); await service.open(state);
   const renamed = structuredClone(state); renamed.settings.className = '新班名';
-  await edit(file, sheet => {sheet.getCell('D2').value = '真正的外部规则修改'; sheet.getCell('B2').value = '另一个显示名称';});
+  await edit(file, (sheet,book) => {sheet.getCell('B2').value = '真正的外部规则修改'; book.getWorksheet('宠物进阶').getCell('B2').value = '另一个显示名称';});
   const restarted = createScoreRuleWorkbook({resourceDirectory: directory});
   await assert.rejects(restarted.prepareSave(renamed, changed(renamed)), /外部更改/);
   const preview = await restarted.prepareRefresh(renamed);
   const imported = restarted.commitRefresh(preview, {currentState: renamed, saveState: saved});
   assert.equal(imported.settings.scoreRules[0].label, '真正的外部规则修改');
-  assert.equal(imported.settings.className, '新班名');
-  await edit(file, sheet => sheet.getCell('A2').value = 'missing_panel');
+  assert.equal(imported.settings.className, '一班');
+  await edit(file, (_sheet,book) => book.getWorksheet('宠物进阶').getCell('A2').value = 'missing_panel');
   await assert.rejects(restarted.prepareRefresh(imported), /面板ID不存在/);
 });

@@ -1,4 +1,5 @@
 'use strict';
+const {mirroredLegacyPanel} = require('./shared-rule-fixtures.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -194,7 +195,7 @@ test('Pet ledger: all roster members count in group averages and zero groups sha
 
 test('Pet ledger: new blank and copied panels use six stages and independent accounts without migrating the source', () => {
   const old = validateState(legacyState()); let s = act(old, { type: 'panel.create', mode: 'copy', name: '合成新板' });
-  assert.deepEqual(s.settings.petRules.thresholds, ALL_FIVE); assert.ok(s.petAccounts.every(a => a.mode === 'independent' && a.lifetimeNetGrowth === 0)); assert.deepEqual(s.panels.others[0].data, old);
+  assert.deepEqual(s.settings.petRules.thresholds, ALL_FIVE); assert.ok(s.petAccounts.every(a => a.mode === 'independent' && a.lifetimeNetGrowth === 0)); assert.deepEqual(s.panels.others[0].data, mirroredLegacyPanel(old)); assert.deepEqual(s.sharedScoreRules.rules, s.panels.others[0].data.settings.scoreRules);
   s = enabled(s, Progress.DEFAULT_THRESHOLDS); s = act(s, { type: 'panel.create', mode: 'copy', name: '合成阈值副本' }); assert.deepEqual(s.settings.petRules.thresholds, Progress.DEFAULT_THRESHOLDS);
   const blank = act(old, { type: 'panel.create', mode: 'blank', name: '合成空板' }); assert.deepEqual(blank.petAccounts, []); assert.deepEqual(blank.settings.petRules.thresholds, ALL_FIVE);
 });
@@ -203,7 +204,7 @@ test('Pet ledger: backups round-trip all panels, photos, score effects, graduati
   let s = enabled(legacyState()), originalPanel = panelId(s); s = growth(s, 30); s = act(s, { type: 'pet.graduate', id: first(s).id }); s = act(s, { type: 'pet.adopt', id: first(s).id, pet: 'cat' }); s = growth(s, 4);
   const oldData = clone(s); s = act(s, { type: 'panel.create', mode: 'copy', name: '合成第二板' }); s = growth(s, 8); s = act(s, { type: 'pet.visibility', hideLateForms: true }); const secondId = panelId(s), secondData = clone(s);
   assert.deepEqual(validateState(clone(s)), s); s = act(s, { type: 'panel.switch', id: originalPanel });
-  for (const key of ['students', 'logs', 'petAccounts', 'petLogs', 'settings']) assert.deepEqual(s[key], oldData[key]);
+  for (const key of ['students', 'logs', 'petAccounts', 'petLogs', 'settings']) assert.deepEqual(s[key], mirroredLegacyPanel(oldData)[key]);
   s = act(s, { type: 'panel.switch', id: secondId }); for (const key of ['students', 'logs', 'petAccounts', 'petLogs', 'settings']) assert.deepEqual(s[key], secondData[key]);
   assert.deepEqual(validateState(clone(s)), s);
 });

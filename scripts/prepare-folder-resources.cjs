@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { FOLDER_NAME, DATA_FOLDER_NAME, SEED_MARKER, initialSeedMarker } = require('../src/avatar-library.cjs');
-const { CONFIG_FILE_NAME, DEFAULT_CONFIG_TEXT, parsePortableConfig } = require('../src/portable-config.cjs');
 const manifest = require('../assets/avatar-defaults/manifest.json');
 const DEFAULTS_DIRECTORY = path.resolve(__dirname, '../assets/avatar-defaults');
 const BACKUP_FOLDER_NAME = '备份';
@@ -54,15 +53,15 @@ function verifyFolderResources(appOutDir) {
     if (bytes.length !== file.bytes || sha256(bytes) !== file.sha256) throw new Error(`发行包头像与原始图片不一致：${file.fileName}`);
   }
   if (readPlainFile(path.join(appOutDir, SEED_MARKER)).toString('utf8') !== initialSeedMarker()) throw new Error('初始头像记录与发行包不一致');
-  const config = parsePortableConfig(readPlainFile(path.join(appOutDir, CONFIG_FILE_NAME)).toString('utf8'));
   const { FILE_NAME, isInitialBytes } = require('../src/score-rule-workbook.cjs');
   const workbook = readPlainFile(path.join(appOutDir, FILE_NAME));
-  if (!isInitialBytes(workbook)) throw new Error('初始计分卡片必须是尚未绑定课堂的原始默认工作簿');
+  if (FILE_NAME !== '配置.xlsx' || !isInitialBytes(workbook)) throw new Error('初始配置必须是尚未绑定课堂的原始统一工作簿');
   emptyDirectory(path.join(appOutDir, DATA_FOLDER_NAME));
   emptyDirectory(path.join(appOutDir, BACKUP_FOLDER_NAME));
   const rootFiles = fs.readdirSync(appOutDir).sort();
+  if (rootFiles.includes('配置.txt') || rootFiles.includes('计分卡片.xlsx')) throw new Error('全新发行包只提供配置.xlsx，请使用干净输出目录');
   if (rootFiles.some(file => /\.md$/i.test(file))) throw new Error('发行包根目录不能包含面向用户的 Markdown 说明文件');
-  return { directory: appOutDir, avatarCount: actual.length, workbookSha256: sha256(workbook), config, rootFiles };
+  return { directory: appOutDir, avatarCount: actual.length, workbookSha256: sha256(workbook), configurationFile: FILE_NAME, rootFiles };
 }
 
 async function prepareFolderResources({ appOutDir } = {}) {
@@ -80,7 +79,6 @@ async function prepareFolderResources({ appOutDir } = {}) {
     if (bytes.length !== file.bytes || sha256(bytes) !== file.sha256) throw new Error(`默认头像源文件校验失败：${file.fileName}`);
     writeInitialFile(path.join(directory, file.fileName), bytes);
   }
-  writeInitialFile(path.join(appOutDir, CONFIG_FILE_NAME), DEFAULT_CONFIG_TEXT);
   const { FILE_NAME, buildInitialBytes } = require('../src/score-rule-workbook.cjs');
   writeInitialFile(path.join(appOutDir, FILE_NAME), await buildInitialBytes());
   // The complete record belongs in the archive already. Deleting an image

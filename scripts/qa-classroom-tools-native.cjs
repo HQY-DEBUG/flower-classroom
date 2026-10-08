@@ -49,6 +49,7 @@ if (!process.versions.electron) {
   }
   const mainEntry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs'));
   require('./package-boundary.cjs')(mainEntry,path.join(out,'dependency-boundary-'+phase+'.json'));require(mainEntry);
+  const appRequire=require('node:module').createRequire(mainEntry),configuration=appRequire('./configuration-model.js'),rules=appRequire('./score-rules.js'),workbook=appRequire('./score-rule-workbook.cjs'),{assertRestoredState,verifyRestoredWorkbook}=require('./qa-restore-fixture.cjs');
   app.whenReady().then(async () => {
     await until(async () => {
       main = BrowserWindow.getAllWindows().find(w => w.flowerRole === 'main');
@@ -156,9 +157,9 @@ if (!process.versions.electron) {
         const saved = await state(), backup = path.join(out, 'synthetic-full-backup.json');
         dialog.showSaveDialog = async () => ({ canceled: false, filePath: backup });
         await js('classroom.file({command:"backup"})'); assert.deepEqual(JSON.parse(fs.readFileSync(backup, 'utf8')), saved);
-        await toolAct('classroom.vote.adjust', { id: ids[0], delta: 1 });
+        await toolAct('classroom.vote.adjust', { id: ids[0], delta: 1 });const beforeRestore=await js('classroom.get()');
         await js(`classroom.file({command:'restore-apply',state:${JSON.stringify(saved)}})`);
-        const restored = await state(); assert.deepEqual(restored.classroomTools, saved.classroomTools); assert.deepEqual(restored.panels, saved.panels);
+        const restored = await state();assertRestoredState(restored,saved,beforeRestore.state,{configuration,rules});assert.equal((await js('classroom.get()')).restoreGeneration,beforeRestore.restoreGeneration+1);await verifyRestoredWorkbook(restored,r=>js('classroom.file('+JSON.stringify(r)+')'),workbook,configuration);assert.deepEqual(restored.classroomTools, saved.classroomTools);
         assert.deepEqual(restored.students, baseline.students); assert.deepEqual(restored.logs, baseline.logs);
         fs.writeFileSync(path.join(out, 'expected-restart.json'), JSON.stringify(restored));
       });

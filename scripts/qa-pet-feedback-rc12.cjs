@@ -1,13 +1,14 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Focused RC12 renderer regressions. All state and names are synthetic.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.FLOWER_PET_FEEDBACK_OUT||path.join(root,'artifacts/rc12/pet-fixes/focused-source'));
 fs.mkdirSync(out,{recursive:true});
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-pet-feedback-rc12-'));
- const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:120000,maxBuffer:8*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,XDG_CACHE_HOME:'/tmp/flower-pet-feedback-rc12-cache'}});
+ const fixtureLayout=qaChild.fixture('flower-pet-feedback-rc12-'),data=fixtureLayout.data;qaChild.prepare(out,['results.json','child-process.json','fatal.json']);
+ const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:120000,maxBuffer:8*1024*1024,env:{...process.env,FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,XDG_CACHE_HOME:'/tmp/flower-pet-feedback-rc12-cache',...fixtureLayout.env}});
  fs.writeFileSync(path.join(out,'run.log'),(run.stdout||'')+(run.stderr||''));
- console.log((run.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|SUMMARY|FATAL)_PF/.test(line)).join('\n'));process.exitCode=run.status===0?0:1;
+ console.log((run.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|SUMMARY|FATAL)_PF/.test(line)).join('\n'));const result=qaChild.capture(run,path.join(out,'results.json'),'flows');fs.writeFileSync(path.join(out,'child-process.json'),JSON.stringify(result,null,2));process.exitCode=result.exitCode;
 }else{
  const {app,BrowserWindow}=require('electron');app.disableHardwareAcceleration();
  const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs')),src=path.dirname(entry),Core=require(path.join(src,'core.cjs')),P=require(path.join(src,'pet-progress.js')),Art=require(path.join(src,'pet-art.js'));
@@ -24,7 +25,7 @@ if(!process.versions.electron){
  async function closeGeometry(name){await wait(450);const result=await js('(()=>{const card=document.querySelector("#pet-feedback .pet-celebration"),content=card.querySelector(".celebration-content"),close=card.querySelector(".celebration-close");content.scrollTop=content.scrollHeight;const r=close.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height,viewportWidth:innerWidth,viewportHeight:innerHeight,outerScroll:card.scrollTop,contentScroll:content.scrollTop,horizontalOverflow:content.scrollWidth>content.clientWidth+1}})()');assert.ok(result.top>=0&&result.bottom<=result.viewportHeight&&result.left>=0&&result.right<=result.viewportWidth);assert.ok(result.width>=44&&result.height>=44);assert.equal(result.outerScroll,0);assert.equal(result.horizontalOverflow,false);assert.ok(result.contentScroll>0);await shot(name);return result;}
  fs.writeFileSync(path.join(process.env.FLOWER_DATA_DIR,'classroom-v2.json'),JSON.stringify(fixture()));
  app.on('web-contents-created',(_event,contents)=>contents.on('console-message',(event,level,message)=>{if(event.level==='error'||level>=3)errors.push(event.message??message);}));
- require(entry);const deadline=setTimeout(()=>app.exit(3),110000);
+ if(!qaChild.load(entry,app))return;const deadline=setTimeout(()=>app.exit(3),110000);
  app.whenReady().then(async()=>{try{
   await until(()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();},'main');await until(()=>js('!!state'),'state');main.setContentSize(1200,820);
   await js('page="pets";render();classroom.window({command:"open",role:"pet"})');await until(()=>{other=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='pet');return other&&!other.webContents.isLoading();},'other window');await until(()=>js('!!state',other),'other state');

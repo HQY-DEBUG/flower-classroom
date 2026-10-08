@@ -1,4 +1,5 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Real Electron dialogs, renderer confirmation, IPC and saved JSON; all fixtures are synthetic.
 // RC14 uses 120 bundled avatars in an isolated EXE-side 头像 folder; prior import,
 // snapshot, concurrency, backup and restart assertions remain in place.
@@ -7,14 +8,14 @@ const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.FLOWER_AVAT
 const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs')),phase=process.env.FLOWER_AVATAR_IMPORT_PHASE||'flows';
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');fs.mkdirSync(out,{recursive:true});
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-avatar-import-rc11-')),runs=[];
- const resources=path.join(data,'synthetic-program');fs.mkdirSync(resources);
+ const fixtureLayout=qaChild.fixture('flower-avatar-import-rc11-'),data=fixtureLayout.data,resources=fixtureLayout.root,runs=[];
+ qaChild.prepare(out,['results.json','flows.json','restart.json','expected-restart.json']);
  for(const nextPhase of ['flows','restart']){
-  const r=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:200000,maxBuffer:8*1024*1024,env:{...process.env,XDG_CACHE_HOME:process.env.XDG_CACHE_HOME||'/tmp/flower-rc11-cache',FLOWER_DATA_DIR:data,FLOWER_EXTERNAL_RESOURCE_DIR:resources,FLOWER_HEADLESS_TEST:'1',FLOWER_AVATAR_IMPORT_PHASE:nextPhase}});
-  fs.writeFileSync(path.join(out,nextPhase+'.log'),(r.stdout||'')+(r.stderr||''));const report=path.join(out,nextPhase+'.json');runs.push({phase:nextPhase,exitCode:r.status,error:r.error?.message,report:fs.existsSync(report)?JSON.parse(fs.readFileSync(report)):null});console.log((r.stdout||'').split('\n').filter(v=>/^(PASS|FAIL|FATAL|SUMMARY)_AVATAR_IMPORT/.test(v)).join('\n'));
+  const r=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:200000,maxBuffer:8*1024*1024,env:{...process.env,XDG_CACHE_HOME:process.env.XDG_CACHE_HOME||'/tmp/flower-rc11-cache',FLOWER_DATA_DIR:data,FLOWER_EXTERNAL_RESOURCE_DIR:resources,FLOWER_HEADLESS_TEST:'1',FLOWER_AVATAR_IMPORT_PHASE:nextPhase,...fixtureLayout.env}});
+  fs.writeFileSync(path.join(out,nextPhase+'.log'),(r.stdout||'')+(r.stderr||''));const report=path.join(out,nextPhase+'.json'),result=qaChild.capture(r,report,nextPhase);runs.push(result);console.log((r.stdout||'').split('\n').filter(v=>/^(PASS|FAIL|FATAL|SUMMARY)_AVATAR_IMPORT/.test(v)).join('\n'));if(result.exitCode!==0)break;
  }
  const archive=entry.includes('.asar/')?entry.slice(0,entry.indexOf('.asar/')+5):null;
- fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({entry,archive,archiveSha256:archive?sha(fs.readFileSync(archive)):null,harnessSha256:sha(fs.readFileSync(__filename)),data,syntheticOnly:true,windowsExecuted:false,runs},null,2));process.exitCode=runs.some(r=>r.exitCode!==0)?1:0;
+ fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({entry,archive,archiveSha256:archive?sha(fs.readFileSync(archive)):null,harnessSha256:sha(fs.readFileSync(__filename)),data,syntheticOnly:true,windowsExecuted:false,runs},null,2));process.exitCode=runs.length!==2||runs.some(r=>r.exitCode!==0)?1:0;
 }else{
  const {app,BrowserWindow,dialog,ipcMain,nativeImage}=require('electron');app.disableHardwareAcceleration();require('./package-boundary.cjs')(entry,path.join(out,'dependency-boundary-'+phase+'.json'));
  const Core=require(path.join(path.dirname(entry),'core.cjs')),ExcelJS=require('exceljs'),{ensureToolControl,visibleControl,nativeClick}=require('./qa-tool-control.cjs');
@@ -34,7 +35,7 @@ if(!process.versions.electron){
  async function check(name,fn){try{checks.push({name,status:'passed',detail:await fn()});console.log('PASS_AVATAR_IMPORT',name);}catch(e){checks.push({name,status:'failed',error:e.stack,actual:e.actual,expected:e.expected});console.log('FAIL_AVATAR_IMPORT',name,e.message);try{await shot('failure-'+checks.length);}catch{}}report();}
  const originalHandle=ipcMain.handle.bind(ipcMain);ipcMain.handle=function(channel,handler){return originalHandle(channel,channel==='file:command'?async(event,request)=>{const result=await handler(event,request);requests.push({command:request.command,mode:request.mode,rows:request.rows?.length,expectedRevision:request.expectedRevision});if(request.command==='import-preview')lastPreview=result;return result;}:handler);};
  app.on('web-contents-created',(_event,w)=>w.on('console-message',(event,level,message)=>{if(event.level==='error'||level>=3)errors.push(event.message??message);}));
- require(entry);const deadline=setTimeout(()=>{report();app.exit(3);},190000);
+ if(!qaChild.load(entry,app))return;const deadline=setTimeout(()=>{report();app.exit(3);},190000);
  app.whenReady().then(async()=>{try{
   await until(()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();});
   // Async workbook bootstrap registers native IPC before creating the main window.

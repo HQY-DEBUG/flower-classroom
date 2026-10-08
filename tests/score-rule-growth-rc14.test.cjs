@@ -125,7 +125,8 @@ test('RC14 reason growth: saved values upgrade to v2 and cannot hide in downgrad
   delete withLog.settings.scoreRules; withLog.version = 1;
   assert.throws(() => Core.validateState(withLog), /新版存档/);
   const untouched = save(Core.createInitialState(), Rules.list());
-  assert.equal(untouched.version, 1);
+  assert.equal(untouched.version, 2);
+  assert.deepEqual(untouched.sharedScoreRules.rules, Rules.list());
 });
 
 test('RC14 reason growth: removing the new history field cannot weaken old log validation', () => {
@@ -322,19 +323,20 @@ test('RC14 reason growth: zero staged rule is non-award and stale cycle/panel re
   rejectsWithoutChange(state, { ...ruleAction(state), panelId: 'panel_old_synthetic' }, /面板已切换/);
 });
 
-test('RC14 reason growth: full panel copy and backup preserve independent custom rules and historical amounts', () => {
+test('RC18 reason growth: full panel copy and backup share custom rules while preserving independent historical amounts', () => {
   let state = configured({ label: '合成第一面板原因', growthDelta: 6 }, enable(Core.createInitialState()));
   state = act(state, ruleAction(state, { custom: true }));
   const oldId = Core.panelId(state), oldRules = clone(rules(state)), oldLog = clone(state.logs[0]);
   state = act(state, { type: 'panel.create', mode: 'full', name: '合成完整副本' });
   assert.equal(rules(state)[0].growthDelta, 6);
-  assert.notEqual(rules(state)[0].id, oldRules[0].id);
+  assert.equal(rules(state)[0].id, oldRules[0].id);
   assert.equal(state.logs[0].growthDelta, 6);
   state = configured({ growthDelta: 2 }, state);
   state = Core.validateState(clone(state));
   state = act(state, { type: 'panel.switch', id: oldId });
-  assert.deepEqual(rules(state), oldRules);
+  assert.deepEqual(rules(state), oldRules.map((rule, index) => index ? rule : {...rule, growthDelta: 2}));
   assert.deepEqual(state.logs[0], oldLog);
+  assert.equal(state.logs[0].growthDelta, 6);
 });
 
 test('RC14 reason growth: response-loss receipt replays once after rule edits and fingerprints growth snapshots', () => {

@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { CONFIG_FILE_NAME, DEFAULT_CONFIG_TEXT, readPortableConfig } = require('./portable-config.cjs');
+const { DEFAULT_CONFIG } = require('./portable-config.cjs');
+const CONFIG_FILE_NAME = '配置.xlsx';
 
 function folderError(code, message, target, cause) {
   const error = new Error(message, cause ? { cause } : undefined);
@@ -34,7 +35,7 @@ function resolveFolderLayout({ execPath = process.execPath, env = process.env, p
   const dataDirectory = synthetic && env.FLOWER_DATA_DIR ? absolute(env.FLOWER_DATA_DIR, '测试数据目录') : paths.join(root, '数据');
   const runtimeDirectory = paths.join(dataDirectory, '运行缓存');
   return Object.freeze({
-    root, resourceDirectory: root, configFile: paths.join(root, CONFIG_FILE_NAME),
+    root, resourceDirectory: root, configFile: paths.join(root, CONFIG_FILE_NAME), legacyConfigFile: paths.join(root, '配置.txt'),
     dataDirectory, backupDirectory: paths.join(root, '备份'), runtimeDirectory,
     sessionDirectory: paths.join(runtimeDirectory, '会话'), cacheDirectory: paths.join(runtimeDirectory, '缓存'),
     logsDirectory: paths.join(runtimeDirectory, '日志'), crashDirectory: paths.join(runtimeDirectory, '崩溃'),
@@ -121,20 +122,13 @@ function bootstrapFolderApp({ app, env = process.env, fs: disk = fs, ...options 
     }
     if (app.isReady()) throw folderError('BOOTSTRAP_TOO_LATE', '程序目录必须在启动窗口前配置，请关闭程序后重试');
     layout = resolveFolderLayout({ isPackaged: app.isPackaged, ...options, env });
-    let config;
-    try { config = readPortableConfig(layout.configFile, { fs: disk }); }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
     ensureLayout(layout, disk);
-    if (!config) {
-      try { disk.writeFileSync(layout.configFile, DEFAULT_CONFIG_TEXT, { encoding: 'utf8', flag: 'wx', mode: 0o600 }); }
-      catch (error) {
-        if (error.code !== 'EEXIST') throw folderError('CONFIG_UNWRITABLE', '配置.txt 无法创建，请检查程序文件夹的写入权限', layout.configFile, error);
-      }
-      config = readPortableConfig(layout.configFile, { fs: disk });
-    }
+    // The synchronous bootstrap owns paths only. Configuration.xlsx is handled
+    // as a whole, asynchronously, before the first window is created. Main uses
+    // the classroom's last validated appConfig; old text is migration input only.
     try { configureElectronPaths(app, layout, env); }
     catch (error) { throw folderError('ELECTRON_PATH_FAILED', '程序无法使用本文件夹保存运行文件，请保留整个文件夹并重新启动', layout.root, error); }
-    return { ok: true, layout, config };
+    return { ok: true, layout, config: { ...DEFAULT_CONFIG } };
   } catch (error) {
     const detail = {
       code: error.code || 'FOLDER_STARTUP_FAILED', title: '花伴课堂无法启动',

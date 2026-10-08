@@ -1,12 +1,13 @@
 'use strict';
+const qaChild=require('./qa-feature-child.cjs');
 // Real Electron, IPC, transactional storage and rendered art. Synthetic data only.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),out=path.resolve(process.env.FLOWER_EGG_OUT||path.join(root,'artifacts/rc11/egg-lifecycle'));
 fs.mkdirSync(out,{recursive:true});
 if(!process.versions.electron){
- const data=fs.mkdtempSync(path.join(os.tmpdir(),'flower-egg-rc11-'));
- const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:150000,maxBuffer:8*1024*1024,env:{...process.env,XDG_CACHE_HOME:process.env.XDG_CACHE_HOME||'/tmp/flower-rc11-cache',FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data}});
- fs.writeFileSync(path.join(out,'run.log'),(run.stdout||'')+(run.stderr||''));console.log((run.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|SUMMARY|FATAL)_EGG/.test(line)).join('\n'));process.exitCode=run.status===0?0:1;
+ const fixtureLayout=qaChild.fixture('flower-egg-rc11-'),data=fixtureLayout.data;qaChild.prepare(out,['results.json','child-process.json','fatal.json']);
+ const run=require('node:child_process').spawnSync(require('electron'),['--no-sandbox','--ozone-platform=headless','--disable-gpu',__filename],{cwd:root,encoding:'utf8',timeout:150000,maxBuffer:8*1024*1024,env:{...process.env,XDG_CACHE_HOME:process.env.XDG_CACHE_HOME||'/tmp/flower-rc11-cache',FLOWER_HEADLESS_TEST:'1',FLOWER_DATA_DIR:data,...fixtureLayout.env}});
+ fs.writeFileSync(path.join(out,'run.log'),(run.stdout||'')+(run.stderr||''));console.log((run.stdout||'').split('\n').filter(line=>/^(PASS|FAIL|SUMMARY|FATAL)_EGG/.test(line)).join('\n'));const result=qaChild.capture(run,path.join(out,'results.json'),'flows');fs.writeFileSync(path.join(out,'child-process.json'),JSON.stringify(result,null,2));process.exitCode=result.exitCode;
 }else{
  const {app,BrowserWindow,dialog,nativeImage}=require('electron');app.disableHardwareAcceleration();
  const entry=path.resolve(process.env.FLOWER_PACKAGE_MAIN||path.join(root,'src/main.cjs')),src=path.dirname(entry),Core=require(path.join(src,'core.cjs')),Progress=require(path.join(src,'pet-progress.js')),Art=require(path.join(src,'pet-art.js'));
@@ -24,7 +25,7 @@ if(!process.versions.electron){
  async function check(name,fn){try{const detail=await fn();checks.push({name,status:'passed',detail});console.log('PASS_EGG',name);}catch(e){checks.push({name,status:'failed',error:e.stack});console.log('FAIL_EGG',name,e.stack);try{await shot('failure-'+checks.length);}catch{}}}
  async function openRole(role,width,height){await js('classroom.window('+JSON.stringify({command:'open',role})+')');let w;await until(()=>{w=BrowserWindow.getAllWindows().find(w=>w.flowerRole===role);return w&&!w.webContents.isLoading();});await until(()=>js('!!state',w));w.setContentSize(width,height);await wait(80);return w;}
  app.on('web-contents-created',(_e,w)=>{w.on('console-message',(event,level,message)=>{if(event.level==='error'||level>=3)errors.push(event.message??message);});});
- require(entry);const deadline=setTimeout(()=>app.exit(3),140000);
+ if(!qaChild.load(entry,app))return;const deadline=setTimeout(()=>app.exit(3),140000);
  app.whenReady().then(async()=>{try{
   await until(()=>{main=BrowserWindow.getAllWindows().find(w=>w.flowerRole==='main');return main&&!main.webContents.isLoading();});await until(()=>js('!!state'));main.setContentSize(1280,900);await click('#nav-pets');
   await check('All 40 species share one egg at zero; old unmarked zero-growth pet keeps its original art',async()=>{const state=await get();for(const id of pets.map(p=>'egg_'+p)){const p=Progress.profile(state,id);assert.equal(p.isEgg,true);assert.equal(p.level,1);assert.equal(p.shape,1);}assert.equal(Progress.profile(state,'legacy_zero').isEgg,false);const arts=await js('[...document.querySelectorAll(".is-egg .pet-scene svg")].map(e=>e.outerHTML)');assert.equal(arts.length,40);assert.equal(new Set(arts).size,1);assert.ok(await has('[data-pet-student=legacy_zero] svg[data-pet=fox]'));await shot('01-common-eggs-all-species');await click('[data-do=pet-detail][data-id=egg_owl]');assert.ok(await has('.pet-big-stage svg[data-pet-stage=egg]'));await shot('02-egg-before-first-growth');return {species:pets.length,identicalEggArt:true,numericLevel:1};});

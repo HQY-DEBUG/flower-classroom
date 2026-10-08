@@ -11,7 +11,9 @@
   const doc = () => root.document;
   const widget = () => doc()?.querySelector('.dt-draw');
   const rows = new Map();
-  let activeKey = '', uniform = '1', busy = false, animating = false, generation = 0;
+  let activeKey = '', uniform = '1', busy = false, animating = false, generation = 0, controls = null, controlsPanel = '', controlsKey = '';
+  const panelId=state=>state.panels?.activeId||'panel_default';
+  const defaultsFor=state=>root.ConfigurationModel?.toolDefaults(state)||{drawScope:state.settings.toolDefaults?.drawScope||state.draw.scope||'students',drawMode:state.settings.toolDefaults?.drawMode||state.draw.mode||'cycle',drawCount:state.settings.toolDefaults?.drawCount||1};
   const keyFor = state => OrganizationTools.drawKey(state);
   const candidates = (state,scope=state.draw.scope||'students') => scope==='groups'?[...new Set(state.students.map(v=>v.group))]:state.students.map(v=>v.id);
   function pickedStudents(state) {
@@ -27,12 +29,13 @@
   function capture() {
     const el = widget();
     if (!el || el.dataset.drawKey !== activeKey || el.dataset.drawGeneration !== String(generation)) return;
+    const scope=el.querySelector('#draw-target')?.value,mode=el.querySelector('#draw-mode')?.value,count=el.querySelector('#draw-count')?.value;if(scope&&mode&&count!==undefined)controls={scope,mode,count};
     for (const input of el.querySelectorAll('[data-draw-score]')) rows.set(input.dataset.drawScore, input.value);
     const all = el.querySelector('#draw-uniform-delta');
     if (all) uniform = all.value;
   }
   // Call before replacing a board. Stale DOM cannot refill a cleared draft.
-  function reset() { rows.clear(); uniform = '1'; activeKey = ''; generation++; }
+  function reset() { rows.clear(); uniform = '1'; activeKey = ''; controls=null;controlsPanel='';controlsKey='';generation++; }
   // Also call after a successful new draw: repeat mode can return the same IDs.
   function resetResults() { capture(); rows.clear(); activeKey = ''; generation++; }
   function view(state, options = {}) {
@@ -43,14 +46,18 @@
     const esc = options.esc || escape;
     const avatar = options.avatar || (student => `<span class="avatar initials">${esc(student.name.slice(-2))}</span>`);
     const petSvg = options.petSvg || (() => '<span class="dt-empty-star" aria-hidden="true">✦</span>');
-    const picked = pickedStudents(state), locked = busy || animating, disabled = locked ? ' disabled' : '';
+    const picked = pickedStudents(state),saved=defaultsFor(state),fresh=!widget(),panel=panelId(state);
+    if(!controls||controlsPanel!==panel||(fresh&&!picked.length)){controls={scope:picked.length?(state.draw.scope||'students'):saved.drawScope,mode:picked.length?state.draw.mode:saved.drawMode,count:Math.max(1,Math.min(saved.drawCount,candidates(state,picked.length?(state.draw.scope||'students'):saved.drawScope).length||1))};}
+    else if(controlsKey&&controlsKey!==key){controls={scope:state.draw.scope||'students',mode:state.draw.mode,count:saved.drawCount};}
+    controlsPanel=panel;controlsKey=key;
+    const nextGroups=controls.scope==='groups',locked = busy || animating, disabled = locked ? ' disabled' : '';
     const isGroups=state.draw.scope==='groups',unit=isGroups?'组':'人',groupRows=state.draw.groups||[];
-    const maxCount = Math.max(1, Math.min(candidates(state).length, 20));
+    const maxCount = Math.max(1, Math.min(candidates(state,controls.scope).length, 20));
     const remaining = state.draw.mode === 'repeat' ? '允许跨次重复' : state.draw.bag.length ? `本轮待抽：${state.draw.bag.length} ${unit}` : state.draw.round ? '本轮已结束 · 下次开始新一轮' : `本轮待抽：${candidates(state).length} ${unit}`;
     const resultRows=isGroups?groupRows.map((group,index)=>`<section class="dt-group-result" role="listitem" data-draw-group="${esc(group.group)}"><div class="dt-group-result-title"><strong>${esc(group.group)}</strong><span>${group.ids.length} 位同学</span><label class="dt-score-field"><span class="dt-sr-only">给${esc(group.group)}每位成员加分</span><input id="draw-group-score-${index}" data-draw-score="${esc('group:'+group.group)}" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="每人加分" value="${esc(rows.get('group:'+group.group)||'')}"${disabled}></label><button class="button dt-confirm" data-do="draw-reward-group" data-group="${esc(group.group)}"${disabled}>全组确认</button></div><div class="dt-member-chips">${group.ids.map(id=>{const student=picked.find(v=>v.id===id);return `<span>${avatar(student)}${esc(student.name)}</span>`;}).join('')}</div></section>`).join(''):picked.map((student, index) => `<div class="draw-person dt-result-row" role="listitem" data-draw-student="${esc(student.id)}">${avatar(student)}<h3 title="${esc(student.name)}">${esc(student.name)}</h3><span class="dt-group" title="${esc(student.group)}">${esc(student.group || '未分组')}</span><label class="dt-score-field"><span class="dt-sr-only">给${esc(student.name)}加分</span><input id="draw-score-${index}" data-draw-score="${esc(student.id)}" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="输入加分数" value="${esc(rows.get(student.id) || '')}"${disabled}></label><button class="button dt-confirm" data-do="draw-reward" data-id="${esc(student.id)}" aria-label="确认给${esc(student.name)}加分"${disabled}>确认</button></div>`).join('');
     return `<section class="draw-view dt-draw" data-draw-key="${esc(key)}" data-draw-generation="${generation}" aria-label="随机点名" aria-busy="${locked}">
       <div class="dt-heading"><div><div class="pill">✦ 每个声音，都值得被听见</div><h2>${picked.length ? '这些幸运星请起立' : '下一位闪亮的同学是谁？'}</h2></div><p class="muted">${state.draw.mode === 'cycle' ? '一轮不重复 · 每位同学都有机会' : '允许跨次重复 · 每次多人抽选仍不重复'}</p></div>
-      <div class="draw-controls dt-controls"><select id="draw-target" aria-label="抽取对象"${disabled}><option value="students" ${isGroups?'':'selected'}>抽学生</option><option value="groups" ${isGroups?'selected':''}>抽小组</option></select><label class="dt-count-label" for="draw-count">抽选${isGroups?'组数':'人数'}</label><div class="dt-stepper"><button class="button" data-do="draw-count-minus" aria-label="减少抽选人数"${disabled}>−</button><input id="draw-count" type="number" inputmode="numeric" min="1" max="${maxCount}" step="1" value="1" aria-label="抽选${isGroups?'组数':'人数'}"${disabled}><button class="button" data-do="draw-count-plus" aria-label="增加抽选人数"${disabled}>＋</button></div><select id="draw-mode" aria-label="点名重复策略"${disabled}><option value="cycle" ${state.draw.mode === 'cycle' ? 'selected' : ''}>一轮不重复</option><option value="repeat" ${state.draw.mode === 'repeat' ? 'selected' : ''}>允许跨次重复</option></select><button class="button primary large-button" data-do="draw"${locked || !state.students.length ? ' disabled' : ''}>${animating ? '正在抽选…' : picked.length ? '✦ 继续抽取' : '✦ 开始点名'}</button><button class="button" data-do="draw-reset"${disabled}>重开一轮</button></div>
+      <div class="draw-controls dt-controls"><select id="draw-target" aria-label="抽取对象"${disabled}><option value="students" ${nextGroups?'':'selected'}>抽学生</option><option value="groups" ${nextGroups?'selected':''}>抽小组</option></select><label class="dt-count-label" for="draw-count">抽选${nextGroups?'组数':'人数'}</label><div class="dt-stepper"><button class="button" data-do="draw-count-minus" aria-label="减少抽选人数"${disabled}>−</button><input id="draw-count" type="number" inputmode="numeric" min="1" max="${maxCount}" step="1" value="${esc(controls.count)}" aria-label="抽选${nextGroups?'组数':'人数'}"${disabled}><button class="button" data-do="draw-count-plus" aria-label="增加抽选人数"${disabled}>＋</button></div><select id="draw-mode" aria-label="点名重复策略"${disabled}><option value="cycle" ${controls.mode === 'cycle' ? 'selected' : ''}>一轮不重复</option><option value="repeat" ${controls.mode === 'repeat' ? 'selected' : ''}>允许跨次重复</option></select><button class="button primary large-button" data-do="draw"${locked || !state.students.length ? ' disabled' : ''}>${animating ? '正在抽选…' : picked.length ? '✦ 继续抽取' : '✦ 开始点名'}</button><button class="button" data-do="draw-reset"${disabled}>重开一轮</button><button class="button" data-do="draw-use-defaults"${disabled}>使用默认设置</button></div><p class="dt-default-note">默认：${saved.drawScope==='groups'?'抽小组':'抽学生'} ${saved.drawCount} ${saved.drawScope==='groups'?'组':'人'} · ${saved.drawMode==='cycle'?'本轮不重复':'允许重复'}。载入默认设置保留当前结果，下一次抽取时使用</p>
       <div class="draw-stage dt-stage ${animating ? 'shuffling' : ''}">${picked.length ? `<div class="dt-result-heading"><strong>点名结果 <span>${isGroups?`${groupRows.length} 组 · `:''}${picked.length} 位同学</span></strong><button class="button dt-batch" data-do="draw-reward-batch"${disabled}>批量确认</button></div><div class="dt-result-list" role="list" aria-label="本次点名结果">${resultRows}</div><div class="dt-uniform"><label for="draw-uniform-delta">统一加分 <small>为本次 ${picked.length} 位同学各加</small></label><input id="draw-uniform-delta" type="number" inputmode="numeric" min="1" max="100" step="1" value="${esc(uniform)}" aria-label="统一加分数"${disabled}><span>分</span><button class="button primary" data-do="reward-picked" aria-label="确认统一加分"${disabled}>确认</button></div>` : `<div class="draw-placeholder">${petSvg('fox', true)}<h3>${state.students.length ? '准备好，开启今天的小惊喜' : '请先添加学生，再开始点名'}</h3></div>`}</div>
       ${picked.length ? `<p class="dt-reward-note">${isGroups?'按组填写每位成员的分数后可批量确认':'逐人填写分数后可批量确认'}，空白行会跳过 · 奖励计入普通积分，可在积分记录撤销</p>` : ''}
       <div class="draw-footer dt-footer"><span>${remaining}</span>${(options.role || 'main') === 'main' ? '<button class="text-button" data-do="open-draw">打开独立点名窗口 ↗</button>' : ''}</div>
@@ -70,16 +77,17 @@
     for (const input of widget()?.querySelectorAll('[data-draw-score]') || []) if (ids.includes(input.dataset.drawScore)) input.value = '';
   }
   async function handle(action, el, context) {
-    const supported = ['draw-count-minus', 'draw-count-plus', 'draw-reward', 'draw-reward-group', 'draw-reward-batch', 'draw-reward-all', 'reward-picked'];
+    const supported = ['draw-use-defaults', 'draw-count-minus', 'draw-count-plus', 'draw-reward', 'draw-reward-group', 'draw-reward-batch', 'draw-reward-all', 'reward-picked'];
     // These remain owned by app.js; prevent a new draw during an IPC reward.
     if (action === 'draw' || action === 'draw-reset') return busy;
     if (!supported.includes(action)) return false;
     if (busy || animating) return true;
     const { state, act, toast = () => {}, render = () => {} } = context;
+    if(action==='draw-use-defaults'){const saved=defaultsFor(state);controls={scope:saved.drawScope,mode:saved.drawMode,count:Math.max(1,Math.min(saved.drawCount,candidates(state,saved.drawScope).length||1))};const values={'draw-target':controls.scope,'draw-mode':controls.mode,'draw-count':controls.count};for(const [id,value]of Object.entries(values)){const field=doc()?.getElementById(id);if(field)field.value=String(value);}render();toast('默认设置已载入，下一次抽取时使用；当前结果保留');return true;}
     if (action === 'draw-count-minus' || action === 'draw-count-plus') {
       const input = doc()?.getElementById('draw-count');
       if (!input) return true;
-      const maximum = Math.max(1, Math.min(20, candidates(state).length));
+      const maximum = Math.max(1, Math.min(20, candidates(state,doc()?.getElementById('draw-target')?.value||state.draw.scope||'students').length));
       const old = Number(input.value), base = Number.isInteger(old) && old >= 1 ? old : 1;
       input.value = String(Math.max(1, Math.min(maximum, base + (action === 'draw-count-plus' ? 1 : -1))));
       for (const event of ['input', 'change']) input.dispatchEvent(new root.Event(event, { bubbles: true }));
